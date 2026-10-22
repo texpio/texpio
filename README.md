@@ -10,6 +10,7 @@ The user selected **Texpio** on 23 October 2026. This workspace currently contai
 | --- | --- |
 | [Feature plan](docs/feature-plan.md) | Audience, priorities, workflows, architecture options, compatibility, and quality targets |
 | [Business plan](docs/business-plan.md) | Positioning, open-source model, paid-sync experiments, unit economics, and validation milestones |
+| [Competitor analysis](docs/competitor-analysis.md) | Saved competitors, initial product/SEO observations, and future research ideas |
 | [Phased PRD summaries](docs/phased-prds.md) | P0 feasibility → P1 Windows MVP → P2 workflows/macOS → P3 personal sync → conditional P4 teams |
 | [Tasks](TASKS.md) | Planning progress, decisions, and future validation work |
 | [Planning evidence](docs/planning-evidence.md) | Official sources and the limits of the research |

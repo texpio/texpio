@@ -57,6 +57,15 @@ Deliverable: [Business plan](docs/business-plan.md). Prices and economics are as
 
 Deliverable: [Phased PRD summaries](docs/phased-prds.md). Writing a phase summary does not mean the phase has been implemented or validated.
 
+## 5. Competitor research — initial capture complete
+
+- [x] Save the five user-supplied competitor links and identify the Microsoft Store product.
+- [x] Record dated public-page observations, primary sources, evidence limits, and hypotheses about discovery and adoption.
+- [x] Save future SEO, product, Store, distribution, and growth research tasks as CR-01 through CR-10.
+- [ ] Run the detailed competitor research passes and validate the ranking/success hypotheses when this work is prioritized.
+
+Deliverable: [Competitor analysis and research backlog](docs/competitor-analysis.md). Rankings, traffic, conversion, revenue, and success causation have not been established.
+
 ## Review and evidence
 
 - [x] Complete an independent review of scope, cross-document consistency, proof claims, and economic arithmetic.
