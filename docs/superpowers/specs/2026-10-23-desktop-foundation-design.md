@@ -1,6 +1,6 @@
 # Texpio desktop foundation design
 
-23 October 2026 · Written spec awaiting user review
+23 October 2026 · Written spec approved by the user
 
 ## Purpose and scope
 
