@@ -8,7 +8,7 @@
 
 **Tech Stack:** Tauri 2, Rust/MSVC, React, strict TypeScript, Vite, Tailwind CSS 4, shadcn/ui, Lucide, pnpm, Vitest, React Testing Library, ESLint, Prettier, rustfmt, Clippy, GitHub Actions.
 
-**Spec:** [Approved desktop foundation design](../specs/2026-10-23-desktop-foundation-design.md). Read it together with the [stack record](../../tech-stack.md). Plan review and execution-method selection are pending.
+**Spec:** [Approved desktop foundation design](../specs/2026-10-23-desktop-foundation-design.md). Read it together with the [stack record](../../tech-stack.md). The user approved this plan and selected Native execution in the current checkout, including prerequisite installation.
 
 ## Global Constraints
 

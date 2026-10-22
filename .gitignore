@@ -10,6 +10,7 @@ dist/
 target/
 .vite/
 coverage/
+*.tsbuildinfo
 
 # Logs and operating-system metadata
 *.log

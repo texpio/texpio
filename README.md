@@ -2,7 +2,7 @@
 
 A proposed open-source, local-first text expander for Windows, followed by macOS. Create and reuse text locally, with optional paid managed sync later.
 
-The user selected **Texpio** on 23 October 2026. The desktop stack is now selected: the official Tauri 2 starter with React, TypeScript, Vite, and shadcn/ui. This workspace currently contains planning and design documents; application scaffolding is the next implementation step. The separate Rust expansion engine still needs feasibility testing.
+The user selected **Texpio** on 23 October 2026. The desktop foundation is being built from the official Tauri 2 starter with React, TypeScript, Vite, and shadcn/ui. The separate Rust expansion engine still needs feasibility testing. See [development instructions](docs/development.md) for setup, commands, and verification status.
 
 ## Planning documents
 
@@ -14,7 +14,7 @@ The user selected **Texpio** on 23 October 2026. The desktop stack is now select
 | [Phased PRD summaries](docs/phased-prds.md) | P0 feasibility → P1 Windows MVP → P2 workflows/macOS → P3 personal sync → conditional P4 teams |
 | [Technology stack](docs/tech-stack.md) | Selected desktop tooling and reuse of the existing Laravel/PostgreSQL service later |
 | [Desktop foundation design](docs/superpowers/specs/2026-10-23-desktop-foundation-design.md) | Approved starter scope, desktop behavior, architecture, and acceptance checks |
-| [Foundation implementation plan](docs/superpowers/plans/2026-10-23-desktop-foundation.md) | Tasks for prerequisite setup, scaffolding, desktop behavior, and verification; awaiting review |
+| [Foundation implementation plan](docs/superpowers/plans/2026-10-23-desktop-foundation.md) | Approved tasks for prerequisite setup, scaffolding, desktop behavior, and verification |
 | [Tasks](TASKS.md) | Planning progress, decisions, and future validation work |
 | [Planning evidence](docs/planning-evidence.md) | Official sources and the limits of the research |
 | [Naming record](docs/naming-research.md) | Selection and GitHub checks |

@@ -82,12 +82,13 @@ Reference sources: [Planning evidence](docs/planning-evidence.md). Document inde
 - [x] Audit local prerequisites and record missing standard Rust/MSVC/SDK installations.
 - [x] Complete written-spec review with the user.
 - [x] Write the foundation implementation plan and perform its self-review.
-- [ ] Complete the user's implementation-plan review and choose its execution method.
-- [ ] Scaffold the official starter and add the foundation features/checks.
+- [x] Complete the user's implementation-plan review and choose its execution method: Native, current checkout.
+- [x] Generate and integrate the official starter, pin tools, and install Windows build prerequisites.
+- [ ] Add and verify the foundation features/checks.
 - [ ] Verify native Windows build and runtime behavior; record any missing prerequisites.
 - [ ] Commit and push the verified implementation.
 
-Deliverables: [Technology stack](docs/tech-stack.md), approved [foundation design](docs/superpowers/specs/2026-10-23-desktop-foundation-design.md), and [implementation plan](docs/superpowers/plans/2026-10-23-desktop-foundation.md) awaiting review. Application code has not yet been generated.
+Deliverables: [Technology stack](docs/tech-stack.md), approved [foundation design](docs/superpowers/specs/2026-10-23-desktop-foundation-design.md), and approved [implementation plan](docs/superpowers/plans/2026-10-23-desktop-foundation.md). Implementation is in progress.
 
 ## Future decisions and execution work
 
