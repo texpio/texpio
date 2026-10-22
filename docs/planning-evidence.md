@@ -8,7 +8,7 @@ This is a source notebook for Texpio's feature plan, business plan, and phased P
 
 Tauri 2 provides a system tray, a global-shortcut plugin, and capabilities that constrain frontend access to native functionality. Those are useful building blocks for a snippet editor and tray utility. Sources: [System Tray](https://v2.tauri.app/learn/system-tray/), [Global Shortcut](https://v2.tauri.app/plugin/global-shortcut/), [Capabilities](https://v2.tauri.app/security/capabilities/).
 
-The shortcut plugin registers key combinations. It does not document an ordinary typed-character stream or abbreviation replacement. **Planning inference:** retain Tauri as the proposed app shell, and treat the native expansion engine as a separate feasibility question. A framework choice alone does not prove system-wide expansion works.
+The shortcut plugin registers key combinations. It does not document an ordinary typed-character stream or abbreviation replacement. **Planning inference:** keep the native expansion engine as a separate feasibility question from the Tauri shell, which the user has now selected; see the [technology stack](tech-stack.md). A framework choice alone does not prove system-wide expansion works.
 
 No prototype, installation, keyboard hook, or injection test has been run. Compatibility, latency, memory use, keyboard layouts, Unicode/IME behavior, clipboard preservation, permission handling, and recovery after focus changes remain unmeasured.
 

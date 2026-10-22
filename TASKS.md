@@ -8,7 +8,8 @@ Updated: 23 October 2026 (Asia/Kolkata)
 - **Repository:** [texpio/texpio](https://github.com/texpio/texpio), created by the user.
 - **Platform order:** Windows first, then macOS, confirmed by the user.
 - **Product:** open-source, local-first desktop text expander; optional paid managed sync later.
-- **Proposed stack:** Tauri desktop shell and separate Rust expansion engine, subject to feasibility.
+- **Selected stack:** official Tauri 2 starter, React + TypeScript + Vite, shadcn/ui; separate Rust expansion engine subject to feasibility.
+- **Future service:** reuse the user's existing Laravel + PostgreSQL project for accounts, billing, and later sync; no backend is being built in this repository now.
 
 The requested planning documents are complete for review. Their feature details, license, prices, quotas, budgets, targets, and audience remain proposals. The user created the Texpio GitHub organization; app implementation, runtime benchmarking, and customer validation remain future work.
 
@@ -74,6 +75,19 @@ Deliverable: [Competitor analysis and research backlog](docs/competitor-analysis
 
 Reference sources: [Planning evidence](docs/planning-evidence.md). Document index: [README](README.md).
 
+## 6. Desktop foundation
+
+- [x] Record the user's choice of the official Tauri starter and the agreed desktop stack.
+- [x] Write the foundation design covering scope, lifecycle, IPC, tooling, and acceptance checks.
+- [x] Audit local prerequisites and record missing standard Rust/MSVC/SDK installations.
+- [ ] Complete written-spec review with the user.
+- [ ] Write and review the implementation plan and choose its execution method.
+- [ ] Scaffold the official starter and add the foundation features/checks.
+- [ ] Verify native Windows build and runtime behavior; record any missing prerequisites.
+- [ ] Commit and push the verified implementation.
+
+Deliverables: [Technology stack](docs/tech-stack.md) and [foundation design](docs/superpowers/specs/2026-10-23-desktop-foundation-design.md). Application code has not yet been generated.
+
 ## Future decisions and execution work
 
 - [ ] Check desired domains/app-store names and brand clearance before publishing.
@@ -81,4 +95,4 @@ Reference sources: [Planning evidence](docs/planning-evidence.md). Document inde
 - [ ] Write and review the detailed P0 probe/spec before implementation.
 - [ ] Run P0 and measure feasibility; revise proposed targets using evidence.
 - [ ] Conduct interviews, beta cohorts, willingness-to-pay tests, and real cost estimates at the stated gates.
-- [ ] Produce implementation plans only for approved phase scope; no application scaffolding is part of this planning task.
+- [ ] Produce implementation plans for reviewed scope, starting with the desktop foundation above and then the P0 probe.

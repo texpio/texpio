@@ -4,7 +4,7 @@ Planning proposal · 23 October 2026 · Review pending
 
 ## Brief, audience, and success
 
-**Confirmed:** the name is Texpio; the product is an open-source, local-first desktop text expander inspired by TextExpander, with an optional small-charge managed sync service later. Release order is **Windows first, then macOS**. Tauri is proposed, subject to feasibility. This document proposes scope; it records no design approval, runtime result, customer validation, or implementation authorization.
+**Confirmed:** the name is Texpio; the product is an open-source, local-first desktop text expander inspired by TextExpander, with an optional small-charge managed sync service later. Release order is **Windows first, then macOS**. The user selected the official Tauri starter with React/TypeScript and shadcn/ui; see the [technology stack](tech-stack.md). The native expansion engine remains subject to feasibility. Feature scope below remains proposed; runtime results and customer validation are future work.
 
 **Proposed product promise:** create reusable text visually, expand it reliably in supported applications, and retain ownership of an unlimited local library without an account. Paid services must remain optional; subscription expiry must leave local creation, editing, expansion, and export working.
 

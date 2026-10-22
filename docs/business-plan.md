@@ -1,6 +1,6 @@
 # Texpio business plan
 
-Planning draft, 23 October 2026. **Texpio** and **Windows first, then macOS** are user decisions. Linux remains conditional. The local-first open-source desktop product and optional paid hosted sync are the brief; Tauri is proposed, subject to native-engine feasibility. Audiences, license, prices, limits, targets, and budgets below are recommendations or hypotheses, not approved commitments. No customers, traction, runtime benchmarks, or market-size estimate have been established. This document authorizes no implementation, spending, registration, outreach, or license change.
+Planning draft, 23 October 2026. **Texpio**, **Windows first, then macOS**, and the official Tauri starter are user decisions. Linux remains conditional. The local-first open-source desktop product and optional paid hosted sync are the brief; native-engine feasibility still needs testing. Future accounts and billing will reuse the user's existing Laravel/PostgreSQL project; see the [technology stack](tech-stack.md). Audiences, license, prices, limits, targets, and budgets below are recommendations or hypotheses, not approved commitments. No customers, traction, runtime benchmarks, or market-size estimate have been established. This document authorizes no spending, registration, outreach, or license change.
 
 ## Positioning and competition
 

@@ -4,7 +4,7 @@ Planning proposal · 23 October 2026 · Review pending
 
 ## Brief and sequence
 
-Texpio is the selected name for an open-source, local-first text expander with optional paid managed sync later. The user confirmed **Windows first, then macOS**. Tauri remains a proposed desktop shell; a native expansion engine still needs validation. These are product requirements summaries, not an implementation plan or evidence of a working product.
+Texpio is the selected name for an open-source, local-first text expander with optional paid managed sync later. The user confirmed **Windows first, then macOS** and the official Tauri starter with React/TypeScript and shadcn/ui; a native expansion engine still needs validation. See the [selected stack](tech-stack.md) and [foundation design](superpowers/specs/2026-10-23-desktop-foundation-design.md). These are product requirements summaries, not an implementation plan or evidence of a working product.
 
 Use the [feature plan](feature-plan.md) for interaction and quality definitions and the [business plan](business-plan.md) for commercial hypotheses. Proposed audiences are individual knowledge workers, developers, and support professionals. Their needs and willingness to pay remain unvalidated.
 
@@ -78,7 +78,7 @@ The business hypothesis is $24/year or $3/month. Its device/storage/history limi
 
 **Exclusions:** team sharing, enterprise controls, arbitrary attachments, an always-available SLA, and an operator promise to recover a lost encryption key. Syncing a live local database through a shared folder is not the proposed protocol.
 
-**Dependencies and risks:** multi-device demand and willingness to pay, detailed sync/security design, billing-country/provider evaluation, verified costs, staffing, and independently reviewed recovery/data-integrity behavior. At least two certified devices are required; Windows-to-Windows can be evaluated without claiming macOS support before its gate.
+**Dependencies and risks:** multi-device demand and willingness to pay, detailed sync/security design, verification of billing-country/provider support in the user's existing Laravel/PostgreSQL service, verified costs, staffing, and independently reviewed recovery/data-integrity behavior. Reuse that separate service for accounts and billing; no server is built in this desktop repository now. At least two certified devices are required; Windows-to-Windows can be evaluated without claiming macOS support before its gate.
 
 **Acceptance evidence:** fault tests for concurrent edits, edit/delete conflicts, duplicate/reordered requests, interrupted uploads, clock skew, long-offline devices, version migration, key loss, revocation, restore, cancellation, quota, and account deletion. No acknowledged edit may vanish silently. Verify both intended server-visible metadata and absence of plaintext content from service logs/storage. Paid beta requires passed integrity/security gates and a supported operating process before collecting payment.
 
