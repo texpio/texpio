@@ -12,6 +12,9 @@ target/
 coverage/
 *.tsbuildinfo
 
+# Agent execution ledgers and third-party inspection checkouts
+.superpowers/
+
 # Logs and operating-system metadata
 *.log
 .DS_Store

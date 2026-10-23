@@ -101,9 +101,28 @@ The starter, themed screen/metadata, and tray/single-instance changes are commit
 - [x] Complete the design's independent builder review and resolve its questions about physical trials, key-release ordering, and picker edits.
 - [x] Complete written-design approval with the user.
 - [x] Write and self-review the [implementation plan](docs/superpowers/plans/2026-10-23-windows-expansion-probe.md) for approved P0 scope.
-- [ ] Complete implementation-plan review; preserve Native execution in the current checkout.
+- [x] Complete implementation-plan review; preserve Native execution in the current checkout.
 - [ ] Implement and verify the native probe, controls, and separate insertion/picker experiments.
 - [ ] Run and report the native campaigns, strategy comparison, and support decision.
+
+P0 is paused at the user's request for the template migration below. Probe controls are implemented and the initial Stopped screen was confirmed by the user. No input strategy is qualified; the English (India) layout investigation and physical trials remain open. See the [evidence report](docs/research/windows-expansion-probe.md).
+
+## 8. Full template adoption and Bun
+
+- [x] Inspect `dannysmith/tauri-template` at pinned revision `1295f691bbdf373896e7c0f1cc969e2040fbf42c`, including README, implementation, docs, skills and license.
+- [x] Record the user's choice: full template shell, preserve the existing engine in a Developer view.
+- [x] Inventory every runtime/development feature and all four skills/two role prompts; distinguish implementation from README claims.
+- [x] Verify the installed Bun version (`1.3.13`) and research migration/Windows compatibility.
+- [x] Write the migration design and complete its independent builder check.
+- [ ] Obtain approval of the written [migration design](docs/superpowers/specs/2026-10-23-template-adoption-design.md).
+- [ ] Prepare the implementation plan, preserving Native/current-checkout execution.
+- [ ] Import/adapt the shell, typed bridge, preferences, quick pane, supporting plugins, UI library and development tooling.
+- [ ] Migrate package management/scripts/CI/docs to a validated pinned Bun version and text lockfile.
+- [ ] Port the four skills and two role prompts into `.agents`; merge useful upstream `AGENTS.md` guidance while preserving computer-availability rules.
+- [ ] Verify the feature parity table with code/test/native evidence and explicit external/platform limits.
+- [ ] Commit/push verified changes and resume P0 afterward.
+
+Deliverables: [template source audit and parity tracker](docs/research/tauri-template-parity.md), [migration design](docs/superpowers/specs/2026-10-23-template-adoption-design.md). No template runtime code or project skill has been imported yet.
 
 ## Future decisions and execution work
 
