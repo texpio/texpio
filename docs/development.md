@@ -41,7 +41,7 @@ Application tests, lifecycle behavior, CI, and final verification instructions a
 
 The original starter exited when its main window was closed. The following checklist verifies the foundation lifecycle against the rebuilt native application; results are pending until observed.
 
-- [ ] Rust metadata renders version `0.1.0` and platform `windows` with Connected status.
+- [x] Rust metadata renders version `0.1.0` and platform `windows` with Connected status (observed in the Windows preview on 23 October 2026).
 - [ ] System, Light, and Dark themes work through the native app UI.
 - [ ] Closing hides the window while one Texpio process remains.
 - [ ] Tray **Open Texpio** restores a hidden window.

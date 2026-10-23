@@ -90,11 +90,25 @@ Reference sources: [Planning evidence](docs/planning-evidence.md). Document inde
 
 Deliverables: [Technology stack](docs/tech-stack.md), approved [foundation design](docs/superpowers/specs/2026-10-23-desktop-foundation-design.md), and approved [implementation plan](docs/superpowers/plans/2026-10-23-desktop-foundation.md). Implementation is in progress.
 
+The starter, themed screen/metadata, and tray/single-instance changes are committed through `22fadcb`. The Windows preview rendered Connected with version `0.1.0` and platform `windows`. Remaining lifecycle and remote CI evidence still needs recording; the unchecked foundation gates above remain open.
+
+## 7. Windows expansion feasibility
+
+- [x] Start P0 and record the user's selection of a native Rust engine with Windows APIs.
+- [x] Research official Windows observation, insertion, accessibility, and clipboard constraints.
+- [x] Capture ideas from the eight user-supplied TextExpander screenshots in the competitor analysis, mapped to later phases.
+- [x] Draft the detailed [Windows expansion probe design](docs/superpowers/specs/2026-10-23-windows-expansion-probe-design.md).
+- [x] Complete the design's independent builder review and resolve its questions about physical trials, key-release ordering, and picker edits.
+- [ ] Complete written-design approval with the user.
+- [ ] Write the implementation plan for approved P0 scope.
+- [ ] Implement and verify the native probe, controls, and separate insertion/picker experiments.
+- [ ] Run and report the native campaigns, strategy comparison, and support decision.
+
 ## Future decisions and execution work
 
 - [ ] Check desired domains/app-store names and brand clearance before publishing.
 - [ ] Review the feature/business/phase proposals and decide the initial audience, license, supported Windows versions, and app matrix.
-- [ ] Write and review the detailed P0 probe/spec before implementation.
+- [ ] Approve the drafted detailed P0 probe/spec before implementation.
 - [ ] Run P0 and measure feasibility; revise proposed targets using evidence.
 - [ ] Conduct interviews, beta cohorts, willingness-to-pay tests, and real cost estimates at the stated gates.
 - [ ] Produce implementation plans for reviewed scope, starting with the desktop foundation above and then the P0 probe.

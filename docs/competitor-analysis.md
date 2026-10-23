@@ -2,7 +2,7 @@
 
 Captured: 23 October 2026 (Asia/Kolkata)
 
-Status: initial public-page observations and future research ideas. This is a saved research starting point, not a completed SEO audit or explanation of competitors' financial success.
+Status: initial public-page observations, user-supplied screenshot observations, and future research ideas. This is a saved research starting point, not a completed SEO audit or explanation of competitors' financial success.
 
 ## Purpose and evidence limits
 
@@ -23,6 +23,42 @@ This first pass inspected official public pages and their linked page structure.
 The Store URL retains the user's **en-GB / IN** parameters. That exact localized page was inaccessible to the initial reader. Identity was corroborated through GagarinSoft's official product/download link; Indian availability, localized price and reviews remain unverified. This is a separate product from LazyBoard, whose [Windows link](https://apps.microsoft.com/store/detail/9NK87J602L5B?cid=DevShareMCLPCS) uses product ID **9NK87J602L5B**.
 
 Earlier free/open-source comparison baselines, including Espanso and Beeftext, remain in [planning-evidence.md](planning-evidence.md). Keep those in the eventual comparison rather than studying only subscription products.
+
+## TextExpander screenshot reference — 23 October 2026
+
+The user supplied eight screenshots of TextExpander's Windows interface and authorized adapting useful ideas into an original Texpio design. References **S1–S8** below follow attachment order. These are observations of visible interface states; the app version, subscription plan, interaction sequence, persistence, and native expansion behavior were not established. A visible control does not prove that its operation works, how it is implemented, or whether paid access is required. The screenshots contain personal information and are not copied into this repository; account details and personal library contents are omitted from these notes.
+
+### Visible interface and evidence limits
+
+| Reference | Directly visible | What the image does not establish |
+| --- | --- | --- |
+| S1 — populated editor | Three panes separate group navigation, a snippet list, and details. Search, a new-snippet action, label and abbreviation fields, and a body editor are visible. The toolbar has formatting controls and Fill-ins, Date, Time, Math, Keyboard, and Cursor entries. | Search coverage, editing behavior, expansion correctness, supported token syntax, or the toolbar entries' execution semantics. |
+| S2 — empty entry | A selected entry is labeled as empty; the detail fields and body area are blank. A snippet count appears below the list. | Whether creating an entry immediately persists it, whether edits autosave, what validation runs, or how unfinished drafts are recovered. |
+| S3 — advanced options | The expanded area shows a case-matching selector with a case-sensitive value and a content-type selector showing Rich Text. Font, size, color, emphasis, list, link, image, and table controls are visible. | The other selector choices, formatting interoperability, supported output targets, or rich-text insertion reliability. |
+| S4 — preview | A Preview dialog displays the selected snippet's text over the editor. | Whether preview resolves tokens, requests fill-ins, uses live clipboard values, or predicts actual output in another application. |
+| S5 — snippet action menu | Duplicate, Move to, and Delete actions are visible beside snippet details. | Identity handling, collision checks, deletion recovery, confirmation behavior, or the result of moving a snippet. |
+| S6 — group action menu | Share, Group settings, and Delete entries are visible. Personal and public group sections are also visible in navigation. | Sharing permissions, delivery or sync mechanisms, ownership, account requirements, pricing, or deletion behavior. |
+| S7 — list context menu | Copy, Copy reference, Paste, Duplicate, Move To, Sort options, and Delete Snippet entries appear; some keyboard shortcuts are displayed. | What Copy reference produces, whether it creates a dependency between snippets, available sort modes, or shortcut correctness. |
+| S8 — group settings | Name, Notes, Expand in, Expand when, and Group prefix controls appear. The displayed values refer to a preferences default for application scope and whitespace preceding an abbreviation. | Other choices, inheritance/override rules, prefix composition, collision behavior, or actual recognition semantics. A preceding-whitespace condition does not establish which following key activates expansion. |
+
+The inferred design benefits are hypotheses: separate panes may reduce navigation effort; a title beside a trigger may help identify snippets; optional advanced controls may reduce clutter; and preview may help users check output before insertion. None of these screenshots measures usability, accessibility, performance, conversion, or retention. CR-04 remains the place to test complete journeys.
+
+### Original adaptations for Texpio
+
+Use the underlying workflow ideas with Texpio's own components, language, layout decisions, and visual identity. The following candidates do not adopt competitor assets, branding, or an exact screen reproduction, and do not expand the approved roadmap by themselves. The [feature plan](feature-plan.md) and [phase gates](phased-prds.md) continue to determine scope.
+
+| Phase | Useful adaptation | Scope and validation requirement |
+| --- | --- | --- |
+| P0 — native feasibility | Make the small fixture library easy to inspect: identify each literal trigger and plain-text body, show the current test context and pause state, and record insertion outcomes. | Retain the minimal test interface and native strategy comparison. The screenshots do not justify a full management editor or establish feasibility; require the existing three-app/300-attempt probe and negative safety tests. |
+| P1 — library editor | Evaluate an original folder → snippet list → editor arrangement with search, clear title/trigger/body fields, enabled state, and visible validation. | Keep keyboard and accessible navigation first-class. Validate a draft/save/recovery design independently; no autosave behavior is inferred from S2. Preserve atomic saves and existing recovery requirements. |
+| P1 — safe actions | Make duplicate, folder movement, and delete easy to find; preserve the picker's explicit Copy fallback when safe insertion is unavailable. | Duplicates need a new identity and distinct active trigger; deletion needs the planned trash/backup recovery. Keyboard and context-menu placements are design candidates, not proof of competitor behavior. |
+| P1 — preview and minimal tokens | Provide a plain-text preview with documented sample values and concise helpers for the planned date/time, explicit clipboard-text, and single-cursor tokens. | Preview must not consume the live clipboard without explicit action. It does not certify native insertion. Keep unknown tokens as validation errors; do not introduce fill-in dialogs or general keyboard automation here. |
+| P1 — understandable matching | Explain the active trigger rule and application exclusions near the relevant controls instead of offering unsupported choices. | Retain the proposed literal, case-sensitive prefixed trigger, Space activation, and default trailing-space preservation. Plain text is the P1 content mode; a competitor's Rich Text selector does not change it. |
+| P2 — workflow candidates | Evaluate simple fill-ins, clearer sorting, alternate case rules, and folder-level notes/defaults if user evidence supports them. | Group application scope, boundary rules, and prefixes require an explicit inheritance/override model, collision checks, and native compatibility tests before adoption. S8 is a settings reference, not an agreed Texpio default. Global exclusions remain the existing safety requirement. |
+| P2 or later — separate decisions | Consider rich text/images only under the roadmap's separate compatibility gate. Investigate the purpose of Copy reference before proposing snippet references. | Nested templates remain outside the MVP. Math and arbitrary keystroke sequences have no commitment; they require a separately reviewed use case, grammar, safety model, and tests. No scripts or shell execution are implied. |
+| P3/P4 — conditional services | Use the distinction between local organization and sharing as a future navigation question. | Personal sync remains conditional P3 work; shared/team libraries remain conditional P4 work with ownership/access requirements. Public groups and Share are not additions to P0/P1, and screenshots establish no paid-access model. |
+
+The immediate next phase remains the detailed P0 native probe. These references can inform the later Windows editor while the engine's observation, guarded replacement, focus safety, clipboard ownership, and supported-context contract are evaluated first.
 
 ## Useful pages already located
 
