@@ -2,7 +2,10 @@ node_modules/
 dist/
 src-tauri/
 .superpowers/
-pnpm-lock.yaml
+bun.lock
+src/lib/bindings.ts
+.tools/
+jscpd-report/
 README.md
 TASKS.md
 docs/

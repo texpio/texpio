@@ -185,4 +185,4 @@ The source parity inventory maps to Tasks 1/7 for tooling/agents/docs; Task 2 fo
 
 ## Execution handoff
 
-The written design was approved on 23 October 2026. **Implementation-plan review is pending.** Retain Native execution in the current checkout after the user confirms this plan captures the requested migration; do not ask them to choose the execution method again. No template runtime code, project skills or dependency migration has been applied while preparing this plan.
+The written design and implementation plan were approved on 23 October 2026. **Execution is in progress using the retained Native/current-checkout method.** Do not ask for the execution method again. The execution ledger records completed tasks and evidence; the parity tracker distinguishes actual migration progress from external/native acceptance gates.

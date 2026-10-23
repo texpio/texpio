@@ -16,6 +16,8 @@ These rules apply to every agent working in this repository, including delegated
 
 ## Dependency skills
 
+The user approved Bun as the package manager for this migration. Use Bun **1.4.4** (pinned in `.bun-version` and `package.json`) and `bun install --frozen-lockfile`; retain Node 24.18.0 for Node tools. The global Bun 1.3.13 cannot migrate this pnpm lock format. On this host the qualified local executable is `.tools/bun/1.4.4/package/bin/bun.exe`; prepend its directory to the current process PATH when running nested scripts or Tauri. Do not change global tooling silently. Use `bun run test` for Vitest, not Bun's separate `bun test` runner.
+
 Use installed dependency skills for relevant work. Read their `SKILL.md` and only the references needed for the task. Preserve this project's pinned tools, lockfiles, Radix components, and existing theme; examples in a skill do not authorize dependency upgrades or reinitializing the app.
 
 Installed in `C:/Users/mohda/.codex/skills/` on 23 October 2026:
@@ -27,9 +29,9 @@ Installed in `C:/Users/mohda/.codex/skills/` on 23 October 2026:
 
 The selected collection covers Vite 8.3.1, Vitest 5.0.1, and pnpm 12.x, matching this project's major versions. Check current installed APIs before applying examples.
 
-- For shadcn work, inspect `components.json` and existing components, use the installed CLI through `pnpm exec shadcn`, fetch relevant component docs, and preserve semantic theme tokens and accessible composition.
+- For shadcn work, inspect `components.json` and existing components, use the installed CLI through `bunx --no-install shadcn`, fetch relevant component docs, and preserve semantic theme tokens and accessible composition. Do not upgrade the CLI implicitly.
 - For Vite/Vitest work, use the installed skills for configuration, test isolation, and mocks; keep native Rust and browser-only tests distinct.
-- For package changes, use pnpm and frozen installs for verification; do not copy obsolete CI version numbers from illustrative skill snippets.
+- For package changes, use pinned Bun and frozen installs for verification; the pnpm skill remains provenance/reference for historical migration only. Do not copy obsolete CI version numbers from illustrative skill snippets.
 - No relevant official Tauri, Rust/windows-rs, or Tailwind consumer-development skill was verified during this search. Use official documentation and the exact installed bindings for those dependencies. Do not label community skills as official or install unrelated contributor workflows.
 
 To reproduce installation on another machine, use the `skill-installer` helper with the repository, path, and revision above: `shadcn-ui/ui` + `skills/shadcn`; `antfu/skills` + `skills/vite skills/vitest skills/pnpm`.

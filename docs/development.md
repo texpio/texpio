@@ -14,7 +14,7 @@ Generation ran in an ignored staging directory. Application source/configuration
 
 ## Windows prerequisites
 
-Use Windows x64 with Node `24.18.0` and pnpm `12.15.0`. `.node-version` and `package.json` pin these versions. Rust/MSVC and the Microsoft C++ desktop workload with a Windows SDK are required. The existing WebView2 runtime is reused. See the [official Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
+Use Windows x64 with Node `24.18.0` and Bun `1.4.4`. `.node-version`, `.bun-version` and `package.json` pin these versions. The previous global Bun `1.3.13` cannot migrate the old pnpm multi-document lock. This host has an integrity-verified local Bun at `.tools/bun/1.4.4/package/bin/bun.exe`; prepend that directory to the current process PATH when using it, including for nested Tauri scripts. Other checkouts should install the same pinned Bun version from its official distribution. The repository uses text `bun.lock`; require it to exist before a frozen install. Rust/MSVC and the Microsoft C++ desktop workload with a Windows SDK are required. The existing WebView2 runtime is reused. See the [official Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 Rust `1.99.1` is pinned in `rust-toolchain.toml`. On the development host, Rust/Cargo `1.99.1`, Visual Studio Build Tools `17.14.37806.7`, Windows SDK `10.0.26100.0`, and WebView2 `155.0.4283.62` were detected after installation. The Rust default host is `x86_64-pc-windows-msvc`. Open a new terminal after first installing the tools so Cargo's PATH entry is available.
 
@@ -25,14 +25,14 @@ The initial official-starter frontend production build and Windows native compil
 From the repository root:
 
 ```powershell
-pnpm install --frozen-lockfile
-pnpm tauri dev
+bun install --frozen-lockfile
+bun run tauri:dev
 ```
 
-For a frontend browser preview use `pnpm dev`; native commands require the Tauri application. To compile the Windows binary without producing installers:
+For a frontend browser preview use `bun run dev`; native commands require the Tauri application. Bun launches existing Node-based tools normally; use `bun run test` for Vitest, not `bun test`. To compile the Windows binary without producing installers:
 
 ```powershell
-pnpm tauri build --no-bundle
+bun run tauri:build --no-bundle -- --locked
 ```
 
 Application tests, lifecycle behavior, CI, and final verification instructions are added with the corresponding foundation tasks.

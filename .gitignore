@@ -14,6 +14,8 @@ coverage/
 
 # Agent execution ledgers and third-party inspection checkouts
 .superpowers/
+.tools/
+jscpd-report/
 
 # Logs and operating-system metadata
 *.log
