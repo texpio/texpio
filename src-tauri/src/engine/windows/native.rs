@@ -20,8 +20,8 @@ use windows::{
                     ImmReleaseContext,
                 },
                 KeyboardAndMouse::{
-                    GetAsyncKeyState, GetKeyboardLayout, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN,
-                    VK_SHIFT,
+                    GetAsyncKeyState, GetKeyboardLayout, HKL, MAPVK_VK_TO_VSC, MapVirtualKeyExW,
+                    ToUnicodeEx, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
                 },
             },
             WindowsAndMessaging::{
@@ -39,6 +39,7 @@ pub struct TargetStamp {
     pub focused_window: isize,
     pub process_id: u32,
     pub thread_id: u32,
+    pub keyboard_layout: usize,
 }
 
 pub fn current_stamp() -> Result<TargetStamp, RefusalReason> {
@@ -68,6 +69,7 @@ pub fn current_stamp() -> Result<TargetStamp, RefusalReason> {
             focused_window: info.hwndFocus.0 as isize,
             process_id,
             thread_id,
+            keyboard_layout: GetKeyboardLayout(thread_id).0 as usize,
         })
     }
 }
@@ -79,7 +81,11 @@ pub(super) fn check_input_state(stamp: &TargetStamp) -> Result<(), RefusalReason
     // SAFETY: read-only keyboard/IMM queries on the observed thread and HWND.
     unsafe {
         let layout = GetKeyboardLayout(stamp.thread_id);
-        if layout.0 as usize != 0x04090409 || ImmIsIME(layout).as_bool() {
+        if layout.0 as usize != stamp.keyboard_layout
+            || !candidate_layout(stamp.keyboard_layout)
+            || ImmIsIME(layout).as_bool()
+            || !verified_mapping(layout)
+        {
             return Err(RefusalReason::UnsupportedLayout);
         }
         if [VK_CONTROL, VK_SHIFT, VK_MENU, VK_LWIN, VK_RWIN]
@@ -100,6 +106,32 @@ pub(super) fn check_input_state(stamp: &TargetStamp) -> Result<(), RefusalReason
         }
     }
     Ok(())
+}
+
+fn candidate_layout(layout: usize) -> bool {
+    // HKLs measured/selected for this P0; language IDs alone do not identify layouts.
+    matches!(layout, 0x04090409 | 0x40094009 | 0x40090409)
+}
+
+fn mapping_matches(mut matches: impl FnMut(u32, u16) -> bool) -> bool {
+    (0x41..=0x5A).all(|key| matches(key, (key - 0x41) as u16 + u16::from(b'a')))
+        && matches(0xBA, u16::from(b';'))
+        && matches(0x20, u16::from(b' '))
+}
+
+fn verified_mapping(layout: HKL) -> bool {
+    mapping_matches(|key, expected| {
+        let mut output = [0u16; 4];
+        // SAFETY: read-only translation with no held modifiers/Caps Lock. Flag 4
+        // preserves the kernel keyboard state (Windows 10 1607+). No keys are sent.
+        // MapVirtualKey(VK_TO_CHAR) cannot prove letter mappings: it forces A-Z.
+        unsafe {
+            let scan = MapVirtualKeyExW(key, MAPVK_VK_TO_VSC, Some(layout));
+            scan != 0
+                && ToUnicodeEx(key, scan, &[0; 256], &mut output, 4, Some(layout)) == 1
+                && output[0] == expected
+        }
+    })
 }
 
 pub(super) struct ProcessIdentity {
@@ -202,4 +234,27 @@ pub(super) fn caption(stamp: &TargetStamp) -> Result<String, RefusalReason> {
         return Err(RefusalReason::UnsupportedProfile);
     }
     String::from_utf16(&buffer[..count as usize]).map_err(|_| RefusalReason::UnsupportedProfile)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_us_and_explicit_india_layout_handles_are_candidates() {
+        for layout in [0x04090409, 0x40094009, 0x40090409] {
+            assert!(candidate_layout(layout));
+        }
+        for layout in [0, 0x08090809, 0x00010409, 0xE0010409, 0x40090809] {
+            assert!(!candidate_layout(layout));
+        }
+    }
+
+    #[test]
+    fn recognition_mapping_requires_each_exact_single_character() {
+        assert!(mapping_matches(|key, expected| key != 0 && expected != 0));
+        assert!(!mapping_matches(|key, _| key != 0xBA));
+        assert!(!mapping_matches(|key, _| key != 0x51));
+        assert!(!mapping_matches(|key, _| key != 0x20));
+    }
 }

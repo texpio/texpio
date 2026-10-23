@@ -219,6 +219,7 @@ export function ProbePanel() {
                 Clipboard — qualification pending
               </NativeSelectOption>
             </NativeSelect>
+            <FieldDescription>{refusalLabels.clipboardState}</FieldDescription>
           </Field>
         </FieldGroup>
         {status.refusalReason && (

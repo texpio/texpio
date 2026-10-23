@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Windows first; initial environment Windows 11 x64 and US English layout `00000409`. Exact host/app/control builds are measured during execution.
+- Windows first; initial environment Windows 11 x64 and US English layout `00000409`. User-approved amendment on 23 October 2026 also qualifies English (India) `00004009` using an explicit HKL allowlist plus state-preserving native proof of all 28 recognition keys; layout changes invalidate target identity. Exact host/app/control builds are measured during execution.
 - Start **Stopped** on every launch. Only explicitly selected reference app/control profiles can expand; unknown contexts are refused.
 - Literal, case-sensitive `;` plus lowercase ASCII letters, at most 32 characters. **Space activates a complete trigger and one trailing space remains.** Require start-of-field or preceding whitespace.
 - Cap transient matching state at 33 ASCII characters including delimiter. No raw input stream, matching suffix, target text, clipboard content, or full paths enters React/diagnostics.

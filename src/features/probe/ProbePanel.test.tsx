@@ -41,6 +41,13 @@ async function choose() {
 }
 
 describe('probe panel', () => {
+  it('keeps the unqualified clipboard experiment disabled and explains why', async () => {
+    await ready()
+    expect(screen.getByRole('option', { name: /Clipboard/ })).toBeDisabled()
+    expect(
+      screen.getByText('Clipboard preservation and paste consumption are not qualified.'),
+    ).toBeInTheDocument()
+  })
   it('starts stopped, requires a selected profile, and defaults to Unicode', async () => {
     await ready()
     expect(screen.getByRole('status', { name: 'Expansion status' })).toHaveTextContent('Stopped')

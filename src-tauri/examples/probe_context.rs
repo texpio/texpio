@@ -26,13 +26,16 @@ fn main() -> std::process::ExitCode {
     let result = (|| {
         let origin = current_stamp()?;
         let mut context = WindowsContext::new()?;
+        println!("Native focus captured; read-only context initialized.");
         let target = context.capture(profile, &origin)?;
+        println!("Target profile, layout mapping and collapsed caret accepted.");
         let fixture = fixtures().remove(0);
         let candidate = Candidate {
             fixture_id: fixture.id.into(),
             trigger: fixture.trigger.into(),
         };
         let edit = context.prepare_automatic(&target, &candidate, &fixture.body)?;
+        println!("Exact synthetic suffix and boundary accepted.");
         context.revalidate(&edit)?;
         Ok::<(), texpio_lib::engine::types::RefusalReason>(())
     })();

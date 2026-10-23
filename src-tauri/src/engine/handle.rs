@@ -125,7 +125,9 @@ impl ProbeHandle {
         #[cfg(target_os = "windows")]
         {
             if options.strategy != super::types::InsertionStrategy::Unicode {
-                return Err(RefusalReason::UnsupportedProfile);
+                // No clipboard APIs, owner window, native threads or input are touched.
+                // Format availability does not prove eager data or paste consumption.
+                return Err(RefusalReason::ClipboardState);
             }
             let mut slot = self
                 .job
@@ -301,5 +303,27 @@ mod tests {
         assert_eq!(handle.status().counters.submitted, 0);
         assert_eq!(handle.status().counters.uncertain, 1);
         assert_eq!(handle.status().phase, ProbePhase::Fault);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn clipboard_refuses_all_profiles_before_creating_a_native_job() {
+        let handle = ProbeHandle::new();
+        for profile in [
+            ReferenceProfile::Notepad,
+            ReferenceProfile::VsCode,
+            ReferenceProfile::ChromeFixture,
+        ] {
+            assert_eq!(
+                handle.start(StartOptions {
+                    profile,
+                    strategy: super::super::types::InsertionStrategy::Clipboard,
+                }),
+                Err(RefusalReason::ClipboardState)
+            );
+            assert!(!handle.shared.gate.is_active());
+            assert!(handle.job.lock().unwrap().is_none());
+            assert_eq!(handle.status(), ProbeStatus::default());
+        }
     }
 }
