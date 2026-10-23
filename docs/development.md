@@ -36,3 +36,15 @@ pnpm tauri build --no-bundle
 ```
 
 Application tests, lifecycle behavior, CI, and final verification instructions are added with the corresponding foundation tasks.
+
+## Windows acceptance checklist
+
+The original starter exited when its main window was closed. The following checklist verifies the foundation lifecycle against the rebuilt native application; results are pending until observed.
+
+- [ ] Rust metadata renders version `0.1.0` and platform `windows` with Connected status.
+- [ ] System, Light, and Dark themes work through the native app UI.
+- [ ] Closing hides the window while one Texpio process remains.
+- [ ] Tray **Open Texpio** restores a hidden window.
+- [ ] Tray **Open Texpio** restores a minimized window.
+- [ ] A second launch restores/focuses the original window and leaves one Texpio process.
+- [ ] Tray **Quit** terminates the process; a subsequent launch works.
