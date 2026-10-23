@@ -86,11 +86,11 @@ Reference sources: [Planning evidence](docs/planning-evidence.md). Document inde
 - [x] Generate and integrate the official starter, pin tools, and install Windows build prerequisites.
 - [x] Add the foundation features and verify automated checks.
 - [ ] Verify native Windows build and runtime behavior; record any missing prerequisites.
-- [ ] Commit and push the verified implementation.
+- [x] Commit and push the verified implementation.
 
 Deliverables: [Technology stack](docs/tech-stack.md), approved [foundation design](docs/superpowers/specs/2026-10-23-desktop-foundation-design.md), and approved [implementation plan](docs/superpowers/plans/2026-10-23-desktop-foundation.md). Implementation is in progress.
 
-The official-starter history is preserved. The adopted shell, typed services and automated checks are committed through `0f30db2`. The user confirmed tray Open/Quit on the earlier preview; acceptance on the final migrated binary remains pending. See template parity for exact evidence.
+The official-starter history is preserved. The adopted shell, typed services, review fixes and automated checks are committed through `1aae8e1` and pushed. The user confirmed tray Open/Quit on the earlier preview and basic opening of the migrated shell and launchers. Detailed acceptance on the final migrated binary remains pending. See template parity for exact evidence.
 
 ## 7. Windows expansion feasibility
 
@@ -122,10 +122,10 @@ P0 is paused at the user's request for the template migration below. Probe contr
 - [x] Port all four skills/two roles into `.agents`; merge architecture guidance and preserve computer-availability rules.
 - [x] Record all 43 feature rows with code/test evidence and explicit native/platform/external limits.
 - [ ] Complete new-binary Windows native interaction acceptance, packaged notifications and multi-monitor/DPI checks.
-- [ ] Commit/push final reviewed migration changes and confirm CI outcome/access limitation.
+- [x] Commit/push reviewed migration changes; remote SHA matches and the CI connector's 404 access limitation is recorded.
 - [ ] Resume P0 layout/provider diagnosis after migration handoff.
 
-Deliverables: [template source audit and parity tracker](docs/research/tauri-template-parity.md), [migration design](docs/superpowers/specs/2026-10-23-template-adoption-design.md). All template runtime infrastructure and six portable skill/role files are adapted. Automated tests pass; final review/build/remote evidence and native acceptance are tracked separately.
+Deliverables: [template source audit and parity tracker](docs/research/tauri-template-parity.md), [migration design](docs/superpowers/specs/2026-10-23-template-adoption-design.md). All template runtime infrastructure and six portable skill/role files are adapted. Review fixes, automated checks and the optimized Windows no-bundle build pass; the debug preview and basic opening were confirmed. Detailed native acceptance remains open.
 
 ## Future decisions and execution work
 
@@ -134,4 +134,4 @@ Deliverables: [template source audit and parity tracker](docs/research/tauri-tem
 - [x] Approve the detailed P0 probe/spec before implementation.
 - [ ] Run P0 and measure feasibility; revise proposed targets using evidence.
 - [ ] Conduct interviews, beta cohorts, willingness-to-pay tests, and real cost estimates at the stated gates.
-- [ ] Produce implementation plans for reviewed scope, starting with the desktop foundation above and then the P0 probe.
+- [ ] Produce implementation plans for later reviewed phases after P0 qualification.

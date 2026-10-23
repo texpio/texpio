@@ -58,3 +58,7 @@ The approved shell uses Bun and retains the engine in Developer. See [developer 
 `bun run check:all` passed with 118 frontend tests, 77 Rust tests, 11 tooling checks, one loopback fixture test and six ast-grep rule groups. Coverage passed: 73.49% statements, 70.57% branches, 68.8% functions and 74.67% lines. Coverage is an inventory, not proof of native titlebar/window behavior. Both production HTML entries build. Binding export twice leaves no diff.
 
 Native interaction acceptance on the migrated binary remains pending; Computer Use was not started because this session's documented API cannot prove control-session closure as required by AGENTS.md. [Parity](research/tauri-template-parity.md) lists each pending check. P0 remains 0/300 physical trials with the India layout/provider question unresolved; no input was armed in this migration.
+
+The fresh debug preview built and opened successfully. On 24 October the user confirmed Home/Developer/Preferences and command palette/quick-pane opening. This does not complete the detailed acceptance matrix. The reviewed implementation is pushed at `1aae8e1`; remote Actions status is unavailable through the connector (404).
+
+The final `bun run tauri:build --no-bundle -- --locked` also passed from that implementation, finishing the optimized Rust build in 7m 14s. It produced `src-tauri/target/release/texpio.exe` with SHA256 `5FCAEC04BEDA99D877BCB71581A95BAF42CB62E3CAA3681869F0F309A0E36052`. This is a compiled executable, not a signed installer or evidence of the remaining native interaction checks.

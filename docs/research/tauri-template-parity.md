@@ -95,7 +95,9 @@ Computer Use was not started for this migration. The available Windows API docum
 
 P0 remains separate: no insertion strategy qualified, 0/300 physical trials, unresolved English (India) provider/layout gate, clipboard experiments still disabled. No accounts/billing/sync service or snippet editor/database was added. Real signed update delivery, certificate/notarization, release environment protection and platform acceptance require external setup; no signing keys, tags, release or workflow dispatch were created.
 
-Final automated evidence after fixes: full checks passed118 frontend/77 Rust/11 tooling/1 fixture, six ast-grep groups; coverage passed73.49% statements/70.57% branches/68.8% functions/74.67% lines. Two native binding exports leave no diff. Both frontend entries build. The independent review Important finding is fixed with RED-to-GREEN tests; the final preview and production rebuild are tracked separately below.
+Final automated evidence after fixes: full checks passed 118 frontend/77 Rust/11 tooling/1 fixture, six ast-grep groups; coverage passed 73.49% statements/70.57% branches/68.8% functions/74.67% lines. Two native binding exports leave no diff. Both frontend entries build. The independent review Important finding is fixed with RED-to-GREEN tests; the final preview and production rebuild are recorded below.
+
+Cleanup reports were inspected: Knip returned exit 1 for retained reusable UI/tooling dependencies, helpers and configuration hints; jscpd returned exit 0 for intentional refusal-mapping/root-callback patterns. These reports did not trigger automatic deletion. Frozen installation completed without lock changes.
 
 ## Independent review and fixes
 
@@ -106,3 +108,28 @@ Final checks also exposed intermittent Windows Access denied (5) at atomic file 
 Deferred minors: hidden sidebar remembered widths can constrain a visible sidebar resize; custom Windows/macOS control labels/tooltips remain English in French/Arabic. Both are usability/localization polish, not represented as fixed.
 
 Reviewer exclusions remain open gates: actual Windows focus/chrome/DPI/shortcut/tray/packaged notifications; macOS/Linux runtime/packaging; signed updates/secrets/environment protection/publication; and P0 physical/India/clipboard/picker qualification. Their cost is unverified behavior or unavailable capability in the respective area. No automatic check substitutes for these observations. Task8 native acceptance remains open.
+
+## Implementation decisions and their costs
+
+These are the complete execution rulings, in decision order. The two deferred minor findings above remain unfixed.
+
+| Decision | Reason | Cost or remaining risk |
+| --- | --- | --- |
+| Qualify project-local Bun 1.4.4; leave global Bun unchanged | Installed Bun 1.3.13 could not migrate the existing pnpm lock format | Development must use the documented pinned binary or install that version |
+| Retain ESLint 10 with supported community React and hooks plugins | The source plugins had incompatible peers; preserve JSX/Compiler safety categories | Rule categories are equivalent, not an identical upstream rule set |
+| Give application-specific chords one DOM owner; custom native menu items have no duplicate accelerators | Preserve editable/composition/repeat guards and avoid duplicate execution; native Edit roles retain OS ownership | Application chords need webview focus; the global quick-pane shortcut is separate |
+| Let the native shortcut worker own its persisted field; appearance saves patch only their fields and reread | Prevent concurrent appearance changes from bypassing registration or overwriting a binding | Shortcut changes require their dedicated command; appearance saves add one IPC read |
+| Keep detailed Windows native acceptance open | Review and automated checks cannot establish actual focus/chrome/DPI/conflicts/tray/second-instance or packaged delivery | Native interaction defects may remain; basic opening confirmation covers only the shell and launchers |
+| Keep macOS/Linux runtime and packaging unverified | They were not executed on this Windows host | Target-specific compilation or interaction defects may remain |
+| Keep signed delivery and publication behind external setup gates | No real signing/feed/secrets/environment protection acceptance or release dispatch | Updates remain unavailable until setup and end-to-end qualification |
+| Keep P0 physical/layout/provider/clipboard/picker qualification separate | No insertion strategy passed its evidence gate; 0/300 physical trials and clipboard disabled | The foundation is not yet qualified for everyday text expansion |
+
+## Preview and remote evidence
+
+The Windows debug preview built successfully from implementation commit `1aae8e16cba333736a3c9c7ca09cba056ec3865b` and was launched normally with no Computer Use session. Startup remained running as PID10604 with a Texpio main window and no stderr output. Preview SHA256: `FC204FA4254EA7ADFFD99656B12F46B155B75FAFBDC8CDD03CD88CD5BCF9B535`.
+
+The user confirmed the new Home/Developer/Preferences shell and both the command palette and Ctrl+Shift+Period quick-pane launcher work. This is basic opening acceptance only. The remaining detailed Windows checks listed above remain open, as do packaged notifications, macOS/Linux runtime and external release setup. No probe was armed by the agent; physical qualification remains0/300.
+
+The final production command `bun run tauri:build --no-bundle -- --locked` passed from the same implementation commit. Rust's optimized build finished in 7m 14s and produced `src-tauri/target/release/texpio.exe`, SHA256 `5FCAEC04BEDA99D877BCB71581A95BAF42CB62E3CAA3681869F0F309A0E36052`. No installer, signature or release publication was produced. The user's basic opening confirmation applies to the debug preview, not an observed production-executable interaction test.
+
+Implementation pushed to `origin/main`; `git ls-remote` matched `1aae8e16cba333736a3c9c7ca09cba056ec3865b`. The GitHub connector's Actions query for this exact SHA returned404 NOT_FOUND. CI is unverified, not passing by inference. No release workflow was dispatched. Final documentation may advance main beyond this runtime implementation commit.

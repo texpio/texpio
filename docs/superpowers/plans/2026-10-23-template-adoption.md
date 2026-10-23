@@ -159,7 +159,7 @@ In `src/lib/updater.test.ts`, `unconfigured updates never call plugin check` ass
 
 **Consumes:** Tasks 1–7 and recorded execution base. **Produces:** row-by-row final parity evidence, explicit remaining platform/external gates and preserved P0 status.
 
-- [ ] Run the full commands below with frozen/locked inputs. Inspect each exit status; generated binding export must leave no diff on its second run. Confirm Vitest runs, both frontend entries build, and ordinary tests never start hooks/send input.
+- [x] Run the full commands below with frozen/locked inputs. Inspect each exit status; generated binding export must leave no diff on its second run. Confirm Vitest runs, both frontend entries build, and ordinary tests never start hooks/send input.
 
 ```powershell
 if (-not (Test-Path -LiteralPath bun.lock)) { throw 'Missing committed Bun lockfile' }
@@ -175,9 +175,9 @@ bun run tauri:build --no-bundle -- --locked
 ```
 
 - [ ] Verify native Windows on that binary in bounded sessions: correct Texpio chrome/menu/palette, keyboard behavior in editable fields, real settings/layout persistence after restart, theme/language/RTL and quick-pane synchronization, shortcut conflict/rebind/Enter/Escape/blur, monitor placement, hidden/minimized/second-instance restoration, tray parity and clean Quit/relaunch with Stopped engine. Do not arm input to test the shell. Record untested DPI/packaged-notification/platform cases explicitly.
-- [ ] Update every parity row with file/test/native evidence and one of the tracker's honest status labels. Updater/signing remain external setup pending; macOS/Linux native behavior unverified on this host. No feature missing implementation may be marked verified. Keep P0 trial counts and unresolved India/provider gate unchanged.
-- [ ] Obtain the Native method's one fresh independent whole-execution review against the recorded base, with the Review Focus list and ledger rulings. Address supported Important/Critical findings in one RED→GREEN fix pass and rerun affected suites; ledger minor deferrals. Do not use an empty diff against current `main`.
-- [ ] Commit verified changes and evidence, push already-authorized project updates, confirm remote SHA and actual CI status or exact access limitation. Leave a stopped preview if requested. Migration completion is separate from P0 feasibility completion; resume P0 only after this handoff and preserve its evidence ledger.
+- [x] Update every parity row with file/test/native evidence and one of the tracker's honest status labels. Updater/signing remain external setup pending; macOS/Linux native behavior unverified on this host. No feature missing implementation may be marked verified. Keep P0 trial counts and unresolved India/provider gate unchanged.
+- [x] Obtain the Native method's one fresh independent whole-execution review against the recorded base, with the Review Focus list and ledger rulings. Address supported Important/Critical findings in one RED→GREEN fix pass and rerun affected suites; ledger minor deferrals. Do not use an empty diff against current `main`.
+- [x] Commit verified changes and evidence, push already-authorized project updates, confirm remote SHA and actual CI status or exact access limitation. Leave a stopped preview if requested. Migration completion is separate from P0 feasibility completion; resume P0 only after this handoff and preserve its evidence ledger.
 
 ## Self-review and coverage
 
@@ -185,4 +185,4 @@ The source parity inventory maps to Tasks 1/7 for tooling/agents/docs; Task 2 fo
 
 ## Execution handoff
 
-The written design and implementation plan were approved on 23 October 2026. **Execution is in progress using the retained Native/current-checkout method.** Do not ask for the execution method again. The execution ledger records completed tasks and evidence; the parity tracker distinguishes actual migration progress from external/native acceptance gates.
+The written design and implementation plan were approved on 23 October 2026. Tasks 1–7 and the Task 8 review/fixes are implemented and pushed using the retained Native/current-checkout method. The user confirmed basic opening of the migrated shell and both launchers on 24 October. **Task 8 detailed native acceptance remains open.** The [parity tracker](../../research/tauri-template-parity.md) preserves verification evidence, decisions, deferred minor findings and exact remaining gates. Do not ask for the execution method again.
