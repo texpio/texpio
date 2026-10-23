@@ -1,0 +1,5 @@
+id: no-store-subscription-in-lib-tsx
+valid:
+  - 'const value = useUIStore.getState().value'
+invalid:
+  - 'const value = useUIStore(state => state.value)'

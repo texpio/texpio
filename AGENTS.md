@@ -29,9 +29,19 @@ Installed in `C:/Users/mohda/.codex/skills/` on 23 October 2026:
 
 The selected collection covers Vite 8.3.1, Vitest 5.0.1, and pnpm 12.x, matching this project's major versions. Check current installed APIs before applying examples.
 
-- For shadcn work, inspect `components.json` and existing components, use the installed CLI through `bunx --no-install shadcn`, fetch relevant component docs, and preserve semantic theme tokens and accessible composition. Do not upgrade the CLI implicitly.
+- For shadcn work, inspect `components.json` and existing components, use the installed CLI through `bun x --no-install shadcn`, fetch relevant component docs, and preserve semantic theme tokens and accessible composition. Do not upgrade the CLI implicitly.
 - For Vite/Vitest work, use the installed skills for configuration, test isolation, and mocks; keep native Rust and browser-only tests distinct.
 - For package changes, use pinned Bun and frozen installs for verification; the pnpm skill remains provenance/reference for historical migration only. Do not copy obsolete CI version numbers from illustrative skill snippets.
 - No relevant official Tauri, Rust/windows-rs, or Tailwind consumer-development skill was verified during this search. Use official documentation and the exact installed bindings for those dependencies. Do not label community skills as official or install unrelated contributor workflows.
 
 To reproduce installation on another machine, use the `skill-installer` helper with the repository, path, and revision above: `shadcn-ui/ui` + `skills/shadcn`; `antfu/skills` + `skills/vite skills/vitest skills/pnpm`.
+
+## Application architecture and portable workflows
+
+Read [.agents/README.md](.agents/README.md) for four local skills and two report-only role prompts. Their scope follows the user's request; explicit authorization already in the conversation remains valid. Texpio identity and the approved current-checkout execution choice are established.
+
+- UI state belongs in `src/store/ui-store.ts`; use narrow Zustand selectors in components and `getState()` in pure `src/lib/` functions. Server/native data belongs in `src/services/` TanStack Query hooks; persisted preferences are Rust-owned. Do not persist snippets, quick-pane entries, probe input or diagnostic content in UI layout state.
+- Register actions once in `src/lib/commands/`; route palette, menus and shortcuts through that registry. Use typed native facades and regenerate `src/lib/bindings.ts` with `bun run rust:bindings` after command changes. Keep Rust tokens and input decisions off the webview.
+- Compose existing shadcn/Radix primitives, semantic colors and logical CSS. Add visible strings to all three root locales. Preserve cancellation and listener cleanup across React StrictMode and multiple windows.
+- Follow [architecture](docs/developer/architecture-guide.md), [testing](docs/developer/testing.md) and [security](docs/SECURITY.md). Run `bun run check:all` and relevant builds before completion. Never arm global input in ordinary automated checks. P0 physical qualification remains a separate evidence gate.
+- Task/release helpers prepare only requested local work. `TASKS.md` is canonical; release preparation cannot publish. Reusable UI/plugin infrastructure is intentional even when static tools report it unused.

@@ -1,0 +1,8 @@
+id: hooks-in-hooks-dir-tsx
+valid:
+  - 'export function computeThing() { return 1 }'
+  - 'export const useful = () => 1'
+invalid:
+  - 'export function useThing() { return 1 }'
+  - 'export const useThing = () => 1'
+  - 'export const useThing = async () => 1'

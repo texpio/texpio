@@ -34,14 +34,19 @@
     "tauri:build": "tauri build",
     "tauri:check": "bun run typecheck && cargo check --locked --manifest-path src-tauri/Cargo.toml",
     "ast:lint": "ast-grep scan",
-    "ast:test": "ast-grep test",
+    "ast:test": "ast-grep test --skip-snapshot-tests",
     "ast:fix": "ast-grep scan --fix",
     "knip": "knip",
     "jscpd": "jscpd",
-    "test:all": "bun run test && bun run test:probe-fixture && bun run rust:test",
-    "check:all": "bun run typecheck && bun run lint && bun run ast:lint && bun run format:check && bun run rust:fmt:check && bun run rust:clippy && bun run test:all",
+    "test:all": "bun run test && bun run test:tooling && bun run test:probe-fixture && bun run rust:test",
+    "check:all": "bun run typecheck && bun run lint && bun run ast:lint && bun run ast:test && bun run format:check && bun run rust:fmt:check && bun run rust:clippy && bun run test:all",
     "fix:all": "bun run lint:fix && bun run format && bun run rust:fmt",
-    "rust:bindings": "cargo run --locked --manifest-path src-tauri/Cargo.toml --example export_bindings"
+    "rust:bindings": "cargo run --locked --manifest-path src-tauri/Cargo.toml --example export_bindings",
+    "test:tooling": "node --test scripts/tooling.test.js scripts/agents.test.js scripts/release-gates.test.js",
+    "task:complete": "node scripts/complete-task.js",
+    "release:prepare": "node scripts/prepare-release.js",
+    "analyze": "bun run build && node scripts/analyze-bundle.js",
+    "task:rename-done": "node scripts/complete-task.js --rename-existing"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.2.1",

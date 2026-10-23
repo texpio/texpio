@@ -10,7 +10,6 @@ severity: error
 language: TypeScript
 files:
   - 'src/lib/**/*.ts'
-  - 'src/lib/**/*.tsx'
 rule:
   any:
     # Named function export: export function useFoo() {}

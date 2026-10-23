@@ -1,0 +1,13 @@
+# Optional external service: installing this configuration does not enable it.
+reviews:
+  collapse_walkthrough: true
+  sequence_diagrams: false
+  auto_review:
+    enabled: false
+  path_filters:
+    - '!bun.lock'
+    - '!src-tauri/Cargo.lock'
+    - '!src/lib/bindings.ts'
+issue_enrichment:
+  auto_enrich:
+    enabled: false

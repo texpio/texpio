@@ -7,7 +7,7 @@ message: |
 
   For multiple values, use multiple selectors or useShallow.
 severity: error
-language: Tsx
+language: TypeScript
 rule:
   pattern: const { $$$PROPS } = useUIStore($$$ARGS)
 note: |

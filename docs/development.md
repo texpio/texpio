@@ -1,6 +1,6 @@
 # Texpio development
 
-The desktop foundation uses the official React/TypeScript/Vite Tauri 2 starter. Native text expansion is a later P0 milestone. Future accounts, billing, and sync use a separate Laravel/PostgreSQL project.
+The desktop foundation uses the official React/TypeScript/Vite Tauri 2 starter. The guarded P0 engine is available in Developer; physical qualification is incomplete. Future accounts, billing, and sync use a separate Laravel/PostgreSQL project.
 
 ## Starter provenance
 
@@ -48,3 +48,7 @@ The original starter exited when its main window was closed. The following check
 - [ ] Tray **Open Texpio** restores a minimized window.
 - [ ] A second launch restores/focuses the original window and leaves one Texpio process.
 - [ ] Tray **Quit** terminates the process; a subsequent launch works.
+
+## Adopted template shell
+
+The approved shell uses Bun and retains the engine in Developer. See [developer guides](developer/README.md), [user guide](userguide/userguide.md) and [template parity](research/tauri-template-parity.md). Run `bun run check:all` and `bun run build`; native acceptance remains separate.

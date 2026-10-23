@@ -19,7 +19,7 @@ The user selected **Texpio** on 23 October 2026. The desktop foundation is being
 | [Windows expansion probe plan](docs/superpowers/plans/2026-10-23-windows-expansion-probe.md)          | Approved implementation tasks and physical/native acceptance campaigns; currently paused for template migration |
 | [Template audit and parity](docs/research/tauri-template-parity.md)                                   | Pinned upstream feature inventory, portable agent mapping and migration evidence tracker                        |
 | [Template adoption design](docs/superpowers/specs/2026-10-23-template-adoption-design.md)             | Approved full template shell with preserved engine, Bun and universal agent materials                           |
-| [Template adoption plan](docs/superpowers/plans/2026-10-23-template-adoption.md)                      | Eight implementation tasks, parity checks and Windows acceptance; implementation-plan review pending            |
+| [Template adoption plan](docs/superpowers/plans/2026-10-23-template-adoption.md)                      | Eight implementation tasks, parity checks and Windows acceptance; approved; implementation in progress            |
 | [Tasks](TASKS.md)                                                                                     | Planning progress, decisions, and future validation work                                                        |
 | [Planning evidence](docs/planning-evidence.md)                                                        | Official sources and the limits of the research                                                                 |
 | [Naming record](docs/naming-research.md)                                                              | Selection and GitHub checks                                                                                     |
@@ -29,3 +29,7 @@ The product plans are reviewable proposals. Windows first, then macOS and the de
 ## GitHub identity
 
 The user created the [Texpio GitHub organization](https://github.com/texpio) and the canonical [texpio/texpio repository](https://github.com/texpio/texpio). The organization was verified through GitHub's public API on 23 October 2026. Domains and brand clearance remain separate launch work.
+
+## Contributor guides
+
+See the [documentation index](docs/README.md), [portable skills and roles](.agents/README.md) and [third-party notices](THIRD_PARTY_NOTICES.md). Native acceptance and real signed update delivery are tracked separately from automated checks.

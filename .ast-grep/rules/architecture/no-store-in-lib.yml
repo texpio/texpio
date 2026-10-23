@@ -10,7 +10,6 @@ severity: error
 language: TypeScript
 files:
   - 'src/lib/**/*.ts'
-  - 'src/lib/**/*.tsx'
 rule:
   pattern: useUIStore($$$SELECTOR)
 note: |

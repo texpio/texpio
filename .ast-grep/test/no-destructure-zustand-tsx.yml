@@ -1,0 +1,7 @@
+id: no-destructure-zustand-tsx
+valid:
+  - 'const value = useUIStore(state => state.value)'
+  - 'const { value } = otherStore()'
+invalid:
+  - 'const { value } = useUIStore()'
+  - 'const { value } = useUIStore(state => state)'

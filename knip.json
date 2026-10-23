@@ -1,8 +1,22 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["src/main.tsx", "vite.config.ts", "vitest.config.ts"],
+  "entry": [
+    "index.html",
+    "quick-pane.html",
+    "src/main.tsx",
+    "src/quick-pane-main.tsx",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "scripts/*.{js,mjs}"
+  ],
   "project": ["src/**/*.{ts,tsx}"],
-  "ignore": ["src/components/ui/**", "src/test/**", "**/index.ts", "src/lib/platform-strings.ts"],
+  "ignore": [
+    "src/components/ui/**",
+    "src/test/**",
+    "**/index.ts",
+    "src/lib/platform-strings.ts",
+    "src/lib/bindings.ts"
+  ],
   "ignoreDependencies": [
     "@tauri-apps/*",
     "@radix-ui/*",

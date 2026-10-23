@@ -1,0 +1,12 @@
+# Build, dependencies and inspection artifacts; retained source/lockfiles remain reviewable.
+node_modules/
+dist/
+target/
+coverage/
+.tools/
+.superpowers/
+jscpd-report/
+.env
+.env.*
+*.log
+*.tmp
