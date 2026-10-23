@@ -24,6 +24,16 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
+    files: ['scripts/**/*.mjs'],
+    extends: [js.configs.recommended],
+    languageOptions: { globals: globals.node },
+  },
+  {
+    files: ['tests/fixtures/**/*.js'],
+    extends: [js.configs.recommended],
+    languageOptions: { globals: globals.browser },
+  },
+  {
     files: ['src/**/*.test.{ts,tsx}', 'src/test/**'],
     rules: { 'react-refresh/only-export-components': 'off' },
   },

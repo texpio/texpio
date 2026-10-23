@@ -8,6 +8,8 @@
   },
   "type": "module",
   "scripts": {
+    "probe:fixture": "node scripts/serve-probe-fixture.mjs",
+    "test:probe-fixture": "node --test scripts/serve-probe-fixture.test.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",

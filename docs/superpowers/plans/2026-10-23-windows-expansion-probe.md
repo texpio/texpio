@@ -22,7 +22,7 @@
 - Partial/uncertain insertion stops automatic expansion. No compensating backspaces or blind replay.
 - At least 300 eligible **physical-input automatic end-to-end** attempts, at least 100 per reference app; synthetic trials do not contribute. Zero observed wrong-target insertion or unrelated deletion in positive and negative campaigns.
 - Retain pinned tools, frozen/locked installs, current checkout, original Texpio UI, and narrow capabilities. No backend, database, production editor, rich text, scripts, autostart, packaging release, or macOS adapter.
-- Preserve the user's earlier **Native execution in the current checkout** choice. This plan still requires review before execution; do not ask for the execution method again.
+- Preserve the user's earlier **Native execution in the current checkout** choice. The user approved this plan for implementation on 23 October 2026; do not ask for the execution method again.
 
 ## Review Focus
 

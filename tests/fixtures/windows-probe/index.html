@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Texpio P0 Fixture</title>
+    <style>
+      body {
+        font:
+          16px system-ui,
+          sans-serif;
+        max-width: 800px;
+        margin: 32px auto;
+        padding: 0 24px;
+      }
+      label {
+        display: block;
+        margin: 20px 0 6px;
+        font-weight: 600;
+      }
+      textarea,
+      input,
+      [contenteditable] {
+        box-sizing: border-box;
+        width: 100%;
+        border: 1px solid #777;
+        padding: 10px;
+        font:
+          16px ui-monospace,
+          monospace;
+      }
+      textarea {
+        min-height: 140px;
+      }
+      button {
+        margin: 12px 8px 0 0;
+        padding: 8px 12px;
+      }
+      :focus-visible {
+        outline: 3px solid #2563eb;
+        outline-offset: 2px;
+      }
+    </style>
+    <script src="/fixture.js" defer></script>
+  </head>
+  <body>
+    <h1>Texpio P0 fixture</h1>
+    <p>Use synthetic text only. This page sends no input or results to a server.</p>
+    <label for="probe-text">Texpio P0 textarea</label>
+    <textarea id="probe-text" spellcheck="false" autocomplete="off">
+TEXPIO_P0_BEGIN
+
+TEXPIO_P0_END</textarea>
+    <button id="reset-text" type="button">Reset synthetic document</button>
+    <button id="readonly-text" type="button">Toggle readonly</button>
+    <button id="disable-text" type="button">Toggle disabled</button>
+    <label for="probe-input">Texpio P0 input</label>
+    <input id="probe-input" type="text" spellcheck="false" autocomplete="off" />
+    <label for="probe-other">Texpio P0 second field</label>
+    <input id="probe-other" type="text" autocomplete="off" />
+    <label for="probe-password">Texpio P0 password negative</label>
+    <input id="probe-password" type="password" autocomplete="off" />
+    <label for="probe-readonly">Texpio P0 readonly negative</label>
+    <input id="probe-readonly" value="Synthetic readonly sentinel" readonly />
+    <label for="probe-disabled">Texpio P0 disabled negative</label>
+    <input id="probe-disabled" value="Synthetic disabled sentinel" disabled />
+    <label id="exploratory-label">Contenteditable exploratory only</label>
+    <div contenteditable="true" aria-labelledby="exploratory-label">
+      Synthetic contenteditable sentinel
+    </div>
+  </body>
+</html>
