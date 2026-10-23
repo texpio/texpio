@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, specta::Type)]
 pub struct Fixture {
     pub id: &'static str,
     pub title: &'static str,

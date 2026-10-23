@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-#[derive(Serialize)]
+#[derive(Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AppInfo {
     version: String,
@@ -8,6 +8,7 @@ pub struct AppInfo {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_app_info() -> AppInfo {
     AppInfo {
         version: env!("CARGO_PKG_VERSION").to_string(),

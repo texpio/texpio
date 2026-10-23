@@ -7,7 +7,7 @@ use serde::Serialize;
 use std::sync::Arc;
 use tauri::{AppHandle, State};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, specta::Type)]
 pub struct ProbeError {
     code: RefusalReason,
 }
@@ -26,6 +26,7 @@ fn supported() -> Result<(), ProbeError> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn probe_status(
     app: AppHandle,
     handle: State<'_, Arc<ProbeHandle>>,
@@ -37,6 +38,7 @@ pub fn probe_status(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn probe_fixtures() -> Result<Vec<Fixture>, ProbeError> {
     supported()?;
     Ok(fixtures())
@@ -57,6 +59,7 @@ async fn control(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn probe_start(
     app: AppHandle,
     handle: State<'_, Arc<ProbeHandle>>,
@@ -68,6 +71,7 @@ pub async fn probe_start(
     .await
 }
 #[tauri::command]
+#[specta::specta]
 pub async fn probe_stop(
     app: AppHandle,
     handle: State<'_, Arc<ProbeHandle>>,
@@ -75,6 +79,7 @@ pub async fn probe_stop(
     control(app, handle.inner().clone(), |handle| Ok(handle.stop())).await
 }
 #[tauri::command]
+#[specta::specta]
 pub async fn probe_pause(
     app: AppHandle,
     handle: State<'_, Arc<ProbeHandle>>,
@@ -86,6 +91,7 @@ pub async fn probe_pause(
     .await
 }
 #[tauri::command]
+#[specta::specta]
 pub async fn probe_exclude(
     app: AppHandle,
     handle: State<'_, Arc<ProbeHandle>>,

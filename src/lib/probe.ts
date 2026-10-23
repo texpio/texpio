@@ -1,4 +1,5 @@
-import { invoke, isTauri } from '@tauri-apps/api/core'
+import { commands, requireDesktop, unwrapResult } from './tauri-bindings'
+import type { Result } from './bindings'
 
 export const profiles = ['notepad', 'vsCode', 'chromeFixture'] as const
 export type ReferenceProfile = (typeof profiles)[number]
@@ -104,13 +105,12 @@ function parseStatus(value: unknown): ProbeStatus {
 }
 
 async function call<T>(
-  command: string,
-  args: Record<string, unknown> | undefined,
+  action: () => Promise<Result<unknown, unknown>>,
   parse: (value: unknown) => T,
 ): Promise<T> {
   try {
-    if (!isTauri()) throw new Error(unavailableMessage)
-    const value = args ? await invoke<unknown>(command, args) : await invoke<unknown>(command)
+    requireDesktop()
+    const value = unwrapResult(await action())
     return parse(value)
   } catch (error: unknown) {
     if (record(error) && reason(error.code)) throw new ProbeCommandError(error.code)
@@ -120,30 +120,29 @@ async function call<T>(
 }
 
 export function getProbeStatus() {
-  return call('probe_status', undefined, parseStatus)
+  return call(commands.probeStatus, parseStatus)
 }
 export function stopProbe() {
-  return call('probe_stop', undefined, parseStatus)
+  return call(commands.probeStop, parseStatus)
 }
 export async function startProbe(options: StartOptions) {
   if (!member(options?.profile, profiles) || !member(options?.strategy, strategies))
     throw new Error(unavailableMessage)
   return call(
-    'probe_start',
-    { options: { profile: options.profile, strategy: options.strategy } },
+    () => commands.probeStart({ profile: options.profile, strategy: options.strategy }),
     parseStatus,
   )
 }
 export async function pauseProbe(paused: boolean) {
   if (typeof paused !== 'boolean') throw new Error(unavailableMessage)
-  return call('probe_pause', { paused }, parseStatus)
+  return call(() => commands.probePause(paused), parseStatus)
 }
 export async function excludeProbe(profile: ReferenceProfile) {
   if (!member(profile, profiles)) throw new Error(unavailableMessage)
-  return call('probe_exclude', { profile }, parseStatus)
+  return call(() => commands.probeExclude(profile), parseStatus)
 }
 export function getProbeFixtures(): Promise<ProbeFixture[]> {
-  return call('probe_fixtures', undefined, (value) => {
+  return call(commands.probeFixtures, (value) => {
     if (!Array.isArray(value) || value.length > 7) throw new Error(unavailableMessage)
     const ids = new Set<string>()
     return value.map((item: unknown) => {

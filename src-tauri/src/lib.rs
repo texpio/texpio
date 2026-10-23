@@ -1,10 +1,14 @@
+pub mod bindings;
 mod commands;
 #[cfg(desktop)]
 mod desktop;
 pub mod engine;
 mod probe_commands;
+#[cfg(test)]
+mod service_tests;
+mod types;
+mod utils;
 
-#[cfg(desktop)]
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -18,10 +22,6 @@ pub fn run() {
                 eprintln!("Texpio could not restore its window");
             }
         }))
-        .setup(|app| {
-            desktop::setup_tray(app.handle())?;
-            Ok(())
-        })
         .on_window_event(|window, event| {
             if window.label() == "main"
                 && let tauri::WindowEvent::CloseRequested { api, .. } = event
@@ -34,16 +34,22 @@ pub fn run() {
         });
 
     builder
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_os::init())
+        .setup(|app| {
+            let root = app.path().app_data_dir()?;
+            app.manage(std::sync::Arc::new(
+                commands::preferences::PreferencesStore::new(root.clone()),
+            ));
+            app.manage(std::sync::Arc::new(commands::recovery::RecoveryStore::new(
+                root.join("recovery"),
+            )));
+            #[cfg(desktop)]
+            desktop::setup_tray(app.handle())?;
+            Ok(())
+        })
         .manage(std::sync::Arc::new(engine::runtime::ProbeHandle::new()))
-        .invoke_handler(tauri::generate_handler![
-            commands::get_app_info,
-            probe_commands::probe_status,
-            probe_commands::probe_fixtures,
-            probe_commands::probe_start,
-            probe_commands::probe_stop,
-            probe_commands::probe_pause,
-            probe_commands::probe_exclude
-        ])
+        .invoke_handler(bindings::builder().invoke_handler())
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {

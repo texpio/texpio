@@ -40,7 +40,8 @@
     "jscpd": "jscpd",
     "test:all": "bun run test && bun run test:probe-fixture && bun run rust:test",
     "check:all": "bun run typecheck && bun run lint && bun run ast:lint && bun run format:check && bun run rust:fmt:check && bun run rust:clippy && bun run test:all",
-    "fix:all": "bun run lint:fix && bun run format && bun run rust:fmt"
+    "fix:all": "bun run lint:fix && bun run format && bun run rust:fmt",
+    "rust:bindings": "cargo run --locked --manifest-path src-tauri/Cargo.toml --example export_bindings"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.2.1",

@@ -1,14 +1,11 @@
-import { invoke, isTauri } from '@tauri-apps/api/core'
-
-export interface AppInfo {
-  version: string
-  platform: string
-}
+import { commands, requireDesktop } from './tauri-bindings'
+import type { AppInfo } from './bindings'
+export type { AppInfo } from './bindings'
 
 export async function getAppInfo(): Promise<AppInfo> {
   try {
-    if (!isTauri()) throw new Error('Browser preview')
-    const info = await invoke<unknown>('get_app_info')
+    requireDesktop()
+    const info: unknown = await commands.getAppInfo()
     if (
       typeof info !== 'object' ||
       info === null ||
