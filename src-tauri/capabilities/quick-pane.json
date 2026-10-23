@@ -10,6 +10,7 @@
     "core:resources:default",
     "allow-load-preferences",
     "allow-migrate-legacy-theme",
-    "allow-dismiss-quick-pane"
+    "allow-dismiss-quick-pane",
+    "allow-record-diagnostic"
   ]
 }

@@ -14,6 +14,7 @@ import { DeveloperView } from '@/features/developer/DeveloperView'
 import { CommandPalette } from '@/components/command-palette/CommandPalette'
 import { PreferencesDialog } from '@/components/preferences/PreferencesDialog'
 import { Toaster } from '@/components/ui/sonner'
+import { UpdateDialog } from '@/components/updates/UpdateDialog'
 import { useMainWindowEventListeners } from '@/hooks/useMainWindowEventListeners'
 import { useCommandContext } from '@/hooks/use-command-context'
 import { runCommand } from '@/lib/commands'
@@ -194,6 +195,7 @@ export function MainWindow() {
       <CommandPalette />
       <PreferencesDialog />
       <Toaster />
+      <UpdateDialog />
     </div>
   )
 }

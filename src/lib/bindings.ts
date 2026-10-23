@@ -147,6 +147,20 @@ async updateQuickPaneShortcut(shortcut: string) : Promise<Result<null, ServiceEr
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async getUpdateConfiguration() : Promise<UpdateConfiguration> {
+    return await TAURI_INVOKE("get_update_configuration");
+},
+async prepareForRelaunch() : Promise<Result<null, RefusalReason>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("prepare_for_relaunch") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async recordDiagnostic(record: DiagnosticRecord) : Promise<void> {
+    await TAURI_INVOKE("record_diagnostic", { record });
 }
 }
 
@@ -162,6 +176,9 @@ async updateQuickPaneShortcut(shortcut: string) : Promise<Result<null, ServiceEr
 
 export type AppInfo = { version: string; platform: string }
 export type AppPreferences = { theme: Theme; quick_pane_shortcut: string | null; language: Language | null }
+export type DiagnosticEvent = "appStarted" | "renderFailed" | "commandFailed" | "notificationFailed" | "recoverySaved" | "recoveryFailed" | "updateFailed" | "unknown"
+export type DiagnosticLevel = "trace" | "debug" | "info" | "warn" | "error"
+export type DiagnosticRecord = { level: DiagnosticLevel; event: DiagnosticEvent; count: number | null }
 export type Fixture = { id: string; title: string; trigger: string; body: string }
 export type InsertionStrategy = "unicode" | "clipboard"
 export type JsonValue = null | boolean | number | string | JsonValue[] | Partial<{ [key in string]: JsonValue }>
@@ -175,6 +192,7 @@ export type RefusalReason = "unsupportedPlatform" | "unsupportedProfile" | "unsu
 export type ServiceError = "invalidInput" | "corruptData" | "io" | "notFound" | "dataTooLarge" | "unavailable"
 export type StartOptions = { profile: ReferenceProfile; strategy: InsertionStrategy }
 export type Theme = "system" | "light" | "dark"
+export type UpdateConfiguration = { configured: boolean }
 
 /** tauri-specta globals **/
 

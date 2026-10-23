@@ -15,8 +15,11 @@ import { usePreferences, useSavePreferences } from '@/services/preferences'
 import { useUIStore } from '@/store/ui-store'
 import type { AppPreferences } from '@/lib/tauri-bindings'
 import { QuickPaneShortcut } from './QuickPaneShortcut'
+import { useCommandContext } from '@/hooks/use-command-context'
+import { runCommand } from '@/lib/commands'
 
 function PreferencesContent() {
+  const context = useCommandContext()
   const { t } = useTranslation()
   const query = usePreferences()
   const save = useSavePreferences()
@@ -90,6 +93,19 @@ function PreferencesContent() {
           </NativeSelect>
         </Field>
       </FieldGroup>
+      <footer className="flex items-center justify-between gap-4 border-t pt-4 text-sm text-muted-foreground">
+        <span>Texpio {__APP_VERSION__}</span>
+        {isTauri() && (
+          <Button
+            variant="outline"
+            onClick={() => {
+              void runCommand('check-for-updates', context)
+            }}
+          >
+            {t('menu.checkForUpdates')}
+          </Button>
+        )}
+      </footer>
     </DialogContent>
   )
 }

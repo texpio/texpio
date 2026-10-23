@@ -39,12 +39,14 @@ interface UIState {
   activeView: 'home' | 'developer'
   commandPaletteOpen: boolean
   preferencesOpen: boolean
+  updateDialogOpen: boolean
   lastQuickPaneEntry: string | null
   setSidebarVisible: (side: 'left' | 'right', visible: boolean) => void
   setPanelSizes: (left: number, right: number) => void
   setActiveView: (view: 'home' | 'developer') => void
   setCommandPaletteOpen: (open: boolean) => void
   setPreferencesOpen: (open: boolean) => void
+  setUpdateDialogOpen: (open: boolean) => void
   setLastQuickPaneEntry: (text: string | null) => void
 }
 export function createUIStore(storage?: StoragePort) {
@@ -59,6 +61,7 @@ export function createUIStore(storage?: StoragePort) {
     activeView: 'home',
     commandPaletteOpen: false,
     preferencesOpen: false,
+    updateDialogOpen: false,
     lastQuickPaneEntry: null,
     setSidebarVisible: (side, visible) =>
       set((state) => ({
@@ -75,6 +78,7 @@ export function createUIStore(storage?: StoragePort) {
     setActiveView: (activeView) => set({ activeView }),
     setCommandPaletteOpen: (commandPaletteOpen) => set({ commandPaletteOpen }),
     setPreferencesOpen: (preferencesOpen) => set({ preferencesOpen }),
+    setUpdateDialogOpen: (updateDialogOpen) => set({ updateDialogOpen }),
     setLastQuickPaneEntry: (lastQuickPaneEntry) => set({ lastQuickPaneEntry }),
   }))
   store.subscribe((state, previous) => {

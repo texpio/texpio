@@ -58,7 +58,8 @@ export function startNativeMenu(context: CommandContext) {
       ),
     )
     const preferences = await command('open-preferences', 'menu.preferences')
-    const appItems: Array<MenuItem | PredefinedMenuItem> = [about, preferences]
+    const updates = await command('check-for-updates', 'menu.checkForUpdates')
+    const appItems: Array<MenuItem | PredefinedMenuItem> = [about, preferences, updates]
     if (context.platform === 'macos') {
       for (const [item, key] of [
         ['Hide', 'menu.hide'],

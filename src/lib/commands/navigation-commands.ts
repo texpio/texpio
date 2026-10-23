@@ -4,6 +4,17 @@ import type { AppCommand } from './types'
 import { showQuickPane } from '@/services/quick-pane'
 export const navigationCommands: AppCommand[] = [
   {
+    id: 'check-for-updates',
+    labelKey: 'menu.checkForUpdates',
+    group: 'navigation',
+    isAvailable: (context) => context.platform !== 'unknown',
+    execute: () => {
+      const state = useUIStore.getState()
+      state.setPreferencesOpen(false)
+      state.setUpdateDialogOpen(true)
+    },
+  },
+  {
     id: 'show-quick-pane',
     labelKey: 'quickPane.open',
     group: 'navigation',

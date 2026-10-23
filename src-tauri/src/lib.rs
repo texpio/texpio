@@ -4,6 +4,8 @@ mod commands;
 mod desktop;
 pub mod engine;
 mod lifecycle;
+#[cfg(test)]
+mod lifecycle_service_tests;
 mod probe_commands;
 #[cfg(test)]
 mod service_tests;
@@ -33,6 +35,15 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let context = tauri::generate_context!();
+    let configuration = commands::lifecycle::UpdateConfiguration {
+        configured: context
+            .config()
+            .plugins
+            .0
+            .get("updater")
+            .is_some_and(commands::lifecycle::valid_update_configuration),
+    };
     let builder = tauri::Builder::default();
 
     #[cfg(desktop)]
@@ -76,7 +87,35 @@ pub fn run() {
     #[cfg(target_os = "macos")]
     let builder = builder.plugin(tauri_nspanel::init());
 
+    // Missing or invalid configuration must not initialize the updater plugin.
+    #[cfg(desktop)]
+    let builder = if configuration.configured {
+        builder.plugin(tauri_plugin_updater::Builder::new().build())
+    } else {
+        builder
+    };
+
     builder
+        .manage(configuration)
+        .plugin(tauri_plugin_process::init())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(if cfg!(debug_assertions) {
+                    log::LevelFilter::Debug
+                } else {
+                    log::LevelFilter::Info
+                })
+                .filter(|metadata| metadata.target() == "texpio::diagnostic")
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: Some("texpio".into()),
+                    }),
+                ])
+                .max_file_size(1_048_576)
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne)
+                .build(),
+        )
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_os::init())
         .setup(|app| {
@@ -98,8 +137,11 @@ pub fn run() {
         })
         .manage(std::sync::Arc::new(engine::runtime::ProbeHandle::new()))
         .invoke_handler(bindings::builder().invoke_handler())
-        .build(tauri::generate_context!())
-        .expect("error while building tauri application")
+        .build(context)
+        .unwrap_or_else(|_| {
+            eprintln!("Texpio could not start");
+            std::process::exit(1)
+        })
         .run(|app, event| {
             #[cfg(target_os = "macos")]
             if matches!(event, tauri::RunEvent::Reopen { .. }) {

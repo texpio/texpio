@@ -27,6 +27,9 @@ fn main() {
             "toggle_quick_pane",
             "get_default_quick_pane_shortcut",
             "update_quick_pane_shortcut",
+            "get_update_configuration",
+            "prepare_for_relaunch",
+            "record_diagnostic",
         ])),
     )
     .expect("could not prepare Tauri build");

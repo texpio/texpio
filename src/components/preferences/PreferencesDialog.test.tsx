@@ -8,6 +8,7 @@ import { useUIStore } from '@/store/ui-store'
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn(), isTauri: vi.fn() }))
 vi.mock('@tauri-apps/api/event', () => ({ emit: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@/services/quick-pane', () => ({
+  showQuickPane: vi.fn(),
   getDefaultQuickPaneShortcut: () => Promise.resolve('CommandOrControl+Shift+.'),
   updateQuickPaneShortcut: vi.fn(),
 }))

@@ -35,6 +35,11 @@
     "allow-dismiss-quick-pane",
     "allow-toggle-quick-pane",
     "allow-get-default-quick-pane-shortcut",
-    "allow-update-quick-pane-shortcut"
+    "allow-update-quick-pane-shortcut",
+    "allow-get-update-configuration",
+    "allow-prepare-for-relaunch",
+    "allow-record-diagnostic",
+    "updater:default",
+    "process:allow-restart"
   ]
 }
