@@ -116,7 +116,7 @@ impl WindowsJob {
     pub fn finished(&self) -> bool {
         self.worker.as_ref().is_none_or(JoinHandle::is_finished)
     }
-    pub fn shutdown(&mut self) -> bool {
+    pub fn shutdown(&mut self) -> Result<(), RefusalReason> {
         self.shared.gate.close();
         self.shared.halt.store(true, Ordering::SeqCst);
         let clean = self.observer.as_mut().is_none_or(ObserverHandle::stop);
@@ -125,14 +125,18 @@ impl WindowsJob {
             thread::sleep(Duration::from_millis(5));
         }
         if !self.finished() {
-            return false;
+            return Err(RefusalReason::ProviderTimeout);
         }
         if let Some(worker) = self.worker.take()
             && worker.join().is_err()
         {
-            return false;
+            return Err(RefusalReason::ContextUnavailable);
         }
-        clean
+        if clean {
+            Ok(())
+        } else {
+            Err(RefusalReason::ContextUnavailable)
+        }
     }
 }
 

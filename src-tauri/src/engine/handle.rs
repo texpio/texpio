@@ -131,10 +131,11 @@ impl ProbeHandle {
                 .job
                 .lock()
                 .map_err(|_| RefusalReason::OutcomeUncertain)?;
-            if let Some(job) = slot.as_mut()
-                && (!job.finished() || !job.shutdown())
-            {
-                return Err(RefusalReason::Busy);
+            if let Some(job) = slot.as_mut() {
+                if !job.finished() {
+                    return Err(RefusalReason::Busy);
+                }
+                job.shutdown()?;
             }
             *slot = None;
             self.shared.gate.arm()?;
@@ -173,22 +174,23 @@ impl ProbeHandle {
 
     pub fn stop(&self) -> ProbeStatus {
         let outcome = self.shared.gate.close();
-        let mut clean = true;
         #[cfg(target_os = "windows")]
-        {
-            match self.job.try_lock() {
-                Ok(mut slot) => {
-                    if let Some(job) = slot.as_mut() {
-                        clean = job.shutdown();
-                    }
+        let cleanup = match self.job.try_lock() {
+            Ok(mut slot) => {
+                if let Some(job) = slot.as_mut() {
+                    job.shutdown()
+                } else {
+                    Ok(())
                 }
-                Err(_) => clean = false,
             }
-        }
+            Err(_) => Err(RefusalReason::Busy),
+        };
+        #[cfg(not(target_os = "windows"))]
+        let cleanup: Result<(), RefusalReason> = Ok(());
         if outcome == CloseOutcome::InFlightUncertain {
             self.shared.fail(RefusalReason::OutcomeUncertain, true);
-        } else if !clean {
-            self.shared.fail(RefusalReason::ProviderTimeout, false);
+        } else if let Err(reason) = cleanup {
+            self.shared.fail(reason, false);
         } else {
             let mut status = self.shared.status.lock().unwrap_or_else(|p| p.into_inner());
             status.phase = ProbePhase::Stopped;

@@ -2,6 +2,7 @@ mod commands;
 #[cfg(desktop)]
 mod desktop;
 pub mod engine;
+mod probe_commands;
 
 #[cfg(desktop)]
 use tauri::Manager;
@@ -33,7 +34,26 @@ pub fn run() {
         });
 
     builder
-        .invoke_handler(tauri::generate_handler![commands::get_app_info])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .manage(std::sync::Arc::new(engine::runtime::ProbeHandle::new()))
+        .invoke_handler(tauri::generate_handler![
+            commands::get_app_info,
+            probe_commands::probe_status,
+            probe_commands::probe_fixtures,
+            probe_commands::probe_start,
+            probe_commands::probe_stop,
+            probe_commands::probe_pause,
+            probe_commands::probe_exclude
+        ])
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if matches!(
+                event,
+                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+            ) && let Some(handle) =
+                app.try_state::<std::sync::Arc<engine::runtime::ProbeHandle>>()
+            {
+                handle.stop();
+            }
+        });
 }

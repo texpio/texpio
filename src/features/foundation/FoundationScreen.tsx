@@ -5,12 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
 import { useTheme, type ThemePreference } from '@/features/theme/ThemeProvider'
 import { getAppInfo, type AppInfo } from '@/lib/desktop'
+import { ProbePanel } from '@/features/probe/ProbePanel'
 
 type Connection =
   { status: 'loading' } | { status: 'connected'; info: AppInfo } | { status: 'unavailable' }
@@ -64,9 +66,11 @@ export function FoundationScreen() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="system">System</SelectItem>
-              <SelectItem value="light">Light</SelectItem>
-              <SelectItem value="dark">Dark</SelectItem>
+              <SelectGroup>
+                <SelectItem value="system">System</SelectItem>
+                <SelectItem value="light">Light</SelectItem>
+                <SelectItem value="dark">Dark</SelectItem>
+              </SelectGroup>
             </SelectContent>
           </Select>
         </div>
@@ -79,7 +83,7 @@ export function FoundationScreen() {
           </CardTitle>
           <CardDescription>Application information from the native desktop shell.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="flex flex-col gap-6">
           {connection.status === 'loading' && (
             <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
               <LoaderCircle
@@ -108,7 +112,7 @@ export function FoundationScreen() {
             </>
           )}
           {connection.status === 'unavailable' && (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               <p role="alert" className="text-sm">
                 Native desktop information is unavailable.
               </p>
@@ -122,15 +126,7 @@ export function FoundationScreen() {
           )}
         </CardContent>
       </Card>
-      <section aria-labelledby="next-step" className="rounded-xl border border-dashed p-5">
-        <h2 id="next-step" className="mb-2 text-sm font-medium">
-          Next: native expansion feasibility
-        </h2>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          Automatic text expansion is not implemented yet. The next milestone will test safe
-          abbreviation replacement in Windows applications.
-        </p>
-      </section>
+      <ProbePanel />
       <footer className="mt-auto text-xs leading-relaxed text-muted-foreground">
         Closing this window keeps Texpio running. To exit, choose Quit from the tray menu.
       </footer>

@@ -1,6 +1,6 @@
 # Windows expansion probe evidence
 
-Status on 23 October 2026: **implementation in progress; no input strategy qualified**. This report distinguishes code checks from native acceptance and physical typing evidence. The existing app still has no armed input hook.
+Status on 23 October 2026: **implementation in progress; no input strategy qualified**. This report distinguishes code checks from native acceptance and physical typing evidence. The preview starts Stopped; no live hook has been armed during these checks.
 
 ## Environment recorded during preflight
 
@@ -21,6 +21,8 @@ These app versions were inventoried, not qualified for expansion. The OS descrip
 Observed: native metadata reports Connected/version/platform; System/Light/Dark theme switching; close hides a still-running process; launching a second actual process exits that process and restores the original window with one process remaining.
 
 The user subsequently verified close → tray Open → tray Quit manually. A CLI process check found zero Texpio processes before the requested relaunch, and the preview was relaunched successfully. The minimized-window variant remains unverified. Computer Use was stopped after the earlier stalled closure and has not been restarted. Repository rules require brief sessions and immediate cleanup.
+
+The updated native preview was built successfully and the user confirmed the probe panel, initial Stopped status and fixed snippets. A screenshot also shows the rendered snippets and controls. This confirms the initial screen only; running/paused tray parity and native insertion remain unverified.
 
 ## Read-only context implementation
 
@@ -46,6 +48,8 @@ Build first with `cargo build --locked --manifest-path src-tauri/Cargo.toml --ex
 
 The helper returns a content-free refusal reason or read-only preparation acceptance. Acceptance alone is not an input-strategy qualification. Record each target's actual UIA capabilities/refusals here before enabling mutation. Password-field values must never be read.
 
+One user-assisted Notepad check completed and returned `UnsupportedLayout`, with no mutation. The active HKL observed afterward was `0x40094009`, corresponding to English (India), and configured input methods were `4009:00004009` and `0409:00004009`. Both use the India keyboard layout. This is an expected refusal of the current exact-US profile, not a successful UIA qualification or an insertion failure. No system input preference was changed. Further provider/caret checks remain pending with the approved US layout.
+
 For the browser fixture, run `pnpm probe:fixture` and open `http://127.0.0.1:4175/` in Chrome. The server binds IPv4 loopback, serves only three known GET assets, and accepts no uploads or request bodies. The page includes synthetic sentinels, positive controls, second focus target, password, readonly, disabled and exploratory contenteditable controls. Use only these synthetic fixtures. Stop the server with Ctrl+C when done.
 
 ## Evidence boundaries and remaining work
@@ -53,9 +57,10 @@ For the browser fixture, run `pnpm probe:fixture` and open `http://127.0.0.1:417
 - Unit tests cover bounded matching, rollover/repeat/reset behavior, explicit property semantics, unsafe guard states, exact suffix/boundary rules, two-field identity mismatch and candidate selectors. These are synthetic evidence and do not validate actual UIA providers.
 - The fixture-server test covers loopback binding, asset allowlist, traversal rejection, method rejection and response security headers.
 - Runtime code now compiles with a dedicated observation/message-loop thread, separate worker-local UIA backend, bounded candidate queue, generation checks, one Unicode batch and exact output observation. Construction and ordinary tests install no hooks and send no input. Native hook teardown, provider shutdown and actual insertion remain unqualified.
-- The latest Rust suite has 41 passing tests. It includes Stop during blocked preparation, acknowledged in-flight uncertainty, stale/consumed tickets, unexpected injections, explicit US mapping, UTF-16 encoding and zero-submission accounting. Strict Clippy passes with only host filesystem incremental-cache hard-link warnings.
+- The latest Rust suite has 44 passing tests. It includes Stop during blocked preparation, acknowledged in-flight uncertainty, stale/consumed tickets, unexpected injections, explicit US mapping, UTF-16 encoding, zero-submission accounting, closed command serialization and latched teardown failure. Strict Clippy passes with only host filesystem incremental-cache hard-link warnings.
 - No native provider identity/caret/range campaign has been completed. The preparation deadline and UIA timeouts still need slow-provider and cancellation qualification with the later runtime watchdog.
-- Probe UI, clipboard experiment and captured-target picker remain pending. Clipboard and picker results will be recorded separately.
+- Probe commands, a validated React bridge, content-free status polling, maintainer controls and tray state now compile. The frontend suite has 55 passing tests, including stale responses after Stop, malformed IPC, browser refusal and pending control behavior. Clipboard and captured-target picker remain pending; results will be recorded separately.
+- A headless browser visual attempt failed during navigation and produced no screenshot. The owned browser session and temporary frontend server were subsequently confirmed closed. This is not visual acceptance evidence; the native initial-screen confirmation above is separate.
 - Eligible physical automatic attempts: **0 / 300 required**, with **0 / 100** per candidate application. No zero-incident claim or latency/resource benchmark is available.
 - Remote Windows CI has not been verified; the connected GitHub tool returned repository-specific 404 responses. This is an access/evidence limitation, not proof a workflow ran or failed.
 
@@ -69,3 +74,5 @@ Decision: **continue feasibility work**. No advance-to-product-MVP decision is j
 - [Text range endpoint movement](https://learn.microsoft.com/en-us/windows/win32/api/uiautomationclient/nf-uiautomationclient-iuiautomationtextrange-moveendpointbyrange)
 - [GetText length contract](https://learn.microsoft.com/en-us/windows/win32/api/uiautomationclient/nf-uiautomationclient-iuiautomationtextrange-gettext)
 - [Microsoft windows-rs bindings](https://github.com/microsoft/windows-rs)
+- [Keyboard layout handle contract](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardlayout)
+- [Windows default input profiles](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/default-input-locales-for-windows-language-packs?view=windows-11)

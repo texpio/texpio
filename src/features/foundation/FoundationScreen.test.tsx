@@ -8,6 +8,9 @@ import { mockSystemTheme } from '@/test/system-theme'
 import { FoundationScreen } from './FoundationScreen'
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn(), isTauri: vi.fn() }))
+vi.mock('@/features/probe/ProbePanel', () => ({
+  ProbePanel: () => <section aria-label="Windows expansion probe" />,
+}))
 
 beforeEach(() => {
   mockSystemTheme()
@@ -37,7 +40,7 @@ describe('foundation screen', () => {
     expect(screen.getByText('windows')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent(/connected/i)
     expect(screen.getByRole('combobox', { name: /theme/i })).toBeInTheDocument()
-    expect(screen.getByText(/automatic text expansion is not implemented yet/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Windows expansion probe')).toBeInTheDocument()
     expect(screen.getByText(/closing this window keeps texpio running/i)).toBeInTheDocument()
   })
 

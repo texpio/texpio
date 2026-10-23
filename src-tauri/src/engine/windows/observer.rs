@@ -272,6 +272,7 @@ pub struct ObserverHandle {
     shared: Arc<ObserverShared>,
     done: Receiver<bool>,
     join: Option<JoinHandle<()>>,
+    clean: Option<bool>,
 }
 
 impl ObserverHandle {
@@ -306,6 +307,7 @@ impl ObserverHandle {
                 shared,
                 done: done_rx,
                 join: Some(join),
+                clean: None,
             }),
             _ => {
                 shared.halt.store(true, Ordering::SeqCst);
@@ -322,7 +324,7 @@ impl ObserverHandle {
 
     pub fn stop(&mut self) -> bool {
         if self.join.is_none() {
-            return true;
+            return self.clean == Some(true);
         }
         self.shared.halt.store(true, Ordering::SeqCst);
         self.shared.gate.close();
@@ -332,6 +334,7 @@ impl ObserverHandle {
         }
         match self.done.recv_timeout(Duration::from_millis(500)) {
             Ok(clean) => {
+                self.clean = Some(clean);
                 if let Some(join) = self.join.take() {
                     let _ = join.join();
                 }
@@ -522,5 +525,20 @@ mod tests {
         assert_eq!(input_origin(false, OWN_INPUT_MARKER), InputOrigin::Physical);
         assert_eq!(input_origin(true, OWN_INPUT_MARKER), InputOrigin::Own);
         assert_eq!(input_origin(true, 0), InputOrigin::UnexpectedInjected);
+    }
+
+    #[test]
+    fn absent_thread_handle_is_not_proof_of_successful_cleanup() {
+        let (sender, _) = mpsc::sync_channel(1);
+        let shared = Arc::new(ObserverShared::new(Arc::new(DispatchGate::new()), sender));
+        let (_, done) = mpsc::sync_channel(1);
+        let mut observer = ObserverHandle {
+            thread_id: 0,
+            shared,
+            done,
+            join: None,
+            clean: Some(false),
+        };
+        assert!(!observer.stop());
     }
 }
