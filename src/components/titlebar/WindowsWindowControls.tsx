@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
-import { executeWindowAction } from '@/lib/window-actions'
+import { useCommandContext } from '@/hooks/use-command-context'
+import { runCommand } from '@/lib/commands'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { WindowsIcons } from './WindowControlIcons'
 
@@ -10,6 +11,7 @@ import { WindowsIcons } from './WindowControlIcons'
  * Positioned on the RIGHT side of the title bar, following Windows conventions.
  */
 export function WindowsWindowControls() {
+  const context = useCommandContext()
   const [isMaximized, setIsMaximized] = useState(false)
 
   // Initialize and sync maximized state with actual window state
@@ -62,15 +64,15 @@ export function WindowsWindowControls() {
   }, [])
 
   const handleClose = async () => {
-    await executeWindowAction('window-close')
+    await runCommand('window-close', context)
   }
 
   const handleMinimize = async () => {
-    await executeWindowAction('window-minimize')
+    await runCommand('window-minimize', context)
   }
 
   const handleMaximizeToggle = async () => {
-    await executeWindowAction('window-toggle-maximize')
+    await runCommand('window-toggle-maximize', context)
   }
 
   // Base button styles for Windows controls

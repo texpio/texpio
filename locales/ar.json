@@ -178,5 +178,12 @@
   "probe.refusal.excluded": "هذا التطبيق المرجعي مستبعد لهذه الجلسة.",
   "probe.refusal.shortcutConflict": "اختصار المنتقي مستخدم بالفعل.",
   "probe.refusal.pickerUnavailable": "منتقي الهدف المحفوظ غير متاح.",
-  "probe.unavailable": "تجربة توسيع النصوص في Windows غير متاحة."
+  "probe.unavailable": "تجربة توسيع النصوص في Windows غير متاحة.",
+  "preferences.loadError": "التفضيلات غير متاحة.",
+  "common.retry": "إعادة المحاولة",
+  "commands.error.unknownCommand": "هذا الأمر غير متاح.",
+  "commands.error.unavailable": "هذا الأمر غير متاح.",
+  "commands.error.failed": "تعذر إكمال الأمر.",
+  "commands.group.developer": "المطور",
+  "common.close": "إغلاق"
 }

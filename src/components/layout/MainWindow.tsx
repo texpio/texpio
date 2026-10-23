@@ -10,7 +10,13 @@ import { TitleBar } from '@/components/titlebar/TitleBar'
 import { useUIStore } from '@/store/ui-store'
 import { useTheme } from '@/hooks/use-theme'
 import { useSquareCornersEffect } from '@/hooks/useSquareCornersEffect'
-import { FoundationScreen } from '@/features/foundation/FoundationScreen'
+import { DeveloperView } from '@/features/developer/DeveloperView'
+import { CommandPalette } from '@/components/command-palette/CommandPalette'
+import { PreferencesDialog } from '@/components/preferences/PreferencesDialog'
+import { Toaster } from '@/components/ui/sonner'
+import { useMainWindowEventListeners } from '@/hooks/useMainWindowEventListeners'
+import { useCommandContext } from '@/hooks/use-command-context'
+import { runCommand } from '@/lib/commands'
 import { LeftSideBar } from './LeftSideBar'
 import { RightSideBar } from './RightSideBar'
 
@@ -18,7 +24,7 @@ export function MainWindow() {
   const { t } = useTranslation()
   const layout = useUIStore((state) => state.layout)
   const view = useUIStore((state) => state.activeView)
-  const setView = useUIStore((state) => state.setActiveView)
+  const context = useCommandContext()
   const sizes = useUIStore((state) => state.setPanelSizes)
   const visible = useUIStore((state) => state.setSidebarVisible)
   const { error } = useTheme()
@@ -26,6 +32,7 @@ export function MainWindow() {
   const rightRef = useRef<ImperativePanelHandle>(null)
   const [layoutReady, setLayoutReady] = useState(false)
   useSquareCornersEffect()
+  useMainWindowEventListeners()
   useEffect(() => {
     if (!layoutReady) return
     for (const [panel, visible, percent] of [
@@ -81,7 +88,9 @@ export function MainWindow() {
               <Button
                 variant={view === 'home' ? 'secondary' : 'ghost'}
                 className="justify-start"
-                onClick={() => setView('home')}
+                onClick={() => {
+                  void runCommand('open-home', context)
+                }}
               >
                 <Home aria-hidden="true" />
                 {t('shell.home')}
@@ -89,10 +98,30 @@ export function MainWindow() {
               <Button
                 variant={view === 'developer' ? 'secondary' : 'ghost'}
                 className="justify-start"
-                onClick={() => setView('developer')}
+                onClick={() => {
+                  void runCommand('open-developer', context)
+                }}
               >
                 <Code aria-hidden="true" />
                 {t('shell.developer')}
+              </Button>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => {
+                  void runCommand('open-preferences', context)
+                }}
+              >
+                {t('preferences.title')}
+              </Button>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => {
+                  void runCommand('toggle-command-palette', context)
+                }}
+              >
+                {t('commandPalette.title')}
               </Button>
             </nav>
           </LeftSideBar>
@@ -113,14 +142,19 @@ export function MainWindow() {
             aria-label={t(view === 'home' ? 'shell.home' : 'shell.developer')}
           >
             {view === 'developer' ? (
-              <FoundationScreen />
+              <DeveloperView />
             ) : (
               <section className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-16">
                 <Keyboard className="size-12 text-muted-foreground" aria-hidden="true" />
                 <Badge variant="secondary">{t('shell.ready')}</Badge>
                 <h1 className="text-3xl font-semibold tracking-tight">{t('shell.welcome')}</h1>
                 <p className="text-muted-foreground">{t('shell.description')}</p>
-                <Button className="self-start" onClick={() => setView('developer')}>
+                <Button
+                  className="self-start"
+                  onClick={() => {
+                    void runCommand('open-developer', context)
+                  }}
+                >
                   <Code aria-hidden="true" />
                   {t('shell.openDeveloper')}
                 </Button>
@@ -150,6 +184,9 @@ export function MainWindow() {
           </RightSideBar>
         </ResizablePanel>
       </ResizablePanelGroup>
+      <CommandPalette />
+      <PreferencesDialog />
+      <Toaster />
     </div>
   )
 }

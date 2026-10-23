@@ -178,5 +178,12 @@
   "probe.refusal.excluded": "Cette application de référence est exclue pour cette session.",
   "probe.refusal.shortcutConflict": "Le raccourci du sélecteur est déjà utilisé.",
   "probe.refusal.pickerUnavailable": "Le sélecteur avec cible capturée est indisponible.",
-  "probe.unavailable": "La sonde de développement Windows est indisponible."
+  "probe.unavailable": "La sonde de développement Windows est indisponible.",
+  "preferences.loadError": "Les préférences sont indisponibles.",
+  "common.retry": "Réessayer",
+  "commands.error.unknownCommand": "Cette commande est indisponible.",
+  "commands.error.unavailable": "Cette commande est indisponible.",
+  "commands.error.failed": "La commande n’a pas pu être exécutée.",
+  "commands.group.developer": "Développeur",
+  "common.close": "Fermer"
 }

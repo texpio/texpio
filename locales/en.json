@@ -178,5 +178,12 @@
   "probe.refusal.excluded": "This reference app is excluded for this session.",
   "probe.refusal.shortcutConflict": "The picker shortcut is already in use.",
   "probe.refusal.pickerUnavailable": "The captured-target picker is unavailable.",
-  "probe.unavailable": "Windows expansion probe is unavailable."
+  "probe.unavailable": "Windows expansion probe is unavailable.",
+  "preferences.loadError": "Preferences are unavailable.",
+  "common.retry": "Retry",
+  "commands.error.unknownCommand": "This command is unavailable.",
+  "commands.error.unavailable": "This command is unavailable.",
+  "commands.error.failed": "The command could not be completed.",
+  "commands.group.developer": "Developer",
+  "common.close": "Close"
 }

@@ -2,7 +2,8 @@ import { useEffect, useState, type HTMLProps } from 'react'
 import { cn } from '@/lib/utils'
 import { MacOSIcons } from './WindowControlIcons'
 
-import { executeWindowAction } from '@/lib/window-actions'
+import { useCommandContext } from '@/hooks/use-command-context'
+import { runCommand } from '@/lib/commands'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 
 interface MacOSWindowControlsProps extends HTMLProps<HTMLDivElement> {
@@ -10,6 +11,7 @@ interface MacOSWindowControlsProps extends HTMLProps<HTMLDivElement> {
 }
 
 export function MacOSWindowControls({ className, ...props }: MacOSWindowControlsProps) {
+  const context = useCommandContext()
   const [isAltKeyPressed, setIsAltKeyPressed] = useState(false)
   const [isHovering, setIsHovering] = useState(false)
   const [isWindowFocused, setIsWindowFocused] = useState(true)
@@ -85,11 +87,11 @@ export function MacOSWindowControls({ className, ...props }: MacOSWindowControls
   }, [])
 
   const handleClose = async () => {
-    await executeWindowAction('window-close')
+    await runCommand('window-close', context)
   }
 
   const handleMinimize = async () => {
-    await executeWindowAction('window-minimize')
+    await runCommand('window-minimize', context)
   }
 
   const handleMaximizeOrFullscreen = async () => {
@@ -99,13 +101,13 @@ export function MacOSWindowControls({ className, ...props }: MacOSWindowControls
 
       if (isFullscreen) {
         // If currently fullscreen, exit fullscreen regardless of Alt key
-        await executeWindowAction('window-exit-fullscreen')
+        await runCommand('window-exit-fullscreen', context)
       } else if (isAltKeyPressed) {
         // Alt + click: toggle maximize/restore
-        await executeWindowAction('window-toggle-maximize')
+        await runCommand('window-toggle-maximize', context)
       } else {
         // Normal click: enter fullscreen
-        await executeWindowAction('window-fullscreen')
+        await runCommand('window-fullscreen', context)
       }
     } catch {
       /* Query failure leaves the window unchanged. */
