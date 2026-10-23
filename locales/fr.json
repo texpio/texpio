@@ -160,7 +160,7 @@
   "probe.refusal.disabledControl": "Le développement est bloqué dans les contrôles désactivés.",
   "probe.refusal.selection": "Placez un seul curseur sans texte sélectionné.",
   "probe.refusal.unsupportedLayout": "Utilisez une disposition US ou anglais (Inde) validée pour cette sonde.",
-  "probe.refusal.composition": "Terminez la composition du texte avant le développement.",
+  "probe.refusal.composition": "La composition de texte est active ou son état ne peut pas être vérifié.",
   "probe.refusal.modifier": "Relâchez les touches de modification avant le développement.",
   "probe.refusal.integrity": "La cible doit fonctionner comme utilisateur standard au même niveau d’intégrité.",
   "probe.refusal.staleContext": "La cible, le curseur ou la saisie a changé. Réessayez dans le document de test.",

@@ -1,3 +1,4 @@
+mod composition;
 pub mod context;
 mod native;
 pub mod observer;

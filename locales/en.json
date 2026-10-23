@@ -160,7 +160,7 @@
   "probe.refusal.disabledControl": "Expansion is blocked in disabled controls.",
   "probe.refusal.selection": "Place a single caret without selected text.",
   "probe.refusal.unsupportedLayout": "Use a qualified US or English (India) keyboard layout for this probe.",
-  "probe.refusal.composition": "Finish text composition before expanding.",
+  "probe.refusal.composition": "Text composition is active or its state cannot be verified.",
   "probe.refusal.modifier": "Release modifier keys before expanding.",
   "probe.refusal.integrity": "The target must run as a standard user at the same integrity level.",
   "probe.refusal.staleContext": "The target, caret, or input changed. Try again in the test document.",

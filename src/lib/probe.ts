@@ -15,7 +15,7 @@ export const refusalLabels = {
   disabledControl: 'Expansion is blocked in disabled controls.',
   selection: 'Place a single caret without selected text.',
   unsupportedLayout: 'Use a qualified US or English (India) keyboard layout for this probe.',
-  composition: 'Finish text composition before expanding.',
+  composition: 'Text composition is active or its state cannot be verified.',
   modifier: 'Release modifier keys before expanding.',
   integrity: 'The target must run as a standard user at the same integrity level.',
   staleContext: 'The target, caret, or input changed. Try again in the test document.',

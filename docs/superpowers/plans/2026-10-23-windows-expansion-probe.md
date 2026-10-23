@@ -6,7 +6,7 @@
 
 **Architecture:** Rust owns a pure recognizer, a dedicated observation thread, and a separate context/insertion worker. A narrow command boundary exposes session controls and content-free status to the existing React/shadcn screen. Native mutation is restricted to explicit reference profiles and verified controls; direct Unicode, clipboard, and picker results remain separate.
 
-**Tech Stack:** Existing Tauri 2, React/TypeScript, shadcn, Node `24.18.0`, pnpm `12.15.0`, Rust `1.99.1`; Microsoft `windows` bindings using the existing locked `0.62.2` version; official Tauri global-shortcut plugin only for the picker task.
+**Tech Stack:** Existing Tauri 2, React/TypeScript, shadcn, Node `24.18.0`, Bun `1.4.4` (user-approved template migration), Rust `1.99.1`; Microsoft `windows` bindings using the existing locked `0.62.2` version; official Tauri global-shortcut plugin for the picker task. The separate template quick-pane shortcut remains distinct from the captured-target picker.
 
 **Spec:** [Approved Windows expansion probe design](../specs/2026-10-23-windows-expansion-probe-design.md).
 
@@ -52,7 +52,7 @@ Shared public contracts are declared in Task 1; private Windows/COM types stay i
 
 - [ ] Read this plan and its approved spec; inspect `git status`, latest commits, and toolchain pins. Preserve unrelated user edits. Record the execution base SHA.
 - [ ] Verify the foundation against the existing binary: metadata/themes, close-to-tray, Open restoring hidden/minimized windows, second process launch restoring the original with one surviving process, Quit/relaunch. A launcher that merely activates an existing process does not prove the single-instance callback.
-- [ ] Run the existing check sequence once: frozen install; `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test`, `pnpm build`; locked Cargo fmt/Clippy/tests and native build as listed in Task 7. Inspect remote CI for the exact commit or record the access/run limitation.
+- [ ] Run the existing check sequence once: frozen install; `bun run typecheck`, `bun run lint`, `bun run format:check`, `bun run test`, `bun run build`; locked Cargo fmt/Clippy/tests and native build as listed in Task 7. Inspect remote CI for the exact commit or record the access/run limitation.
 - [ ] Record verified foundation results in `docs/development.md`; leave any unperformed or failed item open. Resolve a foundation runtime defect before arming the new probe. A remote-CI access limitation is reported separately and does not fabricate a pass.
 
 ### Task 1: Fixed fixtures and pure recognition contract
@@ -141,17 +141,17 @@ Shared public contracts are declared in Task 1; private Windows/COM types stay i
 - [ ] Run the full locked checks below, a final Windows build, and foundation/probe native regression checks on that binary. Verify remote CI against the pushed implementation SHA or record why unavailable. Keep CI non-injecting; add the built-in fixture-server test command if introduced. No release/signing workflow.
 
 ```powershell
-pnpm install --frozen-lockfile
-pnpm typecheck
-pnpm lint
-pnpm format:check
-pnpm test
+bun install --frozen-lockfile
+bun run typecheck
+bun run lint
+bun run format:check
+bun run test
 node --test scripts/serve-probe-fixture.test.mjs
-pnpm build
+bun run build
 cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 cargo test --locked --manifest-path src-tauri/Cargo.toml
-pnpm tauri build --no-bundle -- --locked
+bun run tauri:build --no-bundle -- --locked
 ```
 
 - [ ] Write the observed engine/strategy comparison and license/dependency record. No Espanso source reuse or bundled runtime is included. Name accepted control profiles and unsupported cases, and choose advance, continue, or revise. An unmet three-app/physical-trial/safety gate remains unmet even if the application builds.
@@ -166,4 +166,4 @@ Self-review completed: file responsibilities and shared interfaces are explicit;
 
 ## Execution handoff
 
-The user approved the written design and requested this implementation plan. **Plan review is pending.** Preserve Native execution in this checkout after review; do not silently start implementing or switch to delegated implementation. Read-only support research/review may still be delegated.
+The user approved the design and this implementation plan on 23 October 2026, retaining Native execution in this checkout. P0 resumed on 24 October after the approved template/Bun migration; do not repeat approval or execution-method questions. The [evidence report](../../research/windows-expansion-probe.md) distinguishes committed implementation from outstanding native qualification. Read-only support research/review may still be delegated.

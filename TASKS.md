@@ -105,7 +105,7 @@ The official-starter history is preserved. The adopted shell, typed services, re
 - [ ] Implement and verify the native probe, controls, and separate insertion/picker experiments.
 - [ ] Run and report the native campaigns, strategy comparison, and support decision.
 
-P0 is paused at the user's request for the template migration below. Probe controls are implemented and the initial Stopped screen was confirmed by the user. No input strategy is qualified; the English (India) layout investigation and physical trials remain open. See the [evidence report](docs/research/windows-expansion-probe.md).
+P0 resumed on 24 October after the template migration. Probe controls are implemented and the initial Stopped screen was confirmed by the user. The India refusal was isolated to the broad IME guard; positive UIA composition evidence now replaces foreign-thread IMM queries. The user-assisted Notepad read-only preparation/revalidation passed. No input strategy is qualified; other provider checks and physical trials remain open. See the [evidence report](docs/research/windows-expansion-probe.md).
 
 ## 8. Full template adoption and Bun
 
@@ -123,7 +123,7 @@ P0 is paused at the user's request for the template migration below. Probe contr
 - [x] Record all 43 feature rows with code/test evidence and explicit native/platform/external limits.
 - [ ] Complete new-binary Windows native interaction acceptance, packaged notifications and multi-monitor/DPI checks.
 - [x] Commit/push reviewed migration changes; remote SHA matches and the CI connector's 404 access limitation is recorded.
-- [ ] Resume P0 layout/provider diagnosis after migration handoff.
+- [x] Resume P0 layout/provider diagnosis after migration handoff.
 
 Deliverables: [template source audit and parity tracker](docs/research/tauri-template-parity.md), [migration design](docs/superpowers/specs/2026-10-23-template-adoption-design.md). All template runtime infrastructure and six portable skill/role files are adapted. Review fixes, automated checks and the optimized Windows no-bundle build pass; the debug preview and basic opening were confirmed. Detailed native acceptance remains open.
 

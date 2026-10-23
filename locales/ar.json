@@ -160,7 +160,7 @@
   "probe.refusal.disabledControl": "التوسيع محظور في الحقول المعطلة.",
   "probe.refusal.selection": "ضع مؤشر كتابة واحداً دون تحديد نص.",
   "probe.refusal.unsupportedLayout": "استخدم تخطيط لوحة مفاتيح معتمداً للإنجليزية الأمريكية أو الإنجليزية (الهند) لهذه التجربة.",
-  "probe.refusal.composition": "أكمل تركيب النص قبل التوسيع.",
+  "probe.refusal.composition": "تركيب النص نشط أو يتعذر التحقق من حالته.",
   "probe.refusal.modifier": "حرر مفاتيح التعديل قبل التوسيع.",
   "probe.refusal.integrity": "يجب تشغيل التطبيق المستهدف كمستخدم عادي وبمستوى الأمان نفسه.",
   "probe.refusal.staleContext": "تغير التطبيق المستهدف أو المؤشر أو الإدخال. أعد المحاولة في مستند الاختبار.",

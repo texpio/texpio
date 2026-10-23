@@ -1,6 +1,6 @@
 //! Read-only UIA preparation. All COM objects stay on their creating worker.
 use super::{
-    TargetStamp, current_stamp,
+    TargetStamp, composition, current_stamp,
     native::{self, ProcessIdentity},
     profiles::{self, ControlFacts, ControlKind},
     properties::{OwnedVariant, explicit_bool},
@@ -233,6 +233,8 @@ impl WindowsContext {
             return Err(RefusalReason::StaleContext);
         }
         self.same_target(&edit.target, budget)?;
+        self.idle_composition(&edit.target, budget)?;
+        self.same_target(&edit.target, budget)?;
         budget.check()
     }
 
@@ -352,6 +354,7 @@ impl WindowsContext {
             return Err(RefusalReason::DisabledControl);
         }
         self.profile(target, budget)?;
+        self.idle_composition(target, budget)?;
         let pattern: IUIAutomationTextPattern =
             budget.call(|| unsafe { target.element.GetCurrentPatternAs(UIA_TextPatternId) })?;
         let caret = self.collapsed_caret(&pattern, budget)?;
@@ -366,6 +369,23 @@ impl WindowsContext {
         }
         self.same_target(target, budget)?;
         Ok((pattern, caret))
+    }
+
+    fn idle_composition(&self, target: &TargetToken, budget: Budget) -> Result<(), RefusalReason> {
+        if self.property(
+            &target.element,
+            UIA_IsTextEditPatternAvailablePropertyId,
+            budget,
+        )? != ExplicitBool::Known(true)
+        {
+            return Err(RefusalReason::Composition);
+        }
+        let pattern: IUIAutomationTextEditPattern =
+            budget.call(|| unsafe { target.element.GetCurrentPatternAs(UIA_TextEditPatternId) })?;
+        budget.check()?;
+        let result = composition::require_idle(&pattern);
+        budget.check()?;
+        result
     }
 
     fn collapsed_caret(

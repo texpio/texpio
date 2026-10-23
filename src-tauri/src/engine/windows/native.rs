@@ -14,15 +14,9 @@ use windows::{
             QueryFullProcessImageNameW,
         },
         UI::{
-            Input::{
-                Ime::{
-                    GCS_COMPSTR, ImmGetCompositionStringW, ImmGetContext, ImmIsIME,
-                    ImmReleaseContext,
-                },
-                KeyboardAndMouse::{
-                    GetAsyncKeyState, GetKeyboardLayout, HKL, MAPVK_VK_TO_VSC, MapVirtualKeyExW,
-                    ToUnicodeEx, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
-                },
+            Input::KeyboardAndMouse::{
+                GetAsyncKeyState, GetKeyboardLayout, HKL, MAPVK_VK_TO_VSC, MapVirtualKeyExW,
+                ToUnicodeEx, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
             },
             WindowsAndMessaging::{
                 GUITHREADINFO, GetForegroundWindow, GetGUIThreadInfo, GetWindowTextW,
@@ -78,12 +72,11 @@ pub(super) fn check_input_state(stamp: &TargetStamp) -> Result<(), RefusalReason
     if current_stamp()? != *stamp {
         return Err(RefusalReason::StaleContext);
     }
-    // SAFETY: read-only keyboard/IMM queries on the observed thread and HWND.
+    // SAFETY: read-only keyboard queries on the observed thread.
     unsafe {
         let layout = GetKeyboardLayout(stamp.thread_id);
         if layout.0 as usize != stamp.keyboard_layout
             || !candidate_layout(stamp.keyboard_layout)
-            || ImmIsIME(layout).as_bool()
             || !verified_mapping(layout)
         {
             return Err(RefusalReason::UnsupportedLayout);
@@ -94,17 +87,9 @@ pub(super) fn check_input_state(stamp: &TargetStamp) -> Result<(), RefusalReason
         {
             return Err(RefusalReason::Modifier);
         }
-        let window = HWND(stamp.focused_window as *mut _);
-        let context = ImmGetContext(window);
-        if !context.0.is_null() {
-            let bytes = ImmGetCompositionStringW(context, GCS_COMPSTR, None, 0);
-            let released = ImmReleaseContext(window, context).as_bool();
-            // -1 means no composition data; other errors remain uncertain.
-            if !released || !matches!(bytes, 0 | -1) {
-                return Err(RefusalReason::Composition);
-            }
-        }
     }
+    // Composition is checked through the captured control's UIA TextEdit pattern.
+    // Foreign-thread IMM context queries cannot establish that another app is idle.
     Ok(())
 }
 
