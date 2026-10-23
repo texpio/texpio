@@ -1,6 +1,6 @@
 # Texpio Windows expansion probe design
 
-23 October 2026 · Native Rust approach selected by the user · Written design awaiting approval
+23 October 2026 · Native Rust approach and written design approved by the user
 
 ## Purpose
 

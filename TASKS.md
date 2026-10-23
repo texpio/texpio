@@ -11,7 +11,7 @@ Updated: 23 October 2026 (Asia/Kolkata)
 - **Selected stack:** official Tauri 2 starter, React + TypeScript + Vite, shadcn/ui; separate Rust expansion engine subject to feasibility.
 - **Future service:** reuse the user's existing Laravel + PostgreSQL project for accounts, billing, and later sync; no backend is being built in this repository now.
 
-The requested planning documents are complete for review. Their feature details, license, prices, quotas, budgets, targets, and audience remain proposals. The user created the Texpio GitHub organization; app implementation, runtime benchmarking, and customer validation remain future work.
+The requested planning documents are complete for review. Their feature details, license, prices, quotas, budgets, targets, and audience remain proposals. The desktop foundation code is committed; its final lifecycle acceptance and the P0 native probe remain in progress. Runtime benchmarking and customer validation remain future work.
 
 ## 1. Naming research and selection
 
@@ -99,8 +99,9 @@ The starter, themed screen/metadata, and tray/single-instance changes are commit
 - [x] Capture ideas from the eight user-supplied TextExpander screenshots in the competitor analysis, mapped to later phases.
 - [x] Draft the detailed [Windows expansion probe design](docs/superpowers/specs/2026-10-23-windows-expansion-probe-design.md).
 - [x] Complete the design's independent builder review and resolve its questions about physical trials, key-release ordering, and picker edits.
-- [ ] Complete written-design approval with the user.
-- [ ] Write the implementation plan for approved P0 scope.
+- [x] Complete written-design approval with the user.
+- [x] Write and self-review the [implementation plan](docs/superpowers/plans/2026-10-23-windows-expansion-probe.md) for approved P0 scope.
+- [ ] Complete implementation-plan review; preserve Native execution in the current checkout.
 - [ ] Implement and verify the native probe, controls, and separate insertion/picker experiments.
 - [ ] Run and report the native campaigns, strategy comparison, and support decision.
 
@@ -108,7 +109,7 @@ The starter, themed screen/metadata, and tray/single-instance changes are commit
 
 - [ ] Check desired domains/app-store names and brand clearance before publishing.
 - [ ] Review the feature/business/phase proposals and decide the initial audience, license, supported Windows versions, and app matrix.
-- [ ] Approve the drafted detailed P0 probe/spec before implementation.
+- [x] Approve the detailed P0 probe/spec before implementation.
 - [ ] Run P0 and measure feasibility; revise proposed targets using evidence.
 - [ ] Conduct interviews, beta cohorts, willingness-to-pay tests, and real cost estimates at the stated gates.
 - [ ] Produce implementation plans for reviewed scope, starting with the desktop foundation above and then the P0 probe.
