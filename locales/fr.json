@@ -185,5 +185,12 @@
   "commands.error.unavailable": "Cette commande est indisponible.",
   "commands.error.failed": "La commande n’a pas pu être exécutée.",
   "commands.group.developer": "Développeur",
-  "common.close": "Fermer"
+  "common.close": "Fermer",
+  "quickPane.placeholder": "Saisissez du texte…",
+  "quickPane.unavailable": "Entrée indisponible. Réessayez.",
+  "quickPane.open": "Ouvrir la saisie rapide",
+  "quickPane.lastEntry": "Dernière saisie rapide",
+  "shortcut.capture": "Appuyez sur un raccourci…",
+  "shortcut.reset": "Réinitialiser",
+  "shortcut.unavailable": "Raccourci indisponible. Le raccourci précédent est conservé si possible."
 }

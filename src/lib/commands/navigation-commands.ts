@@ -1,7 +1,15 @@
 import { Code, Home, Search, Settings, PanelLeft, PanelRight } from 'lucide-react'
 import { useUIStore } from '@/store/ui-store'
 import type { AppCommand } from './types'
+import { showQuickPane } from '@/services/quick-pane'
 export const navigationCommands: AppCommand[] = [
+  {
+    id: 'show-quick-pane',
+    labelKey: 'quickPane.open',
+    group: 'navigation',
+    isAvailable: (context) => context.platform !== 'unknown',
+    execute: showQuickPane,
+  },
   {
     id: 'open-home',
     labelKey: 'shell.home',

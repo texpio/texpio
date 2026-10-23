@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-probe-status"
+description = "Enables the probe_status command without any pre-configured scope."
+commands.allow = ["probe_status"]
+
+[[permission]]
+identifier = "deny-probe-status"
+description = "Denies the probe_status command without any pre-configured scope."
+commands.deny = ["probe_status"]

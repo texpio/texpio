@@ -112,6 +112,41 @@ async probeExclude(profile: ReferenceProfile) : Promise<Result<ProbeStatus, Prob
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async showQuickPane() : Promise<Result<null, ServiceError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("show_quick_pane") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async dismissQuickPane() : Promise<Result<null, ServiceError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("dismiss_quick_pane") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async toggleQuickPane() : Promise<Result<null, ServiceError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("toggle_quick_pane") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getDefaultQuickPaneShortcut() : Promise<string> {
+    return await TAURI_INVOKE("get_default_quick_pane_shortcut");
+},
+async updateQuickPaneShortcut(shortcut: string) : Promise<Result<null, ServiceError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_quick_pane_shortcut", { shortcut }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 

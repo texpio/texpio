@@ -10,7 +10,7 @@ import {
   CommandShortcut,
 } from '@/components/ui/command'
 import { getAllCommands, runCommand } from '@/lib/commands'
-import { formatShortcut } from '@/lib/menu'
+import { formatShortcut } from '@/lib/shortcut-format'
 import { useCommandContext } from '@/hooks/use-command-context'
 import { useUIStore } from '@/store/ui-store'
 

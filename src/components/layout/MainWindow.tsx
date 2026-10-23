@@ -24,6 +24,7 @@ export function MainWindow() {
   const { t } = useTranslation()
   const layout = useUIStore((state) => state.layout)
   const view = useUIStore((state) => state.activeView)
+  const entry = useUIStore((state) => state.lastQuickPaneEntry)
   const context = useCommandContext()
   const sizes = useUIStore((state) => state.setPanelSizes)
   const visible = useUIStore((state) => state.setSidebarVisible)
@@ -180,6 +181,12 @@ export function MainWindow() {
               <h2 className="text-sm font-semibold">{t('shell.details')}</h2>
               <Badge variant="outline">{t('shell.offline')}</Badge>
               <p className="text-sm text-muted-foreground">{t('shell.probeStatus')}</p>
+              {entry && (
+                <section className="flex flex-col gap-2">
+                  <h3 className="text-sm font-medium">{t('quickPane.lastEntry')}</h3>
+                  <p className="whitespace-pre-wrap break-words text-sm">{entry}</p>
+                </section>
+              )}
             </aside>
           </RightSideBar>
         </ResizablePanel>

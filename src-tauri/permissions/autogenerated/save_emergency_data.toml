@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-save-emergency-data"
+description = "Enables the save_emergency_data command without any pre-configured scope."
+commands.allow = ["save_emergency_data"]
+
+[[permission]]
+identifier = "deny-save-emergency-data"
+description = "Denies the save_emergency_data command without any pre-configured scope."
+commands.deny = ["save_emergency_data"]

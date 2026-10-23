@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-dismiss-quick-pane"
+description = "Enables the dismiss_quick_pane command without any pre-configured scope."
+commands.allow = ["dismiss_quick_pane"]
+
+[[permission]]
+identifier = "deny-dismiss-quick-pane"
+description = "Denies the dismiss_quick_pane command without any pre-configured scope."
+commands.deny = ["dismiss_quick_pane"]

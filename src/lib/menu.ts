@@ -2,13 +2,8 @@ import { Menu, MenuItem, Submenu, PredefinedMenuItem } from '@tauri-apps/api/men
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import i18n from '@/i18n/config'
 import { runCommand, type CommandContext } from './commands'
-import type { AppPlatform } from '@/hooks/use-platform'
+export { formatShortcut } from './shortcut-format'
 
-export function formatShortcut(shortcut: string, platform: AppPlatform) {
-  return platform === 'macos'
-    ? shortcut.replace('CmdOrCtrl+', '⌘').replace('Shift+', '⇧').split('+').join('')
-    : shortcut.replace('CmdOrCtrl', 'Ctrl')
-}
 export function createMenuAction(id: string, context: CommandContext) {
   return () => runCommand(id, context)
 }
@@ -76,6 +71,7 @@ export function startNativeMenu(context: CommandContext) {
     const appMenu = own(await Submenu.new({ id: prefix + 'app', text: 'Texpio', items: appItems }))
     const viewItems = []
     for (const [id, key] of [
+      ['show-quick-pane', 'quickPane.open'],
       ['open-home', 'shell.home'],
       ['open-developer', 'shell.developer'],
       ['toggle-command-palette', 'commandPalette.title'],

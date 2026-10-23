@@ -71,4 +71,12 @@ describe('authoritative preferences', () => {
     await loadPreferences()
     expect(invoke).not.toHaveBeenCalled()
   })
+  it('returns committed shortcut state when appearance saves overlap a binding change', async () => {
+    const committed = { ...defaults, theme: 'dark', quick_pane_shortcut: 'control+shift+KeyJ' }
+    vi.mocked(invoke)
+      .mockResolvedValueOnce(defaults)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(committed)
+    await expect(updatePreferences({ theme: 'dark' })).resolves.toEqual(committed)
+  })
 })

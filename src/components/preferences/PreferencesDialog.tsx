@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { usePreferences, useSavePreferences } from '@/services/preferences'
 import { useUIStore } from '@/store/ui-store'
 import type { AppPreferences } from '@/lib/tauri-bindings'
+import { QuickPaneShortcut } from './QuickPaneShortcut'
 
 function PreferencesContent() {
   const { t } = useTranslation()
@@ -43,6 +44,9 @@ function PreferencesContent() {
         </Alert>
       )}
       <FieldGroup>
+        {isTauri() && (
+          <QuickPaneShortcut value={query.data?.quick_pane_shortcut ?? null} disabled={disabled} />
+        )}
         <Field>
           <FieldLabel htmlFor="preference-theme">{t('preferences.appearance.theme')}</FieldLabel>
           <NativeSelect

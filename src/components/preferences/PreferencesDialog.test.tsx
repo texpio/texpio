@@ -7,6 +7,10 @@ import { PreferencesDialog } from './PreferencesDialog'
 import { useUIStore } from '@/store/ui-store'
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn(), isTauri: vi.fn() }))
 vi.mock('@tauri-apps/api/event', () => ({ emit: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('@/services/quick-pane', () => ({
+  getDefaultQuickPaneShortcut: () => Promise.resolve('CommandOrControl+Shift+.'),
+  updateQuickPaneShortcut: vi.fn(),
+}))
 const preferences = { theme: 'system', language: 'fr', quick_pane_shortcut: 'CmdOrCtrl+Shift+.' }
 beforeEach(() => {
   vi.mocked(isTauri).mockReturnValue(true)

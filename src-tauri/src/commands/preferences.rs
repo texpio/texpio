@@ -38,10 +38,32 @@ impl PreferencesStore {
             result => result,
         }
     }
+    #[cfg(test)]
     pub fn save(&self, preferences: &AppPreferences) -> Result<(), ServiceError> {
         preferences.validate()?;
         let _guard = self.lock.lock().map_err(|_| ServiceError::Unavailable)?;
         storage::write_json(&self.root.join("preferences.json"), preferences, 65_536)
+    }
+    pub fn save_shortcut(&self, shortcut: Option<String>) -> Result<(), ServiceError> {
+        let _guard = self.lock.lock().map_err(|_| ServiceError::Unavailable)?;
+        let mut preferences = match self.read() {
+            Err(ServiceError::NotFound) => AppPreferences::default(),
+            result => result?,
+        };
+        preferences.quick_pane_shortcut = shortcut;
+        preferences.validate()?;
+        storage::write_json(&self.root.join("preferences.json"), &preferences, 65_536)
+    }
+    pub fn save_appearance(&self, requested: &AppPreferences) -> Result<(), ServiceError> {
+        requested.validate()?;
+        let _guard = self.lock.lock().map_err(|_| ServiceError::Unavailable)?;
+        let mut preferences = match self.read() {
+            Err(ServiceError::NotFound) => AppPreferences::default(),
+            result => result?,
+        };
+        preferences.theme = requested.theme;
+        preferences.language = requested.language;
+        storage::write_json(&self.root.join("preferences.json"), &preferences, 65_536)
     }
     pub fn migrate_legacy_theme(&self, theme: Theme) -> Result<AppPreferences, ServiceError> {
         let _guard = self.lock.lock().map_err(|_| ServiceError::Unavailable)?;
@@ -75,7 +97,7 @@ pub async fn save_preferences(
     preferences: AppPreferences,
 ) -> Result<(), ServiceError> {
     let store = store.inner().clone();
-    storage::blocking(move || store.save(&preferences)).await
+    storage::blocking(move || store.save_appearance(&preferences)).await
 }
 
 #[tauri::command]

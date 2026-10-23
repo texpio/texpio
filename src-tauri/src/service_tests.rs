@@ -37,6 +37,31 @@ fn preferences_defaults_and_roundtrip() {
     store.save(&preferences).unwrap();
     assert_eq!(store.load().unwrap(), preferences);
 }
+#[test]
+fn appearance_and_shortcut_writes_preserve_each_others_fields() {
+    let store = PreferencesStore::new(root());
+    store
+        .save_shortcut(Some("CommandOrControl+Shift+J".into()))
+        .unwrap();
+    store
+        .save_appearance(&AppPreferences {
+            theme: Theme::Dark,
+            language: Some(Language::Fr),
+            quick_pane_shortcut: Some("stale chord".into()),
+        })
+        .unwrap();
+    let saved = store.load().unwrap();
+    assert_eq!(
+        saved.quick_pane_shortcut.as_deref(),
+        Some("CommandOrControl+Shift+J")
+    );
+    store
+        .save_shortcut(Some("CommandOrControl+Shift+K".into()))
+        .unwrap();
+    let saved = store.load().unwrap();
+    assert_eq!(saved.theme, Theme::Dark);
+    assert_eq!(saved.language, Some(Language::Fr));
+}
 
 #[test]
 fn legacy_theme_does_not_override_saved_system() {

@@ -76,9 +76,11 @@ let pending: Promise<unknown> = Promise.resolve()
 export function updatePreferences(patch: Partial<AppPreferences>): Promise<AppPreferences> {
   const operation = pending.then(async () => {
     try {
-      const preferences = parse({ ...(await loadPreferences()), ...patch })
-      if (isTauri()) unwrapResult(await commands.savePreferences(preferences))
-      else localStorage.setItem(appearanceCacheKey, preferences.theme)
+      let preferences = parse({ ...(await loadPreferences()), ...patch })
+      if (isTauri()) {
+        unwrapResult(await commands.savePreferences(preferences))
+        preferences = await loadPreferences()
+      } else localStorage.setItem(appearanceCacheKey, preferences.theme)
       cache(preferences.theme)
       if (isTauri()) {
         try {

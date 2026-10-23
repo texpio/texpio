@@ -6,7 +6,30 @@ fn main() {
     } else {
         tauri_build::Attributes::new()
     };
-    tauri_build::try_build(attributes).expect("could not prepare Tauri build");
+    tauri_build::try_build(
+        attributes.app_manifest(tauri_build::AppManifest::new().commands(&[
+            "get_app_info",
+            "load_preferences",
+            "save_preferences",
+            "migrate_legacy_theme",
+            "save_emergency_data",
+            "load_emergency_data",
+            "cleanup_old_recovery_files",
+            "send_native_notification",
+            "probe_status",
+            "probe_fixtures",
+            "probe_start",
+            "probe_stop",
+            "probe_pause",
+            "probe_exclude",
+            "show_quick_pane",
+            "dismiss_quick_pane",
+            "toggle_quick_pane",
+            "get_default_quick_pane_shortcut",
+            "update_quick_pane_shortcut",
+        ])),
+    )
+    .expect("could not prepare Tauri build");
     if msvc {
         // Tests and binding-export examples also link Tauri's native dialogs.
         // They need Common Controls v6, just like the packaged application.

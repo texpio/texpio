@@ -185,5 +185,12 @@
   "commands.error.unavailable": "This command is unavailable.",
   "commands.error.failed": "The command could not be completed.",
   "commands.group.developer": "Developer",
-  "common.close": "Close"
+  "common.close": "Close",
+  "quickPane.placeholder": "Enter text…",
+  "quickPane.unavailable": "Entry unavailable. Try again.",
+  "quickPane.open": "Open Quick Entry",
+  "quickPane.lastEntry": "Last quick entry",
+  "shortcut.capture": "Press a shortcut…",
+  "shortcut.reset": "Reset",
+  "shortcut.unavailable": "Shortcut unavailable. Your previous binding is retained where possible."
 }

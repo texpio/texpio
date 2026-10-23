@@ -1,7 +1,40 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main window with no frontend plugin or core permissions",
-  "windows": ["main"],
-  "permissions": []
+  "description": "Main shell and explicitly armed Developer probe; no frontend filesystem or clipboard access",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:event:default",
+    "core:resources:default",
+    "core:menu:default",
+    "os:allow-platform",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-is-maximized",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-is-fullscreen",
+    "core:window:allow-start-dragging",
+    "allow-get-app-info",
+    "allow-load-preferences",
+    "allow-save-preferences",
+    "allow-migrate-legacy-theme",
+    "allow-save-emergency-data",
+    "allow-load-emergency-data",
+    "allow-cleanup-old-recovery-files",
+    "allow-send-native-notification",
+    "allow-probe-status",
+    "allow-probe-fixtures",
+    "allow-probe-start",
+    "allow-probe-stop",
+    "allow-probe-pause",
+    "allow-probe-exclude",
+    "allow-show-quick-pane",
+    "allow-dismiss-quick-pane",
+    "allow-toggle-quick-pane",
+    "allow-get-default-quick-pane-shortcut",
+    "allow-update-quick-pane-shortcut"
+  ]
 }

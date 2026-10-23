@@ -1,5 +1,5 @@
 use crate::{
-    commands::{metadata, notifications, preferences, recovery},
+    commands::{metadata, notifications, preferences, quick_pane, recovery},
     probe_commands,
 };
 use specta_typescript::{BigIntExportBehavior, Typescript};
@@ -20,6 +20,11 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         probe_commands::probe_stop,
         probe_commands::probe_pause,
         probe_commands::probe_exclude,
+        quick_pane::show_quick_pane,
+        quick_pane::dismiss_quick_pane,
+        quick_pane::toggle_quick_pane,
+        quick_pane::get_default_quick_pane_shortcut,
+        quick_pane::update_quick_pane_shortcut,
     ])
 }
 

@@ -185,5 +185,12 @@
   "commands.error.unavailable": "هذا الأمر غير متاح.",
   "commands.error.failed": "تعذر إكمال الأمر.",
   "commands.group.developer": "المطور",
-  "common.close": "إغلاق"
+  "common.close": "إغلاق",
+  "quickPane.placeholder": "أدخل نصًا…",
+  "quickPane.unavailable": "الإدخال غير متاح. حاول مجددًا.",
+  "quickPane.open": "فتح الإدخال السريع",
+  "quickPane.lastEntry": "آخر إدخال سريع",
+  "shortcut.capture": "اضغط اختصارًا…",
+  "shortcut.reset": "إعادة تعيين",
+  "shortcut.unavailable": "الاختصار غير متاح. يُحتفظ بالاختصار السابق متى أمكن."
 }

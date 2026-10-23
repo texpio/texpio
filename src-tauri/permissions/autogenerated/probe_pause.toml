@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-probe-pause"
+description = "Enables the probe_pause command without any pre-configured scope."
+commands.allow = ["probe_pause"]
+
+[[permission]]
+identifier = "deny-probe-pause"
+description = "Denies the probe_pause command without any pre-configured scope."
+commands.deny = ["probe_pause"]

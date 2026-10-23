@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-default-quick-pane-shortcut"
+description = "Enables the get_default_quick_pane_shortcut command without any pre-configured scope."
+commands.allow = ["get_default_quick_pane_shortcut"]
+
+[[permission]]
+identifier = "deny-get-default-quick-pane-shortcut"
+description = "Denies the get_default_quick_pane_shortcut command without any pre-configured scope."
+commands.deny = ["get_default_quick_pane_shortcut"]

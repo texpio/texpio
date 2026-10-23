@@ -86,10 +86,14 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
                 refresh_probe_tray(app);
             }
             "quit" => {
-                if let Some(handle) = app.try_state::<Arc<ProbeHandle>>() {
-                    handle.stop();
-                }
-                app.exit(0);
+                crate::lifecycle::stop_then_exit(
+                    || {
+                        if let Some(handle) = app.try_state::<Arc<ProbeHandle>>() {
+                            handle.stop();
+                        }
+                    },
+                    || app.exit(0),
+                );
             }
             _ => {}
         })

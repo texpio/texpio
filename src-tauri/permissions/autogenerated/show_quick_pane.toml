@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-show-quick-pane"
+description = "Enables the show_quick_pane command without any pre-configured scope."
+commands.allow = ["show_quick_pane"]
+
+[[permission]]
+identifier = "deny-show-quick-pane"
+description = "Denies the show_quick_pane command without any pre-configured scope."
+commands.deny = ["show_quick_pane"]

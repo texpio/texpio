@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-load-emergency-data"
+description = "Enables the load_emergency_data command without any pre-configured scope."
+commands.allow = ["load_emergency_data"]
+
+[[permission]]
+identifier = "deny-load-emergency-data"
+description = "Denies the load_emergency_data command without any pre-configured scope."
+commands.deny = ["load_emergency_data"]
