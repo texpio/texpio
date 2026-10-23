@@ -65,6 +65,69 @@ it('keeps an entry available when submission fails', async () => {
   await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('retry me'))
   expect(screen.getByRole('alert')).not.toHaveTextContent('private')
 })
+function deferredEmission() {
+  let resolve!: () => void
+  let reject!: (reason: unknown) => void
+  const promise = new Promise<void>((done, fail) => {
+    resolve = done
+    reject = fail
+  })
+  return { promise, resolve, reject }
+}
+it.each([
+  { cancel: 'blur', outcome: 'reject' },
+  { cancel: 'Escape', outcome: 'reject' },
+  { cancel: 'blur', outcome: 'resolve' },
+  { cancel: 'Escape', outcome: 'resolve' },
+])('dismisses immediately on $cancel and ignores a late $outcome', async ({ cancel, outcome }) => {
+  const emission = deferredEmission()
+  vi.mocked(emit).mockReturnValueOnce(emission.promise)
+  render(<QuickPaneApp />)
+  await userEvent.type(screen.getByRole('textbox'), 'synthetic private entry{Enter}')
+  expect(emit).toHaveBeenCalledOnce()
+  if (cancel === 'blur') {
+    const handler = native.focus.mock.calls[native.focus.mock.calls.length - 1]?.[0]
+    act(() => handler({ payload: false }))
+  } else await userEvent.keyboard('{Escape}')
+  expect(dismissQuickPane).toHaveBeenCalledOnce()
+  await act(async () => {
+    if (outcome === 'reject') emission.reject(new Error('private native failure'))
+    else emission.resolve()
+  })
+  expect(screen.getByRole('textbox')).toHaveValue('')
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(dismissQuickPane).toHaveBeenCalledOnce()
+})
+it('a canceled submission cannot restore text or hide a reopened entry', async () => {
+  const emission = deferredEmission()
+  vi.mocked(emit).mockReturnValueOnce(emission.promise)
+  render(<QuickPaneApp />)
+  await userEvent.type(screen.getByRole('textbox'), 'discard me{Enter}{Escape}')
+  const handler = native.focus.mock.calls[native.focus.mock.calls.length - 1]?.[0]
+  act(() => handler({ payload: true }))
+  await userEvent.type(screen.getByRole('textbox'), 'new interaction')
+  await act(async () => emission.reject(new Error('late failure')))
+  expect(screen.getByRole('textbox')).toHaveValue('new interaction')
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(dismissQuickPane).toHaveBeenCalledOnce()
+})
+it('a late older submission does not release a newer submission guard', async () => {
+  const older = deferredEmission()
+  const newer = deferredEmission()
+  vi.mocked(emit).mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise)
+  render(<QuickPaneApp />)
+  await userEvent.type(screen.getByRole('textbox'), 'older{Enter}{Escape}')
+  const handler = native.focus.mock.calls[native.focus.mock.calls.length - 1]?.[0]
+  act(() => handler({ payload: true }))
+  await userEvent.type(screen.getByRole('textbox'), 'newer{Enter}')
+  expect(emit).toHaveBeenCalledTimes(2)
+  await act(async () => older.reject(new Error('old failure')))
+  await userEvent.keyboard('{Enter}')
+  expect(emit).toHaveBeenCalledTimes(2)
+  expect(dismissQuickPane).toHaveBeenCalledOnce()
+  await act(async () => newer.reject(new Error('new failure')))
+  expect(screen.getByRole('textbox')).toHaveValue('newer')
+})
 it('uses the shared provider for live appearance changes', async () => {
   mockSystemTheme()
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } })

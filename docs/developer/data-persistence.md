@@ -9,3 +9,5 @@ Recovery accepts bounded filenames/bodies, rejects traversal/reserved names/syml
 New persistent data requires explicit schema, migration, integrity and recovery contracts. SQLite and encrypted sync are future options, not installed product services. Keep secrets and input out of logs/layout storage.
 
 Adapted for Texpio from [tauri-template `1295f69`](https://github.com/dannysmith/tauri-template/tree/1295f691bbdf373896e7c0f1cc969e2040fbf42c/docs), MIT. [Attribution](../../THIRD_PARTY_NOTICES.md). [Feature status](../research/tauri-template-parity.md).
+
+On Windows, eligible access/sharing/lock errors during atomic replacement retry at most five times with 10ms pauses against an existing non-readonly destination. The staged file is retained; the destination is never deleted first. Persistent/read-only failures preserve previous bytes and return the same closed I/O error.

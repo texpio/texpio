@@ -95,4 +95,14 @@ Computer Use was not started for this migration. The available Windows API docum
 
 P0 remains separate: no insertion strategy qualified, 0/300 physical trials, unresolved English (India) provider/layout gate, clipboard experiments still disabled. No accounts/billing/sync service or snippet editor/database was added. Real signed update delivery, certificate/notarization, release environment protection and platform acceptance require external setup; no signing keys, tags, release or workflow dispatch were created.
 
-Latest automated evidence: full checks passed112 frontend/74 Rust/11 tooling/1 fixture, six ast-grep groups; coverage passed72.67% statements/69.91% branches/68.5% functions/73.93% lines. Both production entries build, and two native binding exports leave no diff. Native production compilation and independent review are in progress.
+Final automated evidence after fixes: full checks passed118 frontend/77 Rust/11 tooling/1 fixture, six ast-grep groups; coverage passed73.49% statements/70.57% branches/68.8% functions/74.67% lines. Two native binding exports leave no diff. Both frontend entries build. The independent review Important finding is fixed with RED-to-GREEN tests; the final preview and production rebuild are tracked separately below.
+
+## Independent review and fixes
+
+A read-only gpt-6-astra review covered `c7b4038..71a6425` across the complete migration, including the five Review Focus classes. It found no Critical issues, one Important cancellation race, and two Minor items. The cancellation fix has six RED-to-GREEN deferred-promise regressions covering blur/Escape, late success/failure, reopening and a newer pending submission. Canceled UI text cannot be restored by stale continuations; an emission already submitted by Enter cannot be retracted from the event bus.
+
+Final checks also exposed intermittent Windows Access denied (5) at atomic file replacement. A held delete-sharing lock reproduces that error class; the identity of the original interfering process is unknown. Replacement now retries eligible Windows errors at most five times with 10ms pauses, retaining the staged file. Three deterministic native regressions prove short-lock recovery, bounded persistent-lock failure and read-only refusal without losing previous bytes. Five complete native regression runs passed77 tests each. No raw error/path diagnostics were retained.
+
+Deferred minors: hidden sidebar remembered widths can constrain a visible sidebar resize; custom Windows/macOS control labels/tooltips remain English in French/Arabic. Both are usability/localization polish, not represented as fixed.
+
+Reviewer exclusions remain open gates: actual Windows focus/chrome/DPI/shortcut/tray/packaged notifications; macOS/Linux runtime/packaging; signed updates/secrets/environment protection/publication; and P0 physical/India/clipboard/picker qualification. Their cost is unverified behavior or unavailable capability in the respective area. No automatic check substitutes for these observations. Task8 native acceptance remains open.

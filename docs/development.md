@@ -55,6 +55,6 @@ The approved shell uses Bun and retains the engine in Developer. See [developer 
 
 ## Migrated shell verification — 24 October 2026
 
-`bun run check:all` passed with 112 frontend tests, 74 Rust tests, 11 tooling checks, one loopback fixture test and six ast-grep rule groups. Coverage passed: 72.67% statements, 69.91% branches, 68.5% functions and 73.93% lines. Coverage is an inventory, not proof of native titlebar/window behavior. Both production HTML entries build. Binding export twice leaves no diff.
+`bun run check:all` passed with 118 frontend tests, 77 Rust tests, 11 tooling checks, one loopback fixture test and six ast-grep rule groups. Coverage passed: 73.49% statements, 70.57% branches, 68.8% functions and 74.67% lines. Coverage is an inventory, not proof of native titlebar/window behavior. Both production HTML entries build. Binding export twice leaves no diff.
 
 Native interaction acceptance on the migrated binary remains pending; Computer Use was not started because this session's documented API cannot prove control-session closure as required by AGENTS.md. [Parity](research/tauri-template-parity.md) lists each pending check. P0 remains 0/300 physical trials with the India layout/provider question unresolved; no input was armed in this migration.
