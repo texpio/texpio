@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
 import { CheckCircle2, LoaderCircle, Monitor, SquareTerminal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ type Connection =
   { status: 'loading' } | { status: 'connected'; info: AppInfo } | { status: 'unavailable' }
 
 export function FoundationScreen() {
+  const { t } = useTranslation()
   const { preference, setPreference } = useTheme()
   const [connection, setConnection] = useState<Connection>({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
@@ -43,7 +45,7 @@ export function FoundationScreen() {
   }
 
   return (
-    <main className="mx-auto flex min-h-svh max-w-3xl flex-col gap-8 px-6 py-9 sm:px-10">
+    <section className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-9 sm:px-10">
       <header className="flex flex-wrap items-center justify-between gap-5">
         <div className="flex items-center gap-3">
           <div className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
@@ -51,12 +53,16 @@ export function FoundationScreen() {
           </div>
           <div>
             <h1 className="text-xl font-semibold tracking-tight">Texpio</h1>
-            <p className="text-sm text-muted-foreground">Windows desktop foundation</p>
+            <p className="text-sm text-muted-foreground">
+              {t('developer.ui.windows-desktop-foundation', {
+                defaultValue: 'Windows desktop foundation',
+              })}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <label htmlFor="theme" className="text-sm text-muted-foreground">
-            Theme
+            {t('developer.ui.theme', { defaultValue: 'Theme' })}
           </label>
           <Select
             value={preference}
@@ -67,9 +73,15 @@ export function FoundationScreen() {
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="system">System</SelectItem>
-                <SelectItem value="light">Light</SelectItem>
-                <SelectItem value="dark">Dark</SelectItem>
+                <SelectItem value="system">
+                  {t('developer.ui.system', { defaultValue: 'System' })}
+                </SelectItem>
+                <SelectItem value="light">
+                  {t('developer.ui.light', { defaultValue: 'Light' })}
+                </SelectItem>
+                <SelectItem value="dark">
+                  {t('developer.ui.dark', { defaultValue: 'Dark' })}
+                </SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -79,9 +91,13 @@ export function FoundationScreen() {
         <CardHeader>
           <CardTitle role="heading" aria-level={2} className="flex items-center gap-2">
             <Monitor className="size-4" aria-hidden="true" />
-            Desktop connection
+            {t('developer.ui.desktop-connection', { defaultValue: 'Desktop connection' })}
           </CardTitle>
-          <CardDescription>Application information from the native desktop shell.</CardDescription>
+          <CardDescription>
+            {t('developer.ui.application-information-from-the-native-desktop-shell', {
+              defaultValue: 'Application information from the native desktop shell.',
+            })}
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           {connection.status === 'loading' && (
@@ -90,22 +106,26 @@ export function FoundationScreen() {
                 className="size-4 animate-spin motion-reduce:animate-none"
                 aria-hidden="true"
               />
-              Connecting to desktop…
+              {t('developer.ui.connecting-to-desktop', { defaultValue: 'Connecting to desktop…' })}
             </p>
           )}
           {connection.status === 'connected' && (
             <>
               <p role="status" className="flex items-center gap-2 text-sm">
                 <CheckCircle2 className="size-4" aria-hidden="true" />
-                Connected
+                {t('developer.ui.connected', { defaultValue: 'Connected' })}
               </p>
               <dl className="grid grid-cols-2 gap-4 border-t pt-5 text-sm">
                 <div>
-                  <dt className="mb-1 text-muted-foreground">Version</dt>
+                  <dt className="mb-1 text-muted-foreground">
+                    {t('developer.ui.version', { defaultValue: 'Version' })}
+                  </dt>
                   <dd className="font-medium">{connection.info.version}</dd>
                 </div>
                 <div>
-                  <dt className="mb-1 text-muted-foreground">Platform</dt>
+                  <dt className="mb-1 text-muted-foreground">
+                    {t('developer.ui.platform', { defaultValue: 'Platform' })}
+                  </dt>
                   <dd className="font-medium">{connection.info.platform}</dd>
                 </div>
               </dl>
@@ -114,13 +134,17 @@ export function FoundationScreen() {
           {connection.status === 'unavailable' && (
             <div className="flex flex-col gap-3">
               <p role="alert" className="text-sm">
-                Native desktop information is unavailable.
+                {t('developer.ui.native-desktop-information-is-unavailable', {
+                  defaultValue: 'Native desktop information is unavailable.',
+                })}
               </p>
               <p className="text-sm text-muted-foreground">
-                Open the Texpio desktop app to connect to its native shell.
+                {t('developer.ui.open-the-texpio-desktop-app-to-connect', {
+                  defaultValue: 'Open the Texpio desktop app to connect to its native shell.',
+                })}
               </p>
               <Button variant="outline" size="sm" onClick={retry}>
-                Retry
+                {t('developer.ui.retry', { defaultValue: 'Retry' })}
               </Button>
             </div>
           )}
@@ -128,8 +152,11 @@ export function FoundationScreen() {
       </Card>
       <ProbePanel />
       <footer className="mt-auto text-xs leading-relaxed text-muted-foreground">
-        Closing this window keeps Texpio running. To exit, choose Quit from the tray menu.
+        {t('developer.ui.closing-this-window-keeps-texpio-running-to', {
+          defaultValue:
+            'Closing this window keeps Texpio running. To exit, choose Quit from the tray menu.',
+        })}
       </footer>
-    </main>
+    </section>
   )
 }

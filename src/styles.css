@@ -48,6 +48,7 @@
 }
 
 :root {
+  --app-corner-radius: 8px;
   color-scheme: light;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -81,6 +82,10 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+}
+
+.square-corners {
+  --app-corner-radius: 0px;
 }
 
 .dark {

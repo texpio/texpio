@@ -32,7 +32,17 @@ export default tseslint.config(
       '@eslint-react/no-use-context': 'off',
       'react-refresh/only-export-components': [
         'error',
-        { allowConstantExport: true, allowExportNames: ['useTheme', 'buttonVariants'] },
+        {
+          allowConstantExport: true,
+          allowExportNames: [
+            'useTheme',
+            'buttonVariants',
+            'badgeVariants',
+            'buttonGroupVariants',
+            'toggleVariants',
+            'useSidebar',
+          ],
+        },
       ],
     },
   },

@@ -8,6 +8,12 @@ import { mockSystemTheme } from '@/test/system-theme'
 import { FoundationScreen } from './FoundationScreen'
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn(), isTauri: vi.fn() }))
+vi.mock('@/services/preferences', () => ({
+  readAppearanceCache: () => 'system',
+  usePreferences: () => ({ data: { theme: 'system', language: null }, isError: false }),
+  useSavePreferences: () => ({ mutate: vi.fn(), isError: false }),
+  usePreferencesSync: vi.fn(),
+}))
 vi.mock('@/features/probe/ProbePanel', () => ({
   ProbePanel: () => <section aria-label="Windows expansion probe" />,
 }))

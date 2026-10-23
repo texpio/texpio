@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,7 @@ import {
   type ProbeFixture,
   type ProbeStatus,
   type ReferenceProfile,
+  type RefusalReason,
 } from '@/lib/probe'
 
 const initialStatus: ProbeStatus = {
@@ -41,13 +43,14 @@ const phaseLabels = { stopped: 'Stopped', running: 'Running', paused: 'Paused', 
 type Pending = 'start' | 'stop' | 'pause' | 'exclude' | null
 
 export function ProbePanel() {
+  const { t } = useTranslation()
   const [status, setStatus] = useState(initialStatus)
   const [fixtures, setFixtures] = useState<ProbeFixture[]>([])
   const [profile, setProfile] = useState<ReferenceProfile | ''>('')
   const [strategy, setStrategy] = useState<InsertionStrategy>('unicode')
   const [available, setAvailable] = useState(false)
   const [connectionError, setConnectionError] = useState(false)
-  const [commandError, setCommandError] = useState<string | null>(null)
+  const [commandError, setCommandError] = useState<RefusalReason | 'unavailable' | null>(null)
   const [pending, setPending] = useState<Pending>(null)
   const [attempt, setAttempt] = useState(0)
   const pendingRef = useRef<Pending>(null)
@@ -124,9 +127,7 @@ export function ProbePanel() {
       if (mounted.current && current === revision.current) applyStatus(next)
     } catch (error) {
       if (mounted.current && current === revision.current) {
-        setCommandError(
-          error instanceof ProbeCommandError ? refusalLabels[error.code] : unavailableMessage,
-        )
+        setCommandError(error instanceof ProbeCommandError ? error.code : 'unavailable')
       }
     } finally {
       if (mounted.current && current === revision.current) {
@@ -137,7 +138,12 @@ export function ProbePanel() {
   }
 
   const active = status.phase === 'running' || status.phase === 'paused'
-  const error = connectionError ? unavailableMessage : commandError
+  const error =
+    connectionError || commandError === 'unavailable'
+      ? t('probe.unavailable', { defaultValue: unavailableMessage })
+      : commandError
+        ? t(`probe.refusal.${commandError}`, { defaultValue: refusalLabels[commandError] })
+        : null
   const labels = {
     submitted: 'Submitted requests',
     observed: 'Observed expansions',
@@ -148,24 +154,29 @@ export function ProbePanel() {
     <Card aria-labelledby="probe-heading">
       <CardHeader>
         <CardTitle id="probe-heading" role="heading" aria-level={2}>
-          Windows expansion probe
+          {t('probe.ui.windows-expansion-probe', { defaultValue: 'Windows expansion probe' })}
         </CardTitle>
         <CardDescription>
-          Experimental feasibility controls. Use disposable test documents; the engine starts
-          stopped on every app launch.
+          {t('probe.ui.experimental-feasibility-controls-use-disposable-test-documents', {
+            defaultValue:
+              'Experimental feasibility controls. Use disposable test documents; the engine starts stopped on every app launch.',
+          })}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
-        <p role="status" aria-label="Expansion status">
+        <p
+          role="status"
+          aria-label={t('probe.expansionStatus', { defaultValue: 'Expansion status' })}
+        >
           {pending === 'start'
-            ? 'Starting…'
+            ? t('probe.starting', { defaultValue: 'Starting…' })
             : pending === 'stop'
-              ? 'Stopping…'
-              : phaseLabels[status.phase]}
+              ? t('probe.stopping', { defaultValue: 'Stopping…' })
+              : t(`probe.phase.${status.phase}`, { defaultValue: phaseLabels[status.phase] })}
         </p>
         {error && (
           <Alert variant="destructive">
-            <AlertTitle>Probe notice</AlertTitle>
+            <AlertTitle>{t('probe.ui.probe-notice', { defaultValue: 'Probe notice' })}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -178,12 +189,14 @@ export function ProbePanel() {
               setAttempt((value) => value + 1)
             }}
           >
-            Retry probe connection
+            {t('probe.ui.retry-probe-connection', { defaultValue: 'Retry probe connection' })}
           </Button>
         )}
         <FieldGroup>
           <Field data-disabled={!available || !!pending || active}>
-            <FieldLabel htmlFor="probe-profile">Reference app</FieldLabel>
+            <FieldLabel htmlFor="probe-profile">
+              {t('probe.ui.reference-app', { defaultValue: 'Reference app' })}
+            </FieldLabel>
             <NativeSelect
               id="probe-profile"
               value={profile}
@@ -192,20 +205,32 @@ export function ProbePanel() {
                 setProfile(profiles.find((item) => item === event.target.value) ?? '')
               }
             >
-              <NativeSelectOption value="">Select a reference app</NativeSelectOption>
-              <NativeSelectOption value="notepad">Notepad test document</NativeSelectOption>
-              <NativeSelectOption value="vsCode">
-                VS Code plaintext test document
+              <NativeSelectOption value="">
+                {t('probe.ui.select-a-reference-app', { defaultValue: 'Select a reference app' })}
               </NativeSelectOption>
-              <NativeSelectOption value="chromeFixture">Chrome loopback fixture</NativeSelectOption>
+              <NativeSelectOption value="notepad">
+                {t('probe.ui.notepad-test-document', { defaultValue: 'Notepad test document' })}
+              </NativeSelectOption>
+              <NativeSelectOption value="vsCode">
+                {t('probe.ui.vs-code-plaintext-test-document', {
+                  defaultValue: 'VS Code plaintext test document',
+                })}
+              </NativeSelectOption>
+              <NativeSelectOption value="chromeFixture">
+                {t('probe.ui.chrome-loopback-fixture', { defaultValue: 'Chrome loopback fixture' })}
+              </NativeSelectOption>
             </NativeSelect>
             <FieldDescription>
-              Only the selected reference control can expand. Other applications and password fields
-              are refused.
+              {t('probe.ui.only-the-selected-reference-control-can-expand', {
+                defaultValue:
+                  'Only the selected reference control can expand. Other applications and password fields are refused.',
+              })}
             </FieldDescription>
           </Field>
           <Field data-disabled={!available || !!pending || active}>
-            <FieldLabel htmlFor="probe-strategy">Insertion strategy</FieldLabel>
+            <FieldLabel htmlFor="probe-strategy">
+              {t('probe.ui.insertion-strategy', { defaultValue: 'Insertion strategy' })}
+            </FieldLabel>
             <NativeSelect
               id="probe-strategy"
               value={strategy}
@@ -214,35 +239,47 @@ export function ProbePanel() {
                 if (event.target.value === 'unicode') setStrategy('unicode')
               }}
             >
-              <NativeSelectOption value="unicode">Direct Unicode</NativeSelectOption>
+              <NativeSelectOption value="unicode">
+                {t('probe.ui.direct-unicode', { defaultValue: 'Direct Unicode' })}
+              </NativeSelectOption>
               <NativeSelectOption value="clipboard" disabled>
-                Clipboard — qualification pending
+                {t('probe.ui.clipboard-qualification-pending', {
+                  defaultValue: 'Clipboard — qualification pending',
+                })}
               </NativeSelectOption>
             </NativeSelect>
-            <FieldDescription>{refusalLabels.clipboardState}</FieldDescription>
+            <FieldDescription>
+              {t('probe.refusal.clipboardState', { defaultValue: refusalLabels.clipboardState })}
+            </FieldDescription>
           </Field>
         </FieldGroup>
         {status.refusalReason && (
           <p className="text-sm text-muted-foreground" aria-live="polite">
-            {refusalLabels[status.refusalReason]}
+            {t(`probe.refusal.${status.refusalReason}`, {
+              defaultValue: refusalLabels[status.refusalReason],
+            })}
           </p>
         )}
         <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {(Object.keys(labels) as Array<keyof typeof labels>).map((key) => (
             <div key={key} data-testid={`counter-${key}`}>
-              <dt className="text-sm text-muted-foreground">{labels[key]}</dt>
+              <dt className="text-sm text-muted-foreground">
+                {t(`probe.counter.${key}`, { defaultValue: labels[key] })}
+              </dt>
               <dd className="text-lg font-medium tabular-nums">{status.counters[key]}</dd>
             </div>
           ))}
         </dl>
         <p className="text-sm text-muted-foreground">
-          Submitted requests are counted separately from observed output. The tray can pause or stop
-          the probe while this window is hidden.
+          {t('probe.ui.submitted-requests-are-counted-separately-from-observed', {
+            defaultValue:
+              'Submitted requests are counted separately from observed output. The tray can pause or stop the probe while this window is hidden.',
+          })}
         </p>
         <Separator />
         <section aria-labelledby="probe-fixtures">
           <h3 id="probe-fixtures" className="mb-3 text-sm font-medium">
-            Fixed test snippets
+            {t('probe.ui.fixed-test-snippets', { defaultValue: 'Fixed test snippets' })}
           </h3>
           <div className="flex flex-col gap-3">
             {fixtures.map((fixture) => (
@@ -257,8 +294,10 @@ export function ProbePanel() {
             ))}
           </div>
           <p className="mt-3 text-sm text-muted-foreground">
-            Type a shortcut followed by Space. One trailing space remains. Start at the beginning of
-            the field or after whitespace.
+            {t('probe.ui.type-a-shortcut-followed-by-space-one', {
+              defaultValue:
+                'Type a shortcut followed by Space. One trailing space remains. Start at the beginning of the field or after whitespace.',
+            })}
           </p>
         </section>
       </CardContent>
@@ -267,28 +306,30 @@ export function ProbePanel() {
           disabled={!available || !profile || !!pending || active}
           onClick={() => profile && void mutate('start', () => startProbe({ profile, strategy }))}
         >
-          Start probe
+          {t('probe.ui.start-probe', { defaultValue: 'Start probe' })}
         </Button>
         <Button
           variant="outline"
           disabled={!available || !!pending || !active}
           onClick={() => void mutate('pause', () => pauseProbe(status.phase !== 'paused'))}
         >
-          {status.phase === 'paused' ? 'Resume' : 'Pause'}
+          {status.phase === 'paused'
+            ? t('probe.resume', { defaultValue: 'Resume' })
+            : t('probe.pause', { defaultValue: 'Pause' })}
         </Button>
         <Button
           variant="outline"
           disabled={pending === 'stop' || (!available && !pending && status.phase === 'stopped')}
           onClick={() => void mutate('stop', stopProbe)}
         >
-          Stop
+          {t('probe.ui.stop', { defaultValue: 'Stop' })}
         </Button>
         <Button
           variant="ghost"
           disabled={!available || !profile || !!pending}
           onClick={() => profile && void mutate('exclude', () => excludeProbe(profile))}
         >
-          Exclude this app
+          {t('probe.ui.exclude-this-app', { defaultValue: 'Exclude this app' })}
         </Button>
       </CardFooter>
     </Card>
