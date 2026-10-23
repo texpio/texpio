@@ -1,6 +1,6 @@
 # Full template adoption and Bun migration
 
-Status: **written design awaiting user approval**. The user selected the full template shell while preserving the existing engine on 23 October 2026. This document makes the migration reviewable; implementation planning follows approval.
+Status: **approved by the user on 23 October 2026**, with the request to prepare the implementation plan. The user selected the full template shell while preserving the existing engine. The independent builder check reported no important unresolved questions. Implementation-plan review remains a separate handoff.
 
 ## Intent and source
 

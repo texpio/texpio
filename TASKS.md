@@ -114,8 +114,9 @@ P0 is paused at the user's request for the template migration below. Probe contr
 - [x] Inventory every runtime/development feature and all four skills/two role prompts; distinguish implementation from README claims.
 - [x] Verify the installed Bun version (`1.3.13`) and research migration/Windows compatibility.
 - [x] Write the migration design and complete its independent builder check.
-- [ ] Obtain approval of the written [migration design](docs/superpowers/specs/2026-10-23-template-adoption-design.md).
-- [ ] Prepare the implementation plan, preserving Native/current-checkout execution.
+- [x] Obtain approval of the written [migration design](docs/superpowers/specs/2026-10-23-template-adoption-design.md).
+- [x] Prepare and self-review the [implementation plan](docs/superpowers/plans/2026-10-23-template-adoption.md), preserving Native/current-checkout execution.
+- [ ] Complete implementation-plan review with the user before importing the template.
 - [ ] Import/adapt the shell, typed bridge, preferences, quick pane, supporting plugins, UI library and development tooling.
 - [ ] Migrate package management/scripts/CI/docs to a validated pinned Bun version and text lockfile.
 - [ ] Port the four skills and two role prompts into `.agents`; merge useful upstream `AGENTS.md` guidance while preserving computer-availability rules.
