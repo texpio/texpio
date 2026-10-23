@@ -104,6 +104,10 @@ Candidate information architecture: one useful Windows hub linked to downloads, 
 
 Template libraries, compatibility reports, migration tools and an interactive demonstration could support both discovery and activation. These are opportunities to test, not automatic additions to the MVP. AI, voice, teams, mobile and browser extensions remain governed by the existing [feature plan](feature-plan.md) and [phased PRDs](phased-prds.md).
 
+## Open-source engineering reference
+
+On 24 October 2026, the user added [Espanso](https://github.com/espanso/espanso) as an engineering reference. The [pinned source audit](research/espanso-source-audit.md) covers its native backends, event pipeline, compatibility controls and implementation limits. This is source/architecture research; product popularity, maintenance quality, universal compatibility and SEO performance are separate claims requiring their own evidence.
+
 ## Future research tasks
 
 No monitoring or scheduled research has been configured. The priorities below guide a later deliberate research pass.

@@ -127,6 +127,19 @@ P0 resumed on 24 October after the template migration. Probe controls are implem
 
 Deliverables: [template source audit and parity tracker](docs/research/tauri-template-parity.md), [migration design](docs/superpowers/specs/2026-10-23-template-adoption-design.md). All template runtime infrastructure and six portable skill/role files are adapted. Review fixes, automated checks and the optimized Windows no-bundle build pass; the debug preview and basic opening were confirmed. Detailed native acceptance remains open.
 
+## 9. Espanso source and engine architecture research
+
+- [x] Pin Espanso's stable source tag and development HEAD; record release/source evidence separately.
+- [x] Audit Windows detection/layout/injection/clipboard and compare them with Texpio's P0 guarantees.
+- [x] Audit macOS, Linux/X11 and Linux/Wayland mechanisms, permissions and lifecycle limits.
+- [x] Inspect the shared matcher/render/effect pipeline, app configuration, manual testing and configured CI.
+- [x] Document independent modeling, selected-source reuse and sidecar integration options, including the pending GPL licensing question.
+- [x] Save a concrete proposed engine model and per-platform validation sequence; distinguish proposals from approved implementation.
+- [ ] Choose the engine reuse direction and strict-versus-compatibility contract.
+- [ ] Approve the resulting engine design/amendment and implementation plan before changing the expansion contract.
+
+Deliverable: [Espanso source audit and Texpio engine options](docs/research/espanso-source-audit.md). No Espanso runtime code was added to Texpio, and upstream code was not built, installed or run. P0 remains unqualified with 0/300 physical trials.
+
 ## Future decisions and execution work
 
 - [ ] Check desired domains/app-store names and brand clearance before publishing.

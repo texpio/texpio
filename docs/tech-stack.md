@@ -38,6 +38,8 @@ The later storage layer will own a connection on a dedicated database worker and
 
 The native engine will keep a bounded transient matching buffer and an in-memory snippet index. It must operate independently of an open editor window. Do not forward a raw keyboard stream to React or store typed history. Actual observation, deletion, insertion, focus, clipboard, Unicode, and IME behavior remain subject to the [P0 evidence gate](phased-prds.md#p0--native-expansion-feasibility).
 
+The [Espanso source audit](research/espanso-source-audit.md) proposes shared Rust pipeline boundaries with separate Windows, macOS, Linux/X11 and Linux/Wayland adapters. This informs the next engine design; it does not select a fork, change Texpio's license, replace the approved P0 contract or qualify another platform.
+
 ## Future service
 
 Reuse the user's existing Laravel + PostgreSQL project for accounts and billing. This desktop repository will contain no Laravel application, PostgreSQL service, authentication UI, payment integration, or sync server during the foundation or P0 work.
