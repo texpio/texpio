@@ -1,8 +1,8 @@
 # Texpio
 
-A proposed open-source, local-first text expander for Windows, followed by macOS. Create and reuse text locally, with optional paid managed sync later.
+A local-first desktop text expander in development, targeting Windows first and macOS next. Optional paid managed sync is planned later.
 
-The user selected **Texpio** on 23 October 2026. The desktop foundation is being built from the official Tauri 2 starter with React, TypeScript, Vite, and shadcn/ui. The separate Rust expansion engine still needs feasibility testing. See [development instructions](docs/development.md) for setup, commands, and verification status.
+The desktop shell builds on the official Tauri 2 starter and the pinned dannysmith template, using React/TypeScript, shadcn, Zustand and TanStack Query with Bun 1.4.4. Home, Developer, Preferences, command palette and quick entry are implemented. The Rust expansion probe remains experimental with physical qualification incomplete. See [setup](docs/development.md), [user guide](docs/userguide/userguide.md) and [feature parity](docs/research/tauri-template-parity.md) for verification limits.
 
 ## Planning documents
 
@@ -19,7 +19,7 @@ The user selected **Texpio** on 23 October 2026. The desktop foundation is being
 | [Windows expansion probe plan](docs/superpowers/plans/2026-10-23-windows-expansion-probe.md)          | Approved implementation tasks and physical/native acceptance campaigns; currently paused for template migration |
 | [Template audit and parity](docs/research/tauri-template-parity.md)                                   | Pinned upstream feature inventory, portable agent mapping and migration evidence tracker                        |
 | [Template adoption design](docs/superpowers/specs/2026-10-23-template-adoption-design.md)             | Approved full template shell with preserved engine, Bun and universal agent materials                           |
-| [Template adoption plan](docs/superpowers/plans/2026-10-23-template-adoption.md)                      | Eight implementation tasks, parity checks and Windows acceptance; approved; implementation in progress            |
+| [Template adoption plan](docs/superpowers/plans/2026-10-23-template-adoption.md)                      | Eight implementation tasks, parity checks and Windows acceptance; approved; implementation/evidence tracked in parity            |
 | [Tasks](TASKS.md)                                                                                     | Planning progress, decisions, and future validation work                                                        |
 | [Planning evidence](docs/planning-evidence.md)                                                        | Official sources and the limits of the research                                                                 |
 | [Naming record](docs/naming-research.md)                                                              | Selection and GitHub checks                                                                                     |

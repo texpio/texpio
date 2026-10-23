@@ -37,7 +37,7 @@ bun run tauri:build --no-bundle -- --locked
 
 Application tests, lifecycle behavior, CI, and final verification instructions are added with the corresponding foundation tasks.
 
-## Windows acceptance checklist
+## Earlier Windows preview acceptance (23 October 2026)
 
 The original starter exited when its main window was closed. The following checklist verifies the foundation lifecycle against the rebuilt native application; results are pending until observed.
 
@@ -52,3 +52,9 @@ The original starter exited when its main window was closed. The following check
 ## Adopted template shell
 
 The approved shell uses Bun and retains the engine in Developer. See [developer guides](developer/README.md), [user guide](userguide/userguide.md) and [template parity](research/tauri-template-parity.md). Run `bun run check:all` and `bun run build`; native acceptance remains separate.
+
+## Migrated shell verification — 24 October 2026
+
+`bun run check:all` passed with 112 frontend tests, 74 Rust tests, 11 tooling checks, one loopback fixture test and six ast-grep rule groups. Coverage passed: 72.67% statements, 69.91% branches, 68.5% functions and 73.93% lines. Coverage is an inventory, not proof of native titlebar/window behavior. Both production HTML entries build. Binding export twice leaves no diff.
+
+Native interaction acceptance on the migrated binary remains pending; Computer Use was not started because this session's documented API cannot prove control-session closure as required by AGENTS.md. [Parity](research/tauri-template-parity.md) lists each pending check. P0 remains 0/300 physical trials with the India layout/provider question unresolved; no input was armed in this migration.

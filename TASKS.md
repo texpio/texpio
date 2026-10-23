@@ -1,6 +1,6 @@
 # Texpio tasks
 
-Updated: 23 October 2026 (Asia/Kolkata)
+Updated: 24 October 2026 (Asia/Kolkata)
 
 ## Confirmed brief
 
@@ -84,13 +84,13 @@ Reference sources: [Planning evidence](docs/planning-evidence.md). Document inde
 - [x] Write the foundation implementation plan and perform its self-review.
 - [x] Complete the user's implementation-plan review and choose its execution method: Native, current checkout.
 - [x] Generate and integrate the official starter, pin tools, and install Windows build prerequisites.
-- [ ] Add and verify the foundation features/checks.
+- [x] Add the foundation features and verify automated checks.
 - [ ] Verify native Windows build and runtime behavior; record any missing prerequisites.
 - [ ] Commit and push the verified implementation.
 
 Deliverables: [Technology stack](docs/tech-stack.md), approved [foundation design](docs/superpowers/specs/2026-10-23-desktop-foundation-design.md), and approved [implementation plan](docs/superpowers/plans/2026-10-23-desktop-foundation.md). Implementation is in progress.
 
-The starter, themed screen/metadata, and tray/single-instance changes are committed through `22fadcb`. The Windows preview rendered Connected with version `0.1.0` and platform `windows`. Remaining lifecycle and remote CI evidence still needs recording; the unchecked foundation gates above remain open.
+The official-starter history is preserved. The adopted shell, typed services and automated checks are committed through `0f30db2`. The user confirmed tray Open/Quit on the earlier preview; acceptance on the final migrated binary remains pending. See template parity for exact evidence.
 
 ## 7. Windows expansion feasibility
 
@@ -117,13 +117,15 @@ P0 is paused at the user's request for the template migration below. Probe contr
 - [x] Obtain approval of the written [migration design](docs/superpowers/specs/2026-10-23-template-adoption-design.md).
 - [x] Prepare and self-review the [implementation plan](docs/superpowers/plans/2026-10-23-template-adoption.md), preserving Native/current-checkout execution.
 - [x] Complete implementation-plan review with the user before importing the template; approved on 23 October 2026.
-- [ ] Import/adapt the shell, typed bridge, preferences, quick pane, supporting plugins, UI library and development tooling.
-- [ ] Migrate package management/scripts/CI/docs to a validated pinned Bun version and text lockfile.
-- [ ] Port the four skills and two role prompts into `.agents`; merge useful upstream `AGENTS.md` guidance while preserving computer-availability rules.
-- [ ] Verify the feature parity table with code/test/native evidence and explicit external/platform limits.
-- [ ] Commit/push verified changes and resume P0 afterward.
+- [x] Import/adapt the shell, typed bridge, preferences, quick pane, supporting plugins, UI library and development tooling.
+- [x] Migrate package management/scripts/CI/docs to validated Bun 1.4.4 and text lockfile; retain Node/Rust pins.
+- [x] Port all four skills/two roles into `.agents`; merge architecture guidance and preserve computer-availability rules.
+- [x] Record all 43 feature rows with code/test evidence and explicit native/platform/external limits.
+- [ ] Complete new-binary Windows native interaction acceptance, packaged notifications and multi-monitor/DPI checks.
+- [ ] Commit/push final reviewed migration changes and confirm CI outcome/access limitation.
+- [ ] Resume P0 layout/provider diagnosis after migration handoff.
 
-Deliverables: [template source audit and parity tracker](docs/research/tauri-template-parity.md), [migration design](docs/superpowers/specs/2026-10-23-template-adoption-design.md). No template runtime code or project skill has been imported yet.
+Deliverables: [template source audit and parity tracker](docs/research/tauri-template-parity.md), [migration design](docs/superpowers/specs/2026-10-23-template-adoption-design.md). All template runtime infrastructure and six portable skill/role files are adapted. Automated tests pass; final review/build/remote evidence and native acceptance are tracked separately.
 
 ## Future decisions and execution work
 
