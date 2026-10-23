@@ -1,6 +1,7 @@
 mod commands;
 #[cfg(desktop)]
 mod desktop;
+pub mod engine;
 
 #[cfg(desktop)]
 use tauri::Manager;
