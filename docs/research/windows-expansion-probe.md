@@ -20,7 +20,7 @@ These app versions were inventoried, not qualified for expansion. The OS descrip
 
 Observed: native metadata reports Connected/version/platform; System/Light/Dark theme switching; close hides a still-running process; launching a second actual process exits that process and restores the original window with one process remaining.
 
-Pending: tray Open from hidden/minimized state, tray Quit and subsequent relaunch. Computer Use was stopped after a stalled closure; the user manually closed the app. No claim of successful tray acceptance follows from that interruption. Automated control is closed. Repository rules require brief sessions and immediate cleanup.
+The user subsequently verified close → tray Open → tray Quit manually. A CLI process check found zero Texpio processes before the requested relaunch, and the preview was relaunched successfully. The minimized-window variant remains unverified. Computer Use was stopped after the earlier stalled closure and has not been restarted. Repository rules require brief sessions and immediate cleanup.
 
 ## Read-only context implementation
 
@@ -52,8 +52,10 @@ For the browser fixture, run `pnpm probe:fixture` and open `http://127.0.0.1:417
 
 - Unit tests cover bounded matching, rollover/repeat/reset behavior, explicit property semantics, unsafe guard states, exact suffix/boundary rules, two-field identity mismatch and candidate selectors. These are synthetic evidence and do not validate actual UIA providers.
 - The fixture-server test covers loopback binding, asset allowlist, traversal rejection, method rejection and response security headers.
+- Runtime code now compiles with a dedicated observation/message-loop thread, separate worker-local UIA backend, bounded candidate queue, generation checks, one Unicode batch and exact output observation. Construction and ordinary tests install no hooks and send no input. Native hook teardown, provider shutdown and actual insertion remain unqualified.
+- The latest Rust suite has 41 passing tests. It includes Stop during blocked preparation, acknowledged in-flight uncertainty, stale/consumed tickets, unexpected injections, explicit US mapping, UTF-16 encoding and zero-submission accounting. Strict Clippy passes with only host filesystem incremental-cache hard-link warnings.
 - No native provider identity/caret/range campaign has been completed. The preparation deadline and UIA timeouts still need slow-provider and cancellation qualification with the later runtime watchdog.
-- Hook/runtime integration, native Unicode dispatch, probe UI, clipboard experiment and captured-target picker remain pending. Clipboard and picker results will be recorded separately.
+- Probe UI, clipboard experiment and captured-target picker remain pending. Clipboard and picker results will be recorded separately.
 - Eligible physical automatic attempts: **0 / 300 required**, with **0 / 100** per candidate application. No zero-incident claim or latency/resource benchmark is available.
 - Remote Windows CI has not been verified; the connected GitHub tool returned repository-specific 404 responses. This is an access/evidence limitation, not proof a workflow ran or failed.
 

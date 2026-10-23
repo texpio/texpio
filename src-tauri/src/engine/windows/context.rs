@@ -88,6 +88,7 @@ pub struct PreparedEdit {
     starts_document: bool,
     trigger: String,
     expected: String,
+    output: String,
     delete_count: usize,
     deadline: Budget,
     observation_deadline: Budget,
@@ -102,9 +103,17 @@ impl PreparedEdit {
     pub fn stamp(&self) -> TargetStamp {
         self.target.stamp
     }
+    pub fn output(&self) -> &str {
+        &self.output
+    }
 }
 
 impl WindowsContext {
+    pub fn recheck_target(&self, target: &TargetToken) -> Result<(), RefusalReason> {
+        self.inspect(target, Budget::new(PREPARE_BUDGET))
+            .map(|_| ())
+    }
+
     pub fn new() -> Result<Self, RefusalReason> {
         // SAFETY: UIA has a dedicated MTA worker. No message-loop HWND is created here.
         unsafe {
@@ -201,6 +210,7 @@ impl WindowsContext {
             starts_document,
             trigger: candidate.trigger.clone(),
             expected: format!("{boundary}{body} "),
+            output: format!("{body} "),
             delete_count,
             deadline: budget,
             observation_deadline: Budget::new(OBSERVE_BUDGET),
