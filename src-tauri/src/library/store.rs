@@ -20,6 +20,43 @@ pub struct LibraryStore {
 }
 
 impl LibraryStore {
+    pub(crate) fn root(&self) -> &std::path::Path {
+        &self.root
+    }
+    pub fn metadata(&self) -> Result<Vec<SnippetInfo>, LibraryError> {
+        let _guard = self.operation.lock().map_err(|_| LibraryError::storage())?;
+        let connection = self.open()?;
+        let mut statement=connection.prepare("SELECT i.id,i.favorite,i.usage_count,i.created_at,i.updated_at,i.last_used_at FROM snippet_info i JOIN snippets s ON s.id=i.id ORDER BY i.id LIMIT 10001").map_err(|_|LibraryError::storage())?;
+        statement
+            .query_map([], |row| {
+                Ok(SnippetInfo {
+                    snippet_id: row.get(0)?,
+                    favorite: row.get(1)?,
+                    usage_count: row.get(2)?,
+                    created_at: row.get(3)?,
+                    updated_at: row.get(4)?,
+                    last_used_at: row.get(5)?,
+                })
+            })
+            .map_err(|_| LibraryError::storage())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| LibraryError::storage())
+    }
+    pub fn set_favorite(&self, id: &str, favorite: bool) -> Result<(), LibraryError> {
+        let _guard = self.operation.lock().map_err(|_| LibraryError::storage())?;
+        let connection = self.open()?;
+        let changed=connection.execute("UPDATE snippet_info SET favorite=?1 WHERE id=?2 AND EXISTS(SELECT 1 FROM snippets WHERE id=?2)",params![favorite,id]).map_err(|_|LibraryError::storage())?;
+        if changed != 1 {
+            return Err(LibraryError::invalid_data());
+        }
+        Ok(())
+    }
+    pub fn record_usage(&self, id: &str) -> Result<(), LibraryError> {
+        let _guard = self.operation.lock().map_err(|_| LibraryError::storage())?;
+        let connection = self.open()?;
+        connection.execute("UPDATE snippet_info SET usage_count=min(usage_count+1,4294967295),last_used_at=?1 WHERE id=?2 AND EXISTS(SELECT 1 FROM snippets WHERE id=?2)",params![now_ms(),id]).map_err(|_|LibraryError::storage())?;
+        Ok(())
+    }
     pub fn new(root: PathBuf) -> Self {
         Self {
             root,
@@ -61,7 +98,7 @@ impl LibraryStore {
         // Validate total encoded size before creating a backup or changing SQL.
         encode_library(&library)?;
         self.backup(&previous)?;
-        replace_library(&transaction, &library)?;
+        replace_library(&transaction, &library, Some(&previous))?;
         transaction.commit().map_err(|_| LibraryError::storage())?;
         Ok(library)
     }
@@ -100,7 +137,7 @@ impl LibraryStore {
             .ok_or_else(LibraryError::conflict)?;
         encode_library(&library)?;
         self.backup(&previous)?;
-        replace_library(&transaction, &library)?;
+        replace_library(&transaction, &library, Some(&previous))?;
         transaction.commit().map_err(|_| LibraryError::storage())?;
         Ok(library)
     }
@@ -121,7 +158,7 @@ impl LibraryStore {
         let version: u32 = transaction
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .map_err(|_| LibraryError::storage())?;
-        if version > SCHEMA_VERSION {
+        if version > 2 {
             return Err(LibraryError::unsupported_version());
         }
         if version == 0 {
@@ -140,10 +177,15 @@ impl LibraryStore {
                     trigger TEXT NOT NULL, body TEXT NOT NULL, enabled INTEGER NOT NULL CHECK(enabled IN (0,1)),
                     deleted INTEGER NOT NULL CHECK(deleted IN (0,1)), position INTEGER NOT NULL);
                 CREATE UNIQUE INDEX active_triggers ON snippets(trigger) WHERE enabled=1 AND deleted=0;
+                CREATE TABLE snippet_info(id TEXT PRIMARY KEY NOT NULL,favorite INTEGER NOT NULL DEFAULT 0 CHECK(favorite IN(0,1)),usage_count INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,last_used_at INTEGER);
                 PRAGMA user_version=1;"
             ).map_err(|_| LibraryError::storage())?;
-            replace_library(&transaction, &initial_library())?;
+            replace_library(&transaction, &initial_library(), None)?;
         }
+        if version < 2 {
+            transaction.execute_batch("CREATE TABLE IF NOT EXISTS snippet_info(id TEXT PRIMARY KEY NOT NULL,favorite INTEGER NOT NULL DEFAULT 0 CHECK(favorite IN(0,1)),usage_count INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,last_used_at INTEGER); PRAGMA user_version=2;").map_err(|_|LibraryError::storage())?;
+        }
+        transaction.execute("INSERT OR IGNORE INTO snippet_info(id,created_at,updated_at) SELECT id,?1,?1 FROM snippets",[now_ms()]).map_err(|_|LibraryError::storage())?;
         transaction.commit().map_err(|_| LibraryError::storage())?;
         Ok(connection)
     }
@@ -241,7 +283,11 @@ fn read_library(connection: &Connection) -> Result<Library, LibraryError> {
     Ok(library)
 }
 
-fn replace_library(transaction: &Transaction<'_>, library: &Library) -> Result<(), LibraryError> {
+fn replace_library(
+    transaction: &Transaction<'_>,
+    library: &Library,
+    previous: Option<&Library>,
+) -> Result<(), LibraryError> {
     transaction
         .execute_batch("DELETE FROM snippets; DELETE FROM folders;")
         .map_err(|_| LibraryError::storage())?;
@@ -280,7 +326,45 @@ fn replace_library(transaction: &Transaction<'_>, library: &Library) -> Result<(
             [library.revision],
         )
         .map_err(|_| LibraryError::storage())?;
+    let old: HashMap<_, _> = previous
+        .into_iter()
+        .flat_map(|library| library.snippets.iter())
+        .map(|snippet| (&snippet.id, snippet))
+        .collect();
+    for snippet in &library.snippets {
+        transaction
+            .execute(
+                "INSERT OR IGNORE INTO snippet_info(id,created_at,updated_at) VALUES(?1,?2,?2)",
+                params![snippet.id, now_ms()],
+            )
+            .map_err(|_| LibraryError::storage())?;
+        if old
+            .get(&snippet.id)
+            .is_none_or(|previous| *previous != snippet)
+        {
+            transaction
+                .execute(
+                    "UPDATE snippet_info SET updated_at=?1 WHERE id=?2",
+                    params![now_ms(), snippet.id],
+                )
+                .map_err(|_| LibraryError::storage())?;
+        }
+    }
+    transaction
+        .execute(
+            "DELETE FROM snippet_info WHERE id NOT IN(SELECT id FROM snippets)",
+            [],
+        )
+        .map_err(|_| LibraryError::storage())?;
     Ok(())
+}
+
+fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .min(i64::MAX as u128) as i64
 }
 
 fn merge_import(

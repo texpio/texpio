@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-library-metadata"
+description = "Enables the library_metadata command without any pre-configured scope."
+commands.allow = ["library_metadata"]
+
+[[permission]]
+identifier = "deny-library-metadata"
+description = "Denies the library_metadata command without any pre-configured scope."
+commands.deny = ["library_metadata"]

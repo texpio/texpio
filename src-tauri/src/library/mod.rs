@@ -12,7 +12,7 @@ pub const MAX_JSON_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_SNIPPETS: usize = 10_000;
 pub const MAX_FOLDERS: usize = 1_000;
 pub const MAX_NAME_SCALARS: usize = 120;
-pub const MAX_BODY_SCALARS: usize = 16_384;
+pub const MAX_BODY_SCALARS: usize = 1_000_000;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -31,6 +31,17 @@ pub struct Snippet {
     pub body: String,
     pub enabled: bool,
     pub deleted: bool,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SnippetInfo {
+    pub snippet_id: String,
+    pub favorite: bool,
+    pub usage_count: u32,
+    pub created_at: i64,
+    pub updated_at: i64,
+    pub last_used_at: Option<i64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]

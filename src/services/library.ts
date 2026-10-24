@@ -38,11 +38,22 @@ const text = (value: unknown, max: number): value is string =>
   Array.from(value).length <= max &&
   !value.includes('\0')
 export function validSnippetBody(value: unknown): value is string {
-  if (typeof value !== 'string' || !value.length || Array.from(value).length > 16384) return false
+  if (typeof value !== 'string' || Array.from(value).length > 1000000) return false
   return !Array.from(value).some((character) => {
     const code = character.codePointAt(0)!
     return (code < 32 && code !== 9 && code !== 10 && code !== 13) || (code >= 127 && code <= 159)
   })
+}
+export function validSnippetTrigger(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    Array.from(value).length <= 128 &&
+    !Array.from(value).some((character) => {
+      const code = character.codePointAt(0)!
+      return /\s/u.test(character) || code < 32 || (code >= 127 && code <= 159)
+    })
+  )
 }
 function parseLibrary(value: unknown): Library {
   if (
@@ -82,7 +93,7 @@ function parseLibrary(value: unknown): Library {
       ) ||
       !text(snippet.title, 120) ||
       typeof snippet.trigger !== 'string' ||
-      !/^;[a-z]{1,31}$/.test(snippet.trigger) ||
+      !validSnippetTrigger(snippet.trigger) ||
       !validSnippetBody(snippet.body) ||
       typeof snippet.enabled !== 'boolean' ||
       typeof snippet.deleted !== 'boolean'

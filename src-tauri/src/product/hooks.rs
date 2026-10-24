@@ -85,6 +85,16 @@ impl HookRuntime {
                         Ok(edit) => edit.deliver(&job.expansion),
                         Err(error) => Err(*error),
                     };
+                    if outcome.is_ok() {
+                        let recorder = worker_shared
+                            .used
+                            .lock()
+                            .unwrap_or_else(|p| p.into_inner())
+                            .clone();
+                        if let Some(recorder) = recorder {
+                            recorder(&job.expansion.rule.id);
+                        }
+                    }
                     {
                         let mut status = worker_shared
                             .status

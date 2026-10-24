@@ -48,6 +48,8 @@
     "allow-library-import-preview",
     "allow-library-import",
     "allow-library-start",
+    "allow-library-metadata",
+    "allow-library-set-favorite",
     "allow-product-status",
     "allow-product-start",
     "allow-product-stop",

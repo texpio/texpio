@@ -1,4 +1,9 @@
-import { validSnippetBody, type Library, type Snippet } from '@/services/library'
+import {
+  validSnippetBody,
+  validSnippetTrigger,
+  type Library,
+  type Snippet,
+} from '@/services/library'
 
 export type SnippetValidation = 'title' | 'trigger' | 'body' | 'duplicateTrigger'
 export function validateSnippet(snippet: Snippet, library: Library): SnippetValidation | null {
@@ -8,7 +13,7 @@ export function validateSnippet(snippet: Snippet, library: Library): SnippetVali
     snippet.title.includes('\0')
   )
     return 'title'
-  if (!/^;[a-z]{1,31}$/.test(snippet.trigger)) return 'trigger'
+  if (!validSnippetTrigger(snippet.trigger)) return 'trigger'
   if (!validSnippetBody(snippet.body)) return 'body'
   if (
     snippet.enabled &&

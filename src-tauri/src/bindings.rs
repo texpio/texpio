@@ -27,6 +27,8 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         library_commands::library_import_preview,
         library_commands::library_import,
         library_commands::library_start,
+        library_commands::library_metadata,
+        library_commands::library_set_favorite,
         product::product_status,
         product::product_start,
         product::product_stop,

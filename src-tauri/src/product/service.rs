@@ -29,7 +29,9 @@ pub(crate) struct Shared {
     pub active: AtomicBool,
     pub busy: AtomicBool,
     pub status: Mutex<ProductStatus>,
+    pub used: Mutex<Option<UsageRecorder>>,
 }
+type UsageRecorder = Arc<dyn Fn(&str) + Send + Sync>;
 pub struct ProductEngine {
     pub(crate) shared: Arc<Shared>,
     publication: Mutex<()>,
@@ -50,6 +52,7 @@ impl ProductEngine {
                 active: AtomicBool::new(false),
                 busy: AtomicBool::new(false),
                 status: Mutex::new(ProductStatus::default()),
+                used: Mutex::new(None),
             }),
             #[cfg(target_os = "windows")]
             runtime: Mutex::new(None),
@@ -61,6 +64,9 @@ impl ProductEngine {
             .lock()
             .unwrap_or_else(|p| p.into_inner())
             .clone()
+    }
+    pub(crate) fn record_with(&self, recorder: impl Fn(&str) + Send + Sync + 'static) {
+        *self.shared.used.lock().unwrap_or_else(|p| p.into_inner()) = Some(Arc::new(recorder));
     }
     pub fn pause(&self) -> ProductStatus {
         let result = self.stop();

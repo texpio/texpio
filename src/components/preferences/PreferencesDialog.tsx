@@ -15,6 +15,7 @@ import { usePreferences, useSavePreferences } from '@/services/preferences'
 import { useUIStore } from '@/store/ui-store'
 import type { AppPreferences } from '@/lib/tauri-bindings'
 import { QuickPaneShortcut } from './QuickPaneShortcut'
+import { ExpansionSettings } from './ExpansionSettings'
 import { useCommandContext } from '@/hooks/use-command-context'
 import { runCommand } from '@/lib/commands'
 
@@ -25,7 +26,7 @@ function PreferencesContent() {
   const save = useSavePreferences()
   const disabled = !query.data || query.isError || save.isPending
   return (
-    <DialogContent>
+    <DialogContent className="max-h-[85svh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle>{t('preferences.title')}</DialogTitle>
         <DialogDescription>{t('preferences.description')}</DialogDescription>
@@ -93,6 +94,7 @@ function PreferencesContent() {
           </NativeSelect>
         </Field>
       </FieldGroup>
+      {isTauri() && <ExpansionSettings />}
       <footer className="flex items-center justify-between gap-4 border-t pt-4 text-sm text-muted-foreground">
         <span>Texpio {__APP_VERSION__}</span>
         {isTauri() && (

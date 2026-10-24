@@ -28,6 +28,8 @@ fn main() {
             "library_import_preview",
             "library_import",
             "library_start",
+            "library_metadata",
+            "library_set_favorite",
             "product_status",
             "product_start",
             "product_stop",

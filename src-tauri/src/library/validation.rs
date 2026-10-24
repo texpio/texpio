@@ -33,11 +33,7 @@ pub(super) fn validate_records(
             return Err(LibraryError::invalid_data());
         }
         validate_name(&snippet.title)?;
-        let trigger = snippet.trigger.as_bytes();
-        if !(2..=32).contains(&trigger.len())
-            || trigger[0] != b';'
-            || !trigger[1..].iter().all(u8::is_ascii_lowercase)
-            || snippet.body.is_empty()
+        if !crate::product::matcher::valid_trigger(&snippet.trigger)
             || snippet
                 .body
                 .chars()

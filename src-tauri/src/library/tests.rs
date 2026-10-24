@@ -118,7 +118,7 @@ fn invalid_ids_references_triggers_and_unsafe_controls_are_rejected_without_writ
         match field {
             "id" => input.snippets[0].id = "not-a-uuid".into(),
             "folder" => input.snippets[0].folder_id = Some(SECOND.into()),
-            "trigger" => input.snippets[0].trigger = ";Wrong1".into(),
+            "trigger" => input.snippets[0].trigger = "has space".into(),
             "body" => input.snippets[0].body = "text\u{8}hidden".into(),
             "title" => input.snippets[0].title = " ".into(),
             "name" => input.folders[0].name = "".into(),
@@ -132,7 +132,7 @@ fn invalid_ids_references_triggers_and_unsafe_controls_are_rejected_without_writ
         error_code(store.save(input), "invalidData");
     }
     let mut empty = fixture(0);
-    empty.snippets[0].body.clear();
+    empty.snippets[0].trigger.clear();
     error_code(store.save(empty), "invalidData");
     assert_eq!(store.load().unwrap(), initial);
 }
@@ -142,7 +142,7 @@ fn unicode_scalar_limits_are_enforced_without_counting_utf8_bytes() {
     let root = tempfile::tempdir().unwrap();
     let store = LibraryStore::new(root.path().into());
     let mut valid = fixture(0);
-    valid.snippets[0].body = "🌍".repeat(16_384);
+    valid.snippets[0].body = "🌍".repeat(MAX_BODY_SCALARS);
     valid.snippets[0].title = "界".repeat(120);
     store.save(valid.clone()).unwrap();
     valid.expected_revision = 1;
@@ -424,7 +424,9 @@ fn future_database_schema_refuses_without_reinitializing() {
     let store = LibraryStore::new(root.path().into());
     store.load().unwrap();
     let connection = rusqlite::Connection::open(root.path().join("library.sqlite3")).unwrap();
-    connection.execute_batch("PRAGMA user_version=2;").unwrap();
+    connection
+        .execute_batch("PRAGMA user_version=999;")
+        .unwrap();
     drop(connection);
     error_code(store.load(), "unsupportedVersion");
     let connection = rusqlite::Connection::open(root.path().join("library.sqlite3")).unwrap();
@@ -433,6 +435,72 @@ fn future_database_schema_refuses_without_reinitializing() {
             .query_row("SELECT count(*) FROM snippets", [], |r| r.get::<_, u32>(0))
             .unwrap(),
         2
+    );
+}
+
+#[test]
+fn windows_v1_accepts_unicode_triggers_empty_and_large_literal_bodies() {
+    let root = tempfile::tempdir().unwrap();
+    let store = LibraryStore::new(root.path().into());
+    let mut input = fixture(0);
+    input.snippets[0].trigger = ":réponse".into();
+    input.snippets[0].body.clear();
+    let empty = store
+        .save(input)
+        .expect("empty replacement is a valid deletion snippet");
+    assert_eq!(empty.snippets[0].body, "");
+    let mut input = SaveLibrary {
+        expected_revision: empty.revision,
+        folders: empty.folders,
+        snippets: empty.snippets,
+    };
+    input.snippets[0].body = "Café 👋\t\n".repeat(10_000);
+    let saved = store
+        .save(input.clone())
+        .expect("large literal body must persist");
+    assert_eq!(saved.snippets[0].body, input.snippets[0].body);
+}
+
+#[test]
+fn metadata_migrates_v1_and_usage_does_not_stale_an_editor_revision() {
+    let root = tempfile::tempdir().unwrap();
+    let store = LibraryStore::new(root.path().into());
+    let original = store.load().unwrap();
+    let conn = rusqlite::Connection::open(root.path().join("library.sqlite3")).unwrap();
+    conn.execute_batch("DROP TABLE IF EXISTS snippet_info; PRAGMA user_version=1;")
+        .unwrap();
+    drop(conn);
+    let metadata = store.metadata().unwrap();
+    assert_eq!(metadata.len(), original.snippets.len());
+    let id = original.snippets[0].id.clone();
+    store.set_favorite(&id, true).unwrap();
+    store.record_usage(&id).unwrap();
+    assert_eq!(store.load().unwrap(), original);
+    let changed = store
+        .metadata()
+        .unwrap()
+        .into_iter()
+        .find(|info| info.snippet_id == id)
+        .unwrap();
+    assert!(changed.favorite);
+    assert_eq!(changed.usage_count, 1);
+    assert!(changed.created_at > 0);
+    assert!(changed.last_used_at.is_some());
+    store
+        .save(SaveLibrary {
+            expected_revision: original.revision,
+            folders: original.folders,
+            snippets: original.snippets,
+        })
+        .unwrap();
+    assert!(
+        store
+            .metadata()
+            .unwrap()
+            .iter()
+            .find(|info| info.snippet_id == id)
+            .unwrap()
+            .favorite
     );
 }
 

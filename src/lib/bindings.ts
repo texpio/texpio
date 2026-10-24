@@ -161,6 +161,22 @@ async libraryStart() : Promise<Result<ProbeStatus, ProbeError>> {
     else return { status: "error", error: e  as any };
 }
 },
+async libraryMetadata() : Promise<Result<SnippetInfo[], LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("library_metadata") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async librarySetFavorite(id: string, favorite: boolean) : Promise<Result<null, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("library_set_favorite", { id, favorite }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async productStatus() : Promise<ProductStatus> {
     return await TAURI_INVOKE("product_status");
 },
@@ -304,6 +320,7 @@ export type RefusalReason = "unsupportedPlatform" | "unsupportedProfile" | "unsu
 export type SaveLibrary = { expectedRevision: number; folders: Folder[]; snippets: Snippet[] }
 export type ServiceError = "invalidInput" | "corruptData" | "io" | "notFound" | "dataTooLarge" | "unavailable"
 export type Snippet = { id: string; folderId: string | null; title: string; trigger: string; body: string; enabled: boolean; deleted: boolean }
+export type SnippetInfo = { snippetId: string; favorite: boolean; usageCount: number; createdAt: number; updatedAt: number; lastUsedAt: number | null }
 export type StartOptions = { profile: ReferenceProfile; strategy: InsertionStrategy }
 export type Theme = "system" | "light" | "dark"
 export type TypingSpeed = "fast" | "balanced" | "careful"

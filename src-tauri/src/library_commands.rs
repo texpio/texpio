@@ -51,6 +51,14 @@ impl LibraryService {
                 body: snippet.body.into(),
             })
             .collect();
+        let usage = Arc::new(LibraryStore::new(self.store.root().to_path_buf()));
+        engine.record_with(move |id| {
+            let usage = usage.clone();
+            let id = id.to_owned();
+            tauri::async_runtime::spawn_blocking(move || {
+                let _ = usage.record_usage(&id);
+            });
+        });
         engine.start_admitted(rules, settings, ticket)
     }
     pub fn new(root: PathBuf) -> Self {
@@ -88,6 +96,28 @@ impl LibraryService {
             .map_err(|_| RefusalReason::ContextUnavailable)?;
         handle.start_library(Arc::new(rule_snapshot(&library)?))
     }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn library_metadata(
+    service: State<'_, Arc<LibraryService>>,
+) -> Result<Vec<crate::library::SnippetInfo>, LibraryError> {
+    let service = service.inner().clone();
+    blocking(move || service.store.metadata()).await
+}
+#[tauri::command]
+#[specta::specta]
+pub async fn library_set_favorite(
+    app: AppHandle,
+    service: State<'_, Arc<LibraryService>>,
+    id: String,
+    favorite: bool,
+) -> Result<(), LibraryError> {
+    let service = service.inner().clone();
+    blocking(move || service.store.set_favorite(&id, favorite)).await?;
+    let _ = app.emit("library-metadata-changed", ());
+    Ok(())
 }
 
 fn storage_error() -> LibraryError {
