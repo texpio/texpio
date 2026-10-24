@@ -92,7 +92,7 @@ Later native-independent state-edge regressions covered generic Shift and inject
 | One fresh whole-change independent review | Completed for snapshot `79e91e3`; verdict No. Seven Important findings fixed in one regression-tested pass; no rereview |
 | Rust library suite after review fixes | Final pass 174/174, including compatibility policy |
 | Current normal-identifier optimized executable, MSI and NSIS | `bun run tauri build -- --locked` passed with exit 0; artifacts and hashes below |
-| Commit/push of implementation checkpoint | Pending |
+| Implementation checkpoint | Source [53243e2](https://github.com/texpio/texpio/commit/53243e20bf1e172eea1cf977135b1c901b11e005) committed and pushed to main |
 
 The optimized executable and both Windows bundles were built successfully. Paths are relative to the repository root; these local build outputs are not committed source files.
 
@@ -118,4 +118,4 @@ Read-only native/process checks verified the exact normal release executable pat
 - Exercise actual selected-file attachment intake, JSON/YAML/ZIP export/import dialogs and selected-directory personal/shared switching. Unit/transaction tests and refusal of ungranted paths do not substitute for these flows.
 - Complete physical tray gestures, broader Quit/restart persistence and a stable visual check. Hidden startup, startup-entry create/remove, second-instance restore, close-preference draft cancellation and the normal release preview launch have passed as described above.
 
-The central manual trigger-to-exact-output check passes with software-keyboard compatibility explicitly enabled in the owned fixture, and the final checks/packages pass. Full Ampello feature acceptance, broader editor compatibility and hardware/strict P0 qualification remain open; commit/push is pending.
+The central manual trigger-to-exact-output check passes with software-keyboard compatibility explicitly enabled in the owned fixture, and the final checks/packages pass. Full Ampello feature acceptance, broader editor compatibility and hardware/strict P0 qualification remain open. Source checkpoint `53243e2` was committed and pushed to main.
