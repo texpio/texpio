@@ -1,11 +1,13 @@
 //! Rust-owned offline snippet library. Public methods expose data, never SQL.
 
 use serde::{Deserialize, Serialize};
+pub mod location;
+pub mod watch;
 use specta::Type;
 
 mod store;
 mod validation;
-pub use store::LibraryStore;
+pub use store::{Attachment, FileSettings, LibraryStore};
 
 pub const SCHEMA_VERSION: u32 = 1;
 pub const MAX_JSON_BYTES: usize = 8 * 1024 * 1024;

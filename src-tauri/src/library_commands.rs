@@ -1,11 +1,15 @@
 //! Content operations and native-session publication share one serialized boundary.
+#[path = "library_files.rs"]
+pub(crate) mod files;
+#[path = "library_location.rs"]
+pub(crate) mod location;
 use crate::{
     engine::{
         rules::{Rule, RuleSet},
         runtime::ProbeHandle,
         types::{ProbePhase, ProbeStatus, RefusalReason},
     },
-    library::{ImportPreview, Library, LibraryError, LibraryStore, SaveLibrary},
+    library::{ImportPreview, Library, LibraryError, SaveLibrary},
     probe_commands::ProbeError,
 };
 use std::{
@@ -15,8 +19,10 @@ use std::{
 use tauri::{AppHandle, Emitter, State};
 
 pub struct LibraryService {
-    store: LibraryStore,
+    store: crate::library::location::LibraryRouter,
     control: Mutex<()>,
+    watching: std::sync::atomic::AtomicBool,
+    published_revision: std::sync::atomic::AtomicU32,
 }
 
 impl LibraryService {
@@ -51,7 +57,10 @@ impl LibraryService {
                 body: snippet.body.into(),
             })
             .collect();
-        let usage = Arc::new(LibraryStore::new(self.store.root().to_path_buf()));
+        let usage = self
+            .store
+            .snapshot()
+            .map_err(|_| crate::product::effects::ProductError::Unavailable)?;
         engine.record_with(move |id| {
             let usage = usage.clone();
             let id = id.to_owned();
@@ -59,12 +68,34 @@ impl LibraryService {
                 let _ = usage.record_usage(&id);
             });
         });
-        engine.start_admitted(rules, settings, ticket)
+        let files = self
+            .store
+            .snapshot()
+            .map_err(|_| crate::product::effects::ProductError::Unavailable)?;
+        engine.files_with(move |id| {
+            let options = files
+                .file_settings(id)
+                .map_err(|_| crate::product::effects::ProductError::AttachmentMissing)?;
+            let paths = files
+                .delivery_files(id)
+                .map_err(|_| crate::product::effects::ProductError::AttachmentMissing)?;
+            Ok(crate::product::payload::FileDelivery {
+                files: paths,
+                first: options.attachments_first,
+                strict: options.strict_order,
+            })
+        });
+        let result = engine.start_admitted(rules, settings, ticket)?;
+        self.published_revision
+            .store(library.revision, std::sync::atomic::Ordering::Release);
+        Ok(result)
     }
     pub fn new(root: PathBuf) -> Self {
         Self {
-            store: LibraryStore::new(root),
+            store: crate::library::location::LibraryRouter::new(root),
             control: Mutex::new(()),
+            watching: std::sync::atomic::AtomicBool::new(true),
+            published_revision: std::sync::atomic::AtomicU32::new(u32::MAX),
         }
     }
 
@@ -182,15 +213,12 @@ pub async fn library_save(
     let product = product.inner().clone();
     let settings = settings.inner().clone();
     let result = blocking(move || {
-        let running = product.status().phase == crate::product::service::ProductPhase::Running;
-        if product.stop().phase != crate::product::service::ProductPhase::Stopped {
-            return Err(storage_error());
-        }
+        let resume = product.suspend_for_update().map_err(|_| storage_error())?;
         let result = service.save(&handle, input);
-        if running {
+        if let Some(ticket) = resume {
             let _ = settings
                 .load()
-                .and_then(|settings| service.start_product(&product, settings));
+                .and_then(|settings| service.start_product_admitted(&product, settings, ticket));
         }
         result
     })
@@ -238,15 +266,12 @@ pub async fn library_import(
     let product = product.inner().clone();
     let settings = settings.inner().clone();
     let result = blocking(move || {
-        let running = product.status().phase == crate::product::service::ProductPhase::Running;
-        if product.stop().phase != crate::product::service::ProductPhase::Stopped {
-            return Err(storage_error());
-        }
+        let resume = product.suspend_for_update().map_err(|_| storage_error())?;
         let result = service.import(&handle, &json, expected_revision);
-        if running {
+        if let Some(ticket) = resume {
             let _ = settings
                 .load()
-                .and_then(|settings| service.start_product(&product, settings));
+                .and_then(|settings| service.start_product_admitted(&product, settings, ticket));
         }
         result
     })

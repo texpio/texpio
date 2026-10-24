@@ -66,8 +66,10 @@ pub struct NativeEdit {
     settings: ProductSettings,
     armed_cancel: Cell<bool>,
     next_send: Instant,
+    minimum_interval: Duration,
     board: Option<PasteBoard>,
     lease: Option<ClipboardLease>,
+    files: super::payload::FileDelivery,
     pub submitted_events: u32,
     pub clipboard_incomplete: bool,
 }
@@ -103,11 +105,51 @@ impl NativeEdit {
             settings,
             armed_cancel: Cell::new(armed_cancel),
             next_send: Instant::now(),
+            minimum_interval: Duration::ZERO,
             board: None,
             lease: None,
+            files: Default::default(),
             submitted_events: 0,
             clipboard_incomplete: false,
         })
+    }
+    pub fn with_files(mut self, files: super::payload::FileDelivery) -> Self {
+        self.files = files;
+        self
+    }
+    fn paste_shortcut(&mut self) -> Result<(), ProductError> {
+        self.send(
+            &[
+                event(VK_CONTROL, 0, KEYBD_EVENT_FLAGS(0)),
+                event(VK_V, 0, KEYBD_EVENT_FLAGS(0)),
+                event(VK_V, 0, KEYEVENTF_KEYUP),
+                event(VK_CONTROL, 0, KEYEVENTF_KEYUP),
+            ],
+            false,
+        )
+    }
+    fn paste_files(&mut self) -> Result<(), ProductError> {
+        let groups = if self.files.strict {
+            self.files
+                .files
+                .iter()
+                .cloned()
+                .map(|file| vec![file])
+                .collect::<Vec<_>>()
+        } else {
+            vec![self.files.files.clone()]
+        };
+        for files in groups {
+            self.check()?;
+            let board = self.board.as_ref().ok_or(ProductError::Clipboard)?;
+            let lease = self.lease.as_mut().ok_or(ProductError::Clipboard)?;
+            board.replace_files(lease, &files)?;
+            self.paste_shortcut()?;
+            self.settle(Duration::from_millis(u64::from(
+                self.settings.attachment_delay_ms,
+            )))?;
+        }
+        Ok(())
     }
     fn send(&mut self, events: &[INPUT], pace: bool) -> Result<(), ProductError> {
         self.check()?;
@@ -128,7 +170,8 @@ impl NativeEdit {
         self.next_send = Instant::now()
             + Duration::from_secs_f64(
                 events.len() as f64 / f64::from(self.settings.typing_speed.events_per_second()),
-            );
+            )
+            .max(self.minimum_interval);
         if sent as usize != events.len() {
             return Err(ProductError::InputBlocked);
         }
@@ -191,9 +234,22 @@ impl EffectBackend for NativeEdit {
         Ok(())
     }
     fn prepare(&mut self, text: &str, mode: InsertionMode) -> Result<(), ProductError> {
-        if mode == InsertionMode::Paste && !text.is_empty() {
+        if !self.files.files.is_empty() || (mode == InsertionMode::Paste && !text.is_empty()) {
             let board = PasteBoard::new()?;
-            let lease = board.begin_text(text, self.settings.restore_clipboard)?;
+            let lease = if !self.files.files.is_empty()
+                && (self.files.first || text.is_empty() || mode == InsertionMode::Type)
+            {
+                board.begin_files(
+                    if self.files.strict {
+                        &self.files.files[..1]
+                    } else {
+                        &self.files.files
+                    },
+                    self.settings.restore_clipboard,
+                )?
+            } else {
+                board.begin_text(text, self.settings.restore_clipboard)?
+            };
             self.clipboard_incomplete = lease.incomplete;
             self.board = Some(board);
             self.lease = Some(lease);
@@ -225,6 +281,12 @@ impl EffectBackend for NativeEdit {
                 Ok(())
             }
             InsertionMode::Paste => {
+                if !self.files.files.is_empty() {
+                    self.board
+                        .as_ref()
+                        .ok_or(ProductError::Clipboard)?
+                        .replace_text(self.lease.as_mut().ok_or(ProductError::Clipboard)?, text)?;
+                }
                 self.settle(Duration::from_millis(25))?;
                 self.send(
                     &[
@@ -249,6 +311,18 @@ impl EffectBackend for NativeEdit {
             true,
         )
     }
+    fn before_content(&mut self) -> Result<(), ProductError> {
+        if self.files.first && !self.files.files.is_empty() {
+            self.paste_files()?;
+        }
+        Ok(())
+    }
+    fn after_content(&mut self) -> Result<(), ProductError> {
+        if !self.files.first && !self.files.files.is_empty() {
+            self.paste_files()?;
+        }
+        Ok(())
+    }
 }
 
 /// Harness-only entry: caller has independently validated its fixed fixture.
@@ -269,6 +343,17 @@ pub fn diagnostic_dispatch(
         ..Default::default()
     };
     let mut native = NativeEdit::new(target, generation, 1, settings)?;
+    // Debug fixture experiment only; never changes normal product settings.
+    #[cfg(debug_assertions)]
+    if let Ok(value) = std::env::var("TEXPIO_TRIAL_INTERVAL_MS") {
+        let milliseconds = value
+            .parse::<u64>()
+            .ok()
+            .filter(|value| *value <= 100)
+            .ok_or(ProductError::InvalidSettings)?;
+        native.minimum_interval = Duration::from_millis(milliseconds);
+        println!("Diagnostic minimum interval: {milliseconds} ms");
+    }
     let expansion = Expansion {
         rule: ProductRule {
             id: "fixture".into(),

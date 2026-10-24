@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-library-switch"
+description = "Enables the library_switch command without any pre-configured scope."
+commands.allow = ["library_switch"]
+
+[[permission]]
+identifier = "deny-library-switch"
+description = "Denies the library_switch command without any pre-configured scope."
+commands.deny = ["library_switch"]

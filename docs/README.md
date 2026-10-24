@@ -1,5 +1,7 @@
 # Texpio documentation
 
+Current direction: a **Windows v1 prototype with Ampello feature parity and Texpio's existing UI**. Read the [v1 design](superpowers/specs/2026-10-24-windows-v1-design.md), [implementation plan](superpowers/plans/2026-10-24-windows-v1.md) and [live parity tracker](research/windows-v1-parity.md). This supersedes the old Notepad-only product scope below; the strict Developer probe retains its separate evidence.
+
 Continuing development on another PC: read the [24 October MVP handoff](handoffs/2026-10-24-offline-mvp.md), including the failed native insertion trial and remaining review/acceptance work.
 
 Start with [development setup](development.md), [developer guides](developer/README.md), [user guide](userguide/userguide.md), [contributing](CONTRIBUTING.md), [security](SECURITY.md) and [task workflow](tasks.md).

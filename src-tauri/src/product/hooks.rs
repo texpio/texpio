@@ -75,12 +75,23 @@ impl HookRuntime {
                         Err(mpsc::RecvTimeoutError::Timeout) => continue,
                         Err(_) => break,
                     };
-                    let mut edit = NativeEdit::new(
-                        job.target,
-                        worker_shared.generation.clone(),
-                        job.ticket,
-                        worker_settings.clone(),
-                    );
+                    let resolver = worker_shared
+                        .files
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner())
+                        .clone();
+                    let files = resolver.map_or(Ok(Default::default()), |resolver| {
+                        resolver(&job.expansion.rule.id)
+                    });
+                    let mut edit = files.and_then(|files| {
+                        NativeEdit::new(
+                            job.target,
+                            worker_shared.generation.clone(),
+                            job.ticket,
+                            worker_settings.clone(),
+                        )
+                        .map(|edit| edit.with_files(files))
+                    });
                     let outcome = match edit.as_mut() {
                         Ok(edit) => edit.deliver(&job.expansion),
                         Err(error) => Err(*error),

@@ -177,6 +177,78 @@ async librarySetFavorite(id: string, favorite: boolean) : Promise<Result<null, L
     else return { status: "error", error: e  as any };
 }
 },
+async attachmentList(id: string) : Promise<Result<Attachment[], LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("attachment_list", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async attachmentSettings(id: string) : Promise<Result<FileSettings, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("attachment_settings", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async libraryLocation() : Promise<Result<LibraryLocation, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("library_location") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async librarySwitch(directory: string | null) : Promise<Result<LibraryLocation, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("library_switch", { directory }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async attachmentAdd(id: string, revision: number, paths: string[]) : Promise<Result<Attachment[], LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("attachment_add", { id, revision, paths }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async attachmentAddData(id: string, revision: number, input: AttachmentInput) : Promise<Result<Attachment[], LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("attachment_add_data", { id, revision, input }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async attachmentRemove(id: string, revision: number, attachment: string) : Promise<Result<null, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("attachment_remove", { id, revision, attachment }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async attachmentReorder(id: string, revision: number, order: string[]) : Promise<Result<null, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("attachment_reorder", { id, revision, order }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async attachmentSaveSettings(id: string, revision: number, input: FileSettings) : Promise<Result<null, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("attachment_save_settings", { id, revision, input }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async productStatus() : Promise<ProductStatus> {
     return await TAURI_INVOKE("product_status");
 },
@@ -294,10 +366,13 @@ async recordDiagnostic(record: DiagnosticRecord) : Promise<void> {
 
 export type AppInfo = { version: string; platform: string }
 export type AppPreferences = { theme: Theme; quick_pane_shortcut: string | null; language: Language | null }
+export type Attachment = { id: string; snippetId: string; name: string; digest: string; bytes: number; position: number; present: boolean }
+export type AttachmentInput = { name: string; data: string }
 export type Boundary = "word" | "anywhere"
 export type DiagnosticEvent = "appStarted" | "renderFailed" | "commandFailed" | "notificationFailed" | "recoverySaved" | "recoveryFailed" | "updateFailed" | "unknown"
 export type DiagnosticLevel = "trace" | "debug" | "info" | "warn" | "error"
 export type DiagnosticRecord = { level: DiagnosticLevel; event: DiagnosticEvent; count: number | null }
+export type FileSettings = { attachmentsFirst: boolean; strictOrder: boolean }
 export type Fixture = { id: string; title: string; trigger: string; body: string }
 export type Folder = { id: string; name: string }
 export type ImportPreview = { folders: number; snippets: number; skipped: number }
@@ -307,11 +382,12 @@ export type JsonValue = null | boolean | number | string | JsonValue[] | Partial
 export type Language = "en" | "fr" | "ar"
 export type Library = { schemaVersion: number; revision: number; folders: Folder[]; snippets: Snippet[] }
 export type LibraryError = { code: string }
+export type LibraryLocation = { shared: boolean; directory: string; problem: boolean }
 export type ProbeCounters = { submitted: number; observed: number; refused: number; uncertain: number }
 export type ProbeError = { code: RefusalReason }
 export type ProbePhase = "stopped" | "running" | "paused" | "fault"
 export type ProbeStatus = { phase: ProbePhase; profile: ReferenceProfile | null; strategy: InsertionStrategy; counters: ProbeCounters; refusalReason: RefusalReason | null; lastActivityAgeMs: number | null }
-export type ProductError = "cancelled" | "targetChanged" | "modifiersHeld" | "inputBlocked" | "clipboard" | "busy" | "invalidSettings" | "unavailable"
+export type ProductError = "cancelled" | "targetChanged" | "modifiersHeld" | "inputBlocked" | "clipboard" | "busy" | "invalidSettings" | "unavailable" | "attachmentMissing"
 export type ProductPhase = "stopped" | "running" | "paused" | "fault"
 export type ProductSettings = { enabled: boolean; boundary: Boundary; preserveTerminator: boolean; insertion: InsertionMode; restoreClipboard: boolean; typingSpeed: TypingSpeed; cancelKey: string; clipboardEnabled: boolean; clipboardShortcut: string; clipboardMode: InsertionMode; toggleShortcut: string; autostart: boolean; closeToTray: boolean; attachmentDelayMs: number }
 export type ProductStatus = { phase: ProductPhase; submitted: number; cancelled: number; lastError: ProductError | null; clipboardIncomplete: boolean }

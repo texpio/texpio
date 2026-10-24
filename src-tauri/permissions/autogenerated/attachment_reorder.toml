@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-attachment-reorder"
+description = "Enables the attachment_reorder command without any pre-configured scope."
+commands.allow = ["attachment_reorder"]
+
+[[permission]]
+identifier = "deny-attachment-reorder"
+description = "Denies the attachment_reorder command without any pre-configured scope."
+commands.deny = ["attachment_reorder"]

@@ -134,9 +134,9 @@ pub fn run() {
             app.manage(std::sync::Arc::new(product::store::SettingsStore::new(
                 root.clone(),
             )));
-            app.manage(std::sync::Arc::new(library_commands::LibraryService::new(
-                root.clone(),
-            )));
+            let library = std::sync::Arc::new(library_commands::LibraryService::new(root.clone()));
+            app.manage(library.clone());
+            library_commands::location::start_watch(app.handle(), &library);
             app.manage(std::sync::Arc::new(commands::recovery::RecoveryStore::new(
                 root.join("recovery"),
             )));
@@ -158,6 +158,12 @@ pub fn run() {
             std::process::exit(1)
         })
         .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit)
+                && let Some(library) =
+                    app.try_state::<std::sync::Arc<library_commands::LibraryService>>()
+            {
+                library_commands::location::stop_watch(&library);
+            }
             if matches!(
                 event,
                 tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit

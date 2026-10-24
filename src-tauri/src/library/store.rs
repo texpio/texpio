@@ -2,6 +2,9 @@ use super::{
     validation::{encode_library, parse_import, validate_records},
     *,
 };
+#[path = "attachments.rs"]
+mod attachments;
+pub use attachments::{Attachment, FileSettings};
 use rusqlite::{Connection, Transaction, TransactionBehavior, params};
 use std::{
     collections::HashMap,
@@ -20,6 +23,26 @@ pub struct LibraryStore {
 }
 
 impl LibraryStore {
+    pub(crate) fn fence_revision(&self, minimum: u32) -> Result<(), LibraryError> {
+        let _guard = self.operation.lock().map_err(|_| LibraryError::storage())?;
+        let mut connection = self.open()?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| LibraryError::storage())?;
+        let previous = read_library(&transaction)?;
+        let revision = previous
+            .revision
+            .max(minimum)
+            .checked_add(1)
+            .ok_or_else(LibraryError::conflict)?;
+        transaction
+            .execute(
+                "UPDATE metadata SET revision=?1 WHERE singleton=1",
+                [revision],
+            )
+            .map_err(|_| LibraryError::storage())?;
+        transaction.commit().map_err(|_| LibraryError::storage())
+    }
     pub(crate) fn root(&self) -> &std::path::Path {
         &self.root
     }
@@ -158,7 +181,7 @@ impl LibraryStore {
         let version: u32 = transaction
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .map_err(|_| LibraryError::storage())?;
-        if version > 2 {
+        if version > 3 {
             return Err(LibraryError::unsupported_version());
         }
         if version == 0 {
@@ -184,6 +207,9 @@ impl LibraryStore {
         }
         if version < 2 {
             transaction.execute_batch("CREATE TABLE IF NOT EXISTS snippet_info(id TEXT PRIMARY KEY NOT NULL,favorite INTEGER NOT NULL DEFAULT 0 CHECK(favorite IN(0,1)),usage_count INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,last_used_at INTEGER); PRAGMA user_version=2;").map_err(|_|LibraryError::storage())?;
+        }
+        if version < 3 {
+            transaction.execute_batch("CREATE TABLE IF NOT EXISTS attachments(id TEXT PRIMARY KEY NOT NULL,snippet_id TEXT NOT NULL,name TEXT NOT NULL,digest TEXT NOT NULL,bytes INTEGER NOT NULL,position INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS attachment_snippet ON attachments(snippet_id,position); CREATE TABLE IF NOT EXISTS file_settings(snippet_id TEXT PRIMARY KEY NOT NULL,attachments_first INTEGER NOT NULL DEFAULT 0,strict_order INTEGER NOT NULL DEFAULT 0); PRAGMA user_version=3;").map_err(|_|LibraryError::storage())?;
         }
         transaction.execute("INSERT OR IGNORE INTO snippet_info(id,created_at,updated_at) SELECT id,?1,?1 FROM snippets",[now_ms()]).map_err(|_|LibraryError::storage())?;
         transaction.commit().map_err(|_| LibraryError::storage())?;
@@ -356,6 +382,9 @@ fn replace_library(
             [],
         )
         .map_err(|_| LibraryError::storage())?;
+    if previous.is_some() {
+        transaction.execute_batch("DELETE FROM attachments WHERE snippet_id NOT IN(SELECT id FROM snippets); DELETE FROM file_settings WHERE snippet_id NOT IN(SELECT id FROM snippets);").map_err(|_|LibraryError::storage())?;
+    }
     Ok(())
 }
 

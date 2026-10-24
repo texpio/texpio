@@ -49,6 +49,7 @@ import {
   type Snippet,
 } from '@/services/library'
 import { EngineControls } from './EngineControls'
+import { AttachmentEditor } from './AttachmentEditor'
 import { searchSnippets, validateSnippet, type SnippetValidation } from './model'
 
 type Draft = { snippet: Snippet; original: Snippet | null; base: Library }
@@ -636,6 +637,16 @@ export function LibraryView() {
                       )}
                     </div>
                     <Separator />
+                    {draft.original ? (
+                      <AttachmentEditor
+                        key={draft.snippet.id}
+                        id={draft.snippet.id}
+                        revision={draft.base.revision}
+                        disabled={busy || stale || draft.snippet.deleted}
+                      />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">{t('attachments.saveFirst')}</p>
+                    )}
                     <section
                       aria-label={t('library.preview')}
                       className="flex min-w-0 flex-col gap-2"

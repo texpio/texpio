@@ -4,22 +4,24 @@ Reference: [design](../superpowers/specs/2026-10-24-windows-v1-design.md), Ampel
 
 | Feature | State | Evidence / remaining work |
 | --- | --- | --- |
-| Windows practical Paste/Type expansion | Planned | Old strict Notepad pipeline fails; add separate product path |
-| Word/anywhere boundaries and terminators | Planned | Existing strict recognizer supports only semicolon/lowercase + Space |
-| Pace/cancel/target changes | Planned | Strict probe cancellation generations exist; product path pending |
-| Clipboard shortcut and restoration | Planned | Explicit Copy passed; automatic delivery not implemented |
-| Attachments/order/delay | Planned | Native store, clipboard file delivery and UI pending |
+| Windows practical Paste/Type expansion | Partial | Separate product engine integrated. Fresh Notepad Paste fixture: 18/18 events, exact output observed; Type: 52/52 but mismatched. Physical capture acceptance pending |
+| Word/anywhere boundaries and terminators | Implemented core | Longest match, colon/semicolon/Unicode, punctuation/Tab/Enter and editing tests pass; product hook awaits physical trials |
+| Pace/cancel/target changes | Partial | Effect failure/cancellation and generation tests pass; real-app Start/Pause/Resume/Stop passed. Type Notepad remains unqualified |
+| Clipboard shortcut and restoration | Partial | Sequence-aware native restoration implemented; explicit Copy and synthetic Paste pass. Shortcut and clipboard-race acceptance pending |
+| Attachments/order/delay | Implemented, acceptance pending | Native content-addressed store, selected/drop/pasted-file intake, ordered CF_HDROP delivery and editor controls; storage/payload tests pass. Native target delivery still needs acceptance |
 | Create/edit/search/folders/disable/trash | Implemented | Existing offline MVP tests and actual-app evidence |
-| Favorites/usage/dashboard | Planned | Schema/UI pending |
+| Favorites/usage/dashboard | Partial | DB1→2 migration and native metadata/favorite APIs; usage keeps editor revision stable. UI dashboard/filter pending |
 | Editor keyboard navigation/find/replace | Partial | Existing accessible editor and Save; richer shortcuts pending |
 | JSON backup/import | Implemented | Transaction/round-trip tests; selected-file native checks pending |
 | YAML/archive/import replace/recovery | Planned | Preserve existing JSON compatibility |
-| Shared/personal switch/external refresh | Planned | No backend/sync |
+| Shared/personal switch/external refresh | Implemented, acceptance pending | Local-drive selection, atomic persisted routing, stale-save/attachment fencing and SQLite data-version watch tested; actual-app switch check pending |
 | Tray/close/single instance | Partial | Hide/restore passed; configurable behavior/toggle pending |
 | Autostart hidden/expansion hotkey | Planned | Existing quick-picker shortcut retained |
-| Product preferences | Planned | Existing theme/language/shortcut preferences retained |
+| Product preferences | Partial | Insertion/boundary/terminator/restore/speed/cancel/delay controls implemented in existing dialog; persistence/failure tests pass. Hotkey/startup/data settings pending |
 | Explicit Copy picker | Implemented | Actual clipboard/focus/Escape checks passed |
 | Manual update/diagnostics | Partial | Existing configured updater and redacted diagnostics retained |
 | Windows packaging | Implemented baseline | Executable/MSI/NSIS build at 84fefd6; rebuild after implementation |
 
 This tracker records v1 delivery, independently of strict Developer/P0 physical qualification and macOS/Linux research.
+
+Current checkpoint verification: `bun run check:all` passed **142 frontend tests, 142 Rust tests**, plus tooling/static checks after task 5 core. Matching/effects/settings and migration tests demonstrated failing-then-passing behavior. Native app lifecycle acceptance used an isolated identifier and no typed input; all owned connections/processes ended afterward. No claim that all rows are complete.

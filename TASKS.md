@@ -170,6 +170,24 @@ Current development support target: ordinary Notepad editor controls, qualified 
 
 Deliverables: [Espanso/Snipt comparison](docs/research/cross-platform-expansion-source-comparison.md) and [Ampello audit](docs/research/ampello-source-audit.md). Ampello is a close stack/product reference; it explicitly refuses Wayland. Static inspection and upstream compatibility claims do not qualify Texpio's native effects.
 
+## 12. Windows v1 — Ampello features in Texpio UI
+
+The user installed Ampello successfully on Windows and requested its complete feature set for the first working prototype, preserving Texpio's UI/UX. Windows delivery takes priority over other OS work and the old Notepad-only product contract. Existing autonomous Native/current-checkout execution remains authorized. See the [design](docs/superpowers/specs/2026-10-24-windows-v1-design.md), [plan](docs/superpowers/plans/2026-10-24-windows-v1.md) and [parity tracker](docs/research/windows-v1-parity.md).
+
+- [x] Implement independent product matching: boundaries, longest trigger, punctuation/Tab/Enter, Unicode, Backspace and reset behavior.
+- [x] Implement Windows Paste/Type effects, cancellation/target generations and bounded hook/worker lifecycle; keep strict Developer probe separate.
+- [x] Observe exact synthetic Notepad output through Paste and verify actual-app Start/Pause/Resume/Stop/settings lifecycle. Type still fails exact Notepad output.
+- [x] Connect product controls/tray, refreshed snapshots after saves, generated typed commands and main-only capabilities.
+- [x] Add expansion preferences, empty/large bodies and Unicode triggers; migrate favorites/usage metadata without staling editor revisions.
+- [ ] Complete attachments, ordering/delay and selected-file delivery.
+- [ ] Complete personal/shared data location, external refresh and failure rollback.
+- [ ] Complete YAML/archive interchange, replace mode and preserved-database recovery.
+- [ ] Complete favorites/dashboard and editor keyboard/find/replace workflows.
+- [ ] Complete clipboard/toggle hotkeys, opt-in hidden autostart and configurable close behavior.
+- [ ] Complete current-build app/native acceptance, whole-change review, full checks/builds and commit/push.
+
+Latest full checks: 140 frontend/130 Rust tests plus tooling/static gates. These are implementation checkpoints, not a completed parity or physical-input campaign. No backend/sync or other OS delivery is in this scope.
+
 ## Future decisions and execution work
 
 - [ ] Check desired domains/app-store names and brand clearance before publishing.

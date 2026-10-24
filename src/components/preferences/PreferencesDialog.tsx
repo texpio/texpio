@@ -16,6 +16,7 @@ import { useUIStore } from '@/store/ui-store'
 import type { AppPreferences } from '@/lib/tauri-bindings'
 import { QuickPaneShortcut } from './QuickPaneShortcut'
 import { ExpansionSettings } from './ExpansionSettings'
+import { LibraryLocation } from './LibraryLocation'
 import { useCommandContext } from '@/hooks/use-command-context'
 import { runCommand } from '@/lib/commands'
 
@@ -95,6 +96,7 @@ function PreferencesContent() {
         </Field>
       </FieldGroup>
       {isTauri() && <ExpansionSettings />}
+      {isTauri() && <LibraryLocation />}
       <footer className="flex items-center justify-between gap-4 border-t pt-4 text-sm text-muted-foreground">
         <span>Texpio {__APP_VERSION__}</span>
         {isTauri() && (

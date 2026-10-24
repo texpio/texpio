@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-attachment-settings"
+description = "Enables the attachment_settings command without any pre-configured scope."
+commands.allow = ["attachment_settings"]
+
+[[permission]]
+identifier = "deny-attachment-settings"
+description = "Denies the attachment_settings command without any pre-configured scope."
+commands.deny = ["attachment_settings"]

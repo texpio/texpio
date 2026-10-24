@@ -26,6 +26,11 @@ vi.mock('@tauri-apps/api/event', () => ({ listen: native.listen }))
 vi.mock('@/lib/bindings', () => ({
   commands: {
     libraryLoad: native.load,
+    attachmentList: async () => ({ status: 'ok', data: [] }),
+    attachmentSettings: async () => ({
+      status: 'ok',
+      data: { attachmentsFirst: false, strictOrder: false },
+    }),
     librarySave: native.save,
     libraryImportPreview: native.preview,
     libraryImport: native.import,

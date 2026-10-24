@@ -15,6 +15,7 @@ pub enum ProductError {
     Busy,
     InvalidSettings,
     Unavailable,
+    AttachmentMissing,
 }
 
 pub trait EffectBackend {
@@ -24,6 +25,12 @@ pub trait EffectBackend {
     }
     fn erase(&mut self, characters: usize) -> Result<(), ProductError>;
     fn content(&mut self, text: &str, mode: InsertionMode) -> Result<(), ProductError>;
+    fn before_content(&mut self) -> Result<(), ProductError> {
+        Ok(())
+    }
+    fn after_content(&mut self) -> Result<(), ProductError> {
+        Ok(())
+    }
     fn terminator(&mut self, character: char) -> Result<(), ProductError>;
 }
 
@@ -36,9 +43,12 @@ pub fn perform(
     backend.prepare(&expansion.rule.body, settings.insertion)?;
     backend.erase(expansion.rule.trigger.chars().count())?;
     backend.check()?;
+    backend.before_content()?;
     if !expansion.rule.body.is_empty() {
         backend.content(&expansion.rule.body, settings.insertion)?;
     }
+    backend.check()?;
+    backend.after_content()?;
     backend.check()?;
     if settings.preserve_terminator {
         backend.terminator(expansion.terminator)?;

@@ -16,6 +16,30 @@ use windows::{
 pub struct PasteBoard {
     owner: HWND,
 }
+fn file_bytes(paths: &[std::path::PathBuf]) -> Result<Vec<u8>, ProductError> {
+    use std::os::windows::ffi::OsStrExt;
+    if paths.is_empty() || paths.len() > 100 || paths.iter().any(|path| !path.is_absolute()) {
+        return Err(ProductError::Clipboard);
+    }
+    let mut units = Vec::new();
+    for path in paths {
+        let path: Vec<_> = path.as_os_str().encode_wide().collect();
+        if path.contains(&0) {
+            return Err(ProductError::Clipboard);
+        }
+        units.extend(path);
+        units.push(0);
+    }
+    units.push(0);
+    if units.len() > 65536 {
+        return Err(ProductError::Clipboard);
+    }
+    let mut bytes = vec![0; 20];
+    bytes[..4].copy_from_slice(&20u32.to_le_bytes());
+    bytes[16..20].copy_from_slice(&1u32.to_le_bytes());
+    bytes.extend(units.into_iter().flat_map(u16::to_le_bytes));
+    Ok(bytes)
+}
 struct Locked;
 impl Drop for Locked {
     fn drop(&mut self) {
@@ -90,22 +114,49 @@ impl PasteBoard {
         }
     }
     pub fn begin_text(&self, text: &str, restore: bool) -> Result<ClipboardLease, ProductError> {
+        self.begin_formats(&[(13, text_bytes(text))], restore)
+    }
+    pub fn begin_files(
+        &self,
+        paths: &[std::path::PathBuf],
+        restore: bool,
+    ) -> Result<ClipboardLease, ProductError> {
+        self.begin_formats(&file_formats(paths)?, restore)
+    }
+    pub fn replace_text(&self, lease: &mut ClipboardLease, text: &str) -> Result<(), ProductError> {
+        self.replace_formats(lease, &[(13, text_bytes(text))])
+    }
+    pub fn replace_files(
+        &self,
+        lease: &mut ClipboardLease,
+        paths: &[std::path::PathBuf],
+    ) -> Result<(), ProductError> {
+        self.replace_formats(lease, &file_formats(paths)?)
+    }
+    fn replace_formats(
+        &self,
+        lease: &mut ClipboardLease,
+        formats: &[(u32, Vec<u8>)],
+    ) -> Result<(), ProductError> {
         let _locked = self.lock()?;
-        let snapshot = if restore { Some(capture()?) } else { None };
-        let mut units: Vec<u16> = text.encode_utf16().collect();
-        units.push(0);
-        // SAFETY: the slice covers the initialized UTF-16 buffer.
-        let bytes =
-            unsafe { std::slice::from_raw_parts(units.as_ptr().cast::<u8>(), units.len() * 2) };
-        // Allocate first: a failed allocation must not empty the user's clipboard.
-        let data = allocate(bytes)?;
         unsafe {
-            if EmptyClipboard().is_err() {
-                let _ = GlobalFree(Some(data));
+            if lease.sequence == 0 || GetClipboardSequenceNumber() != lease.sequence {
                 return Err(ProductError::Clipboard);
             }
-            if SetClipboardData(13, Some(HANDLE(data.0))).is_err() {
-                let _ = GlobalFree(Some(data));
+            let result = write_formats(formats);
+            lease.sequence = GetClipboardSequenceNumber();
+            result
+        }
+    }
+    fn begin_formats(
+        &self,
+        formats: &[(u32, Vec<u8>)],
+        restore: bool,
+    ) -> Result<ClipboardLease, ProductError> {
+        let _locked = self.lock()?;
+        let snapshot = if restore { Some(capture()?) } else { None };
+        unsafe {
+            if write_formats(formats).is_err() {
                 if let Some(snapshot) = &snapshot {
                     let _ = restore_snapshot(snapshot);
                 }
@@ -133,6 +184,56 @@ impl PasteBoard {
             restore_snapshot(&snapshot)
         }
     }
+}
+fn text_bytes(text: &str) -> Vec<u8> {
+    text.encode_utf16()
+        .chain(std::iter::once(0))
+        .flat_map(u16::to_le_bytes)
+        .collect()
+}
+fn file_formats(paths: &[std::path::PathBuf]) -> Result<Vec<(u32, Vec<u8>)>, ProductError> {
+    let copy_format = unsafe { RegisterClipboardFormatW(w!("Preferred DropEffect")) };
+    if copy_format == 0 {
+        return Err(ProductError::Clipboard);
+    }
+    Ok(vec![
+        (15, file_bytes(paths)?),
+        (copy_format, 1u32.to_le_bytes().to_vec()),
+    ])
+}
+// The caller holds the clipboard lock. All allocations precede EmptyClipboard.
+fn write_formats(formats: &[(u32, Vec<u8>)]) -> Result<(), ProductError> {
+    let mut prepared = Vec::new();
+    unsafe {
+        for (format, bytes) in formats {
+            match allocate(bytes) {
+                Ok(memory) => prepared.push((*format, memory)),
+                Err(error) => {
+                    for (_, memory) in prepared {
+                        let _ = GlobalFree(Some(memory));
+                    }
+                    return Err(error);
+                }
+            }
+        }
+        if EmptyClipboard().is_err() {
+            for (_, memory) in prepared {
+                let _ = GlobalFree(Some(memory));
+            }
+            return Err(ProductError::Clipboard);
+        }
+        let mut prepared = prepared.into_iter();
+        while let Some((format, memory)) = prepared.next() {
+            if SetClipboardData(format, Some(HANDLE(memory.0))).is_err() {
+                let _ = GlobalFree(Some(memory));
+                for (_, memory) in prepared {
+                    let _ = GlobalFree(Some(memory));
+                }
+                return Err(ProductError::Clipboard);
+            }
+        }
+    }
+    Ok(())
 }
 impl Drop for PasteBoard {
     fn drop(&mut self) {
@@ -244,5 +345,31 @@ fn allocate(bytes: &[u8]) -> Result<HGLOBAL, ProductError> {
         std::ptr::copy_nonoverlapping(bytes.as_ptr(), pointer.cast::<u8>(), bytes.len());
         let _ = GlobalUnlock(memory);
         Ok(memory)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn file_payload_has_wide_drop_header_and_keeps_exact_path_order() {
+        let paths = vec![
+            std::path::PathBuf::from("C:\\owned\\first.txt"),
+            std::path::PathBuf::from("C:\\owned\\résumé.txt"),
+        ];
+        let bytes = file_bytes(&paths).unwrap();
+        assert_eq!(u32::from_le_bytes(bytes[..4].try_into().unwrap()), 20);
+        assert_eq!(u32::from_le_bytes(bytes[16..20].try_into().unwrap()), 1);
+        let units: Vec<u16> = bytes[20..]
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+            .collect();
+        assert_eq!(
+            String::from_utf16(&units).unwrap(),
+            "C:\\owned\\first.txt\0C:\\owned\\résumé.txt\0\0"
+        );
+        assert!(file_bytes(&[std::path::PathBuf::from("relative.txt")]).is_err());
     }
 }

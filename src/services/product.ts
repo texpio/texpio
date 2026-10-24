@@ -16,6 +16,7 @@ const errors: ProductError[] = [
   'busy',
   'invalidSettings',
   'unavailable',
+  'attachmentMissing',
 ]
 export function parseProductStatus(value: unknown): ProductStatus {
   if (typeof value !== 'object' || value === null) throw new ProductCommandError('unavailable')

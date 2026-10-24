@@ -1,6 +1,6 @@
 use super::{
     effects::ProductError,
-    service::{ProductEngine, ProductPhase, ProductStatus},
+    service::{ProductEngine, ProductStatus},
     settings::ProductSettings,
     store::SettingsStore,
 };
@@ -82,13 +82,10 @@ pub async fn product_save_settings(
         if !input.validate() {
             return Err(ProductError::InvalidSettings);
         }
-        let running = engine.status().phase == ProductPhase::Running;
-        if engine.stop().phase != ProductPhase::Stopped {
-            return Err(ProductError::Busy);
-        }
+        let resume = engine.suspend_for_update()?;
         settings.save(&input)?;
-        if running {
-            service.start_product(&engine, input.clone())?;
+        if let Some(ticket) = resume {
+            service.start_product_admitted(&engine, input.clone(), ticket)?;
         }
         Ok(input)
     })

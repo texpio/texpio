@@ -30,11 +30,14 @@ pub(crate) struct Shared {
     pub busy: AtomicBool,
     pub status: Mutex<ProductStatus>,
     pub used: Mutex<Option<UsageRecorder>>,
+    pub files: Mutex<Option<FileResolver>>,
 }
 type UsageRecorder = Arc<dyn Fn(&str) + Send + Sync>;
+type FileResolver =
+    Arc<dyn Fn(&str) -> Result<super::payload::FileDelivery, ProductError> + Send + Sync>;
 pub struct ProductEngine {
     pub(crate) shared: Arc<Shared>,
-    publication: Mutex<()>,
+    publication: Mutex<u64>,
     #[cfg(target_os = "windows")]
     runtime: Mutex<Option<super::hooks::HookRuntime>>,
 }
@@ -46,13 +49,14 @@ impl Default for ProductEngine {
 impl ProductEngine {
     pub fn new() -> Self {
         Self {
-            publication: Mutex::new(()),
+            publication: Mutex::new(0),
             shared: Arc::new(Shared {
                 generation: Arc::new(AtomicU64::new(0)),
                 active: AtomicBool::new(false),
                 busy: AtomicBool::new(false),
                 status: Mutex::new(ProductStatus::default()),
                 used: Mutex::new(None),
+                files: Mutex::new(None),
             }),
             #[cfg(target_os = "windows")]
             runtime: Mutex::new(None),
@@ -68,9 +72,29 @@ impl ProductEngine {
     pub(crate) fn record_with(&self, recorder: impl Fn(&str) + Send + Sync + 'static) {
         *self.shared.used.lock().unwrap_or_else(|p| p.into_inner()) = Some(Arc::new(recorder));
     }
+    pub(crate) fn files_with(
+        &self,
+        resolver: impl Fn(&str) -> Result<super::payload::FileDelivery, ProductError>
+        + Send
+        + Sync
+        + 'static,
+    ) {
+        *self.shared.files.lock().unwrap_or_else(|p| p.into_inner()) = Some(Arc::new(resolver));
+    }
+    pub(crate) fn suspend_for_update(&self) -> Result<Option<u64>, ProductError> {
+        let (status, ticket, running) = self.stop_inner();
+        if status.phase != ProductPhase::Stopped {
+            return Err(ProductError::Busy);
+        }
+        Ok(running.then_some(ticket))
+    }
     pub fn pause(&self) -> ProductStatus {
-        let result = self.stop();
-        if result.phase == ProductPhase::Stopped {
+        let (result, ticket, _) = self.stop_inner();
+        let publication = self.publication.lock().unwrap_or_else(|p| p.into_inner());
+        if result.phase == ProductPhase::Stopped
+            && *publication == ticket
+            && !self.shared.active.load(Ordering::SeqCst)
+        {
             self.shared
                 .status
                 .lock()
@@ -87,14 +111,14 @@ impl ProductEngine {
         self.start_admitted(rules, settings, self.admission())
     }
     pub fn admission(&self) -> u64 {
-        self.shared.generation.load(Ordering::SeqCst)
+        *self.publication.lock().unwrap_or_else(|p| p.into_inner())
     }
     fn admit(&self, ticket: u64) -> Result<(), ProductError> {
-        let _publication = self
+        let publication = self
             .publication
             .lock()
             .map_err(|_| ProductError::Unavailable)?;
-        if self.admission() != ticket {
+        if *publication != ticket {
             return Err(ProductError::Cancelled);
         }
         self.shared.active.store(true, Ordering::SeqCst);
@@ -128,7 +152,7 @@ impl ProductEngine {
                         .publication
                         .lock()
                         .map_err(|_| ProductError::Unavailable)?;
-                    if !self.shared.active.load(Ordering::SeqCst) || self.admission() != ticket {
+                    if !self.shared.active.load(Ordering::SeqCst) || *publication != ticket {
                         drop(publication);
                         if let Some(worker) = runtime.as_mut() {
                             worker.shutdown();
@@ -156,11 +180,16 @@ impl ProductEngine {
         }
     }
     pub fn stop(&self) -> ProductStatus {
-        {
-            let _publication = self.publication.lock().unwrap_or_else(|p| p.into_inner());
-            self.shared.active.store(false, Ordering::SeqCst);
+        self.stop_inner().0
+    }
+    fn stop_inner(&self) -> (ProductStatus, u64, bool) {
+        let (ticket, running) = {
+            let mut publication = self.publication.lock().unwrap_or_else(|p| p.into_inner());
+            *publication = publication.wrapping_add(1);
+            let running = self.shared.active.swap(false, Ordering::SeqCst);
             self.shared.generation.fetch_add(1, Ordering::SeqCst);
-        }
+            (*publication, running)
+        };
         #[cfg(target_os = "windows")]
         let stopped = self
             .runtime
@@ -177,7 +206,11 @@ impl ProductEngine {
             .unwrap_or(false);
         #[cfg(not(target_os = "windows"))]
         let stopped = true;
+        let publication = self.publication.lock().unwrap_or_else(|p| p.into_inner());
         let mut status = self.shared.status.lock().unwrap_or_else(|p| p.into_inner());
+        if *publication != ticket || self.shared.active.load(Ordering::SeqCst) {
+            return (status.clone(), ticket, running);
+        }
         status.phase = if stopped {
             ProductPhase::Stopped
         } else {
@@ -188,7 +221,7 @@ impl ProductEngine {
         } else {
             Some(ProductError::Busy)
         };
-        status.clone()
+        (status.clone(), ticket, running)
     }
 }
 impl Drop for ProductEngine {
@@ -200,6 +233,20 @@ impl Drop for ProductEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn edit_suspension_never_restarts_an_engine_that_was_already_stopped() {
+        let engine = ProductEngine::new();
+        assert_eq!(engine.suspend_for_update().unwrap(), None);
+    }
+    #[test]
+    fn edit_suspension_closes_output_and_later_user_stop_cancels_its_resume() {
+        let engine = ProductEngine::new();
+        engine.shared.active.store(true, Ordering::SeqCst);
+        let resume = engine.suspend_for_update().unwrap().unwrap();
+        assert!(!engine.shared.active.load(Ordering::SeqCst));
+        engine.stop();
+        assert_eq!(engine.admit(resume), Err(ProductError::Cancelled));
+    }
     #[test]
     fn stop_cancels_admission_before_any_native_hook_can_start() {
         let engine = ProductEngine::new();

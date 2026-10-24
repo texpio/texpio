@@ -6,6 +6,7 @@ pub mod effects;
 #[cfg(target_os = "windows")]
 mod hooks;
 pub mod matcher;
+pub mod payload;
 pub mod service;
 pub mod settings;
 pub mod store;
