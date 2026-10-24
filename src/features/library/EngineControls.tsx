@@ -53,7 +53,10 @@ export function EngineControls({
   const active = status.data?.phase === 'running' || status.data?.phase === 'paused'
   const stoppable = active || status.data?.phase === 'fault'
   return (
-    <section aria-label={t('library.engine')} className="flex flex-col gap-3 rounded-lg border p-4">
+    <section
+      aria-label={t('library.engine')}
+      className="flex shrink-0 flex-col gap-2 border-b px-5 py-2"
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold">{t('library.engine')}</h2>
@@ -66,38 +69,43 @@ export function EngineControls({
           </Badge>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            disabled={
-              status.data?.phase !== 'stopped' ||
-              !!status.error ||
-              mutation.isPending ||
-              dirty ||
-              eligibleCount === 0
-            }
-            onClick={() => mutation.mutate('start')}
-          >
-            {t('library.start')}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={!active || mutation.isPending}
-            onClick={() => mutation.mutate('pause')}
-          >
-            {t(status.data?.phase === 'paused' ? 'library.resume' : 'library.pause')}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={!stoppable || mutation.isPending}
-            onClick={() => mutation.mutate('stop')}
-          >
-            {t('library.stop')}
-          </Button>
+          {!active && (
+            <Button
+              size="sm"
+              disabled={
+                status.data?.phase !== 'stopped' ||
+                !!status.error ||
+                mutation.isPending ||
+                dirty ||
+                eligibleCount === 0
+              }
+              onClick={() => mutation.mutate('start')}
+            >
+              {t('library.start')}
+            </Button>
+          )}
+          {active && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!active || mutation.isPending}
+              onClick={() => mutation.mutate('pause')}
+            >
+              {t(status.data?.phase === 'paused' ? 'library.resume' : 'library.pause')}
+            </Button>
+          )}
+          {stoppable && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!stoppable || mutation.isPending}
+              onClick={() => mutation.mutate('stop')}
+            >
+              {t('library.stop')}
+            </Button>
+          )}
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">{t('library.support')}</p>
       {status.data?.clipboardIncomplete && (
         <Alert>
           <AlertDescription>{t('product.clipboardIncomplete')}</AlertDescription>

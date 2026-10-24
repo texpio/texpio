@@ -1,5 +1,11 @@
 # Texpio offline MVP handoff
 
+**25 October layout update:** the app now uses a folder/list/editor workspace and
+a dedicated, categorized Preferences page. The right sidebar/toggle and Developer
+route are removed. Read the [workspace acceptance record](../research/library-workspace-acceptance.md)
+before following older navigation instructions. Full checks now pass 162 frontend
+and 188 Rust tests; the native expansion engine is unchanged by this UI work.
+
 **25 October behavior update:** immediate expansion and Backspace correction are
 implemented and passed the user-typed owned fixture. Read the
 [immediate expansion acceptance record](../research/immediate-expansion-acceptance.md)

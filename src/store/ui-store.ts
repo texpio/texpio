@@ -2,52 +2,42 @@ import { create } from 'zustand'
 
 export interface LayoutState {
   leftVisible: boolean
-  rightVisible: boolean
   leftPercent: number
-  rightPercent: number
+  listPercent: number
 }
-const defaults: LayoutState = {
-  leftVisible: true,
-  rightVisible: true,
-  leftPercent: 20,
-  rightPercent: 20,
-}
+export type LibraryCollection = 'active' | 'favorites' | 'trash'
+export type PreferencesSection = 'general' | 'expansion' | 'shortcuts' | 'data'
 type StoragePort = Pick<Storage, 'getItem' | 'setItem'>
-function width(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 15 && value <= 40
+const defaults: LayoutState = { leftVisible: true, leftPercent: 22, listPercent: 36 }
+function width(value: unknown, min: number, max: number, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max
     ? value
-    : 20
+    : fallback
 }
 export function normalizeLayout(value: unknown): LayoutState {
   const data = typeof value === 'object' && value !== null ? (value as Partial<LayoutState>) : {}
-  let leftPercent = width(data.leftPercent),
-    rightPercent = width(data.rightPercent)
-  const total = leftPercent + rightPercent
-  if (total > 70) {
-    leftPercent *= 70 / total
-    rightPercent = 70 - leftPercent
-  }
   return {
-    leftPercent,
-    rightPercent,
     leftVisible: typeof data.leftVisible === 'boolean' ? data.leftVisible : true,
-    rightVisible: typeof data.rightVisible === 'boolean' ? data.rightVisible : true,
+    leftPercent: width(data.leftPercent, 18, 30, defaults.leftPercent),
+    listPercent: width(data.listPercent, 25, 50, defaults.listPercent),
   }
 }
 interface UIState {
   layout: LayoutState
-  activeView: 'home' | 'developer'
+  activeView: 'home' | 'preferences'
+  preferencesSection: PreferencesSection
+  libraryCollection: LibraryCollection
+  libraryFolder: string
   commandPaletteOpen: boolean
-  preferencesOpen: boolean
   updateDialogOpen: boolean
-  lastQuickPaneEntry: string | null
-  setSidebarVisible: (side: 'left' | 'right', visible: boolean) => void
-  setPanelSizes: (left: number, right: number) => void
-  setActiveView: (view: 'home' | 'developer') => void
+  setSidebarVisible: (visible: boolean) => void
+  setSidebarWidth: (percent: number) => void
+  setSnippetListWidth: (percent: number) => void
+  setActiveView: (view: 'home' | 'preferences') => void
+  setPreferencesSection: (section: PreferencesSection) => void
+  setLibraryFilter: (collection: LibraryCollection, folder?: string) => void
   setCommandPaletteOpen: (open: boolean) => void
-  setPreferencesOpen: (open: boolean) => void
   setUpdateDialogOpen: (open: boolean) => void
-  setLastQuickPaneEntry: (text: string | null) => void
 }
 export function createUIStore(storage?: StoragePort) {
   let layout = defaults
@@ -59,27 +49,38 @@ export function createUIStore(storage?: StoragePort) {
   const store = create<UIState>()((set) => ({
     layout,
     activeView: 'home',
+    preferencesSection: 'general',
+    libraryCollection: 'active',
+    libraryFolder: 'all',
     commandPaletteOpen: false,
-    preferencesOpen: false,
     updateDialogOpen: false,
-    lastQuickPaneEntry: null,
-    setSidebarVisible: (side, visible) =>
-      set((state) => ({
-        layout: { ...state.layout, [side === 'left' ? 'leftVisible' : 'rightVisible']: visible },
-      })),
-    setPanelSizes: (left, right) =>
-      set((state) => ({
-        layout: normalizeLayout({
-          ...state.layout,
-          leftPercent: left === 0 ? state.layout.leftPercent : left,
-          rightPercent: right === 0 ? state.layout.rightPercent : right,
-        }),
-      })),
+    setSidebarVisible: (leftVisible) =>
+      set((state) =>
+        state.layout.leftVisible === leftVisible
+          ? state
+          : { layout: { ...state.layout, leftVisible } },
+      ),
+    setSidebarWidth: (percent) =>
+      set((state) => {
+        const leftPercent =
+          percent === 0 ? state.layout.leftPercent : width(percent, 18, 30, defaults.leftPercent)
+        return state.layout.leftPercent === leftPercent
+          ? state
+          : { layout: { ...state.layout, leftPercent } }
+      }),
+    setSnippetListWidth: (percent) =>
+      set((state) => {
+        const listPercent = width(percent, 25, 50, defaults.listPercent)
+        return state.layout.listPercent === listPercent
+          ? state
+          : { layout: { ...state.layout, listPercent } }
+      }),
     setActiveView: (activeView) => set({ activeView }),
+    setPreferencesSection: (preferencesSection) => set({ preferencesSection }),
+    setLibraryFilter: (libraryCollection, libraryFolder = 'all') =>
+      set({ activeView: 'home', libraryCollection, libraryFolder }),
     setCommandPaletteOpen: (commandPaletteOpen) => set({ commandPaletteOpen }),
-    setPreferencesOpen: (preferencesOpen) => set({ preferencesOpen }),
     setUpdateDialogOpen: (updateDialogOpen) => set({ updateDialogOpen }),
-    setLastQuickPaneEntry: (lastQuickPaneEntry) => set({ lastQuickPaneEntry }),
   }))
   store.subscribe((state, previous) => {
     if (state.layout === previous.layout) return
@@ -91,8 +92,7 @@ export function createUIStore(storage?: StoragePort) {
   })
   return store
 }
-const storage: StoragePort = {
+export const useUIStore = createUIStore({
   getItem: (key) => localStorage.getItem(key),
   setItem: (key, value) => localStorage.setItem(key, value),
-}
-export const useUIStore = createUIStore(storage)
+})

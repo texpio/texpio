@@ -74,10 +74,8 @@ export function startNativeMenu(context: CommandContext) {
     for (const [id, key] of [
       ['show-quick-pane', 'quickPane.open'],
       ['open-home', 'shell.home'],
-      ['open-developer', 'shell.developer'],
       ['toggle-command-palette', 'commandPalette.title'],
       ['toggle-left-sidebar', 'menu.toggleLeftSidebar'],
-      ['toggle-right-sidebar', 'menu.toggleRightSidebar'],
     ] as const)
       viewItems.push(await command(id, key))
     const viewMenu = own(

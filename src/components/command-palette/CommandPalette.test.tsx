@@ -8,7 +8,7 @@ import { applyLanguage } from '@/i18n/config'
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: vi.fn() }))
 beforeEach(() => {
   vi.mocked(isTauri).mockReturnValue(false)
-  useUIStore.setState({ commandPaletteOpen: true, preferencesOpen: false, activeView: 'home' })
+  useUIStore.setState({ commandPaletteOpen: true, activeView: 'home' })
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -27,6 +27,6 @@ it('finds translated labels and routes selection through the registered action',
   await userEvent.type(screen.getByRole('combobox'), 'pref')
   expect(screen.getByRole('option', { name: /préférences/i })).toBeInTheDocument()
   await userEvent.click(screen.getByRole('option', { name: /préférences/i }))
-  expect(useUIStore.getState().preferencesOpen).toBe(true)
+  expect(useUIStore.getState().activeView).toBe('preferences')
   expect(useUIStore.getState().commandPaletteOpen).toBe(false)
 })

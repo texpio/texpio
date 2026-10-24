@@ -207,6 +207,20 @@ misspelled abbreviation was corrected with Backspace at the end. See the
 - [x] Verify user-typed correction with exact native output retaining the preceding `prefix ` and no trailing Space; record the separate disposable-profile cleanup conflict.
 - [x] Finish optimized packages and reopen the updated preview.
 
+## 14. Library workspace and dedicated Preferences
+
+The user chose list/editor together and requested removal of the right sidebar
+and Developer page. See the [workspace acceptance record](docs/research/library-workspace-acceptance.md).
+
+- [x] Remove right-sidebar state, title-bar toggle, commands and native menu entry.
+- [x] Remove Developer navigation and product command registration while preserving probe source/evidence.
+- [x] Add folder/collection navigation and independently scrolling snippet list/editor panes.
+- [x] Replace the Preferences dialog with General/Expansion/Shortcuts/Data pages and retained mutation state.
+- [x] Improve New/Save, editor sections, copy/favorite/duplicate/trash actions, stale folder fallback and validation feedback.
+- [x] Preserve drafts and pending saves across navigation; complete independent review and regression-tested fixes.
+- [x] Pass 162 frontend/188 Rust tests plus static/tooling checks and isolated light/dark/compact/RTL rendered checks.
+- [x] Finish optimized Windows packages and reopen the updated preview.
+
 ## Future decisions and execution work
 
 - [ ] Check desired domains/app-store names and brand clearance before publishing.

@@ -9,7 +9,7 @@ export function useCommandContext(): CommandContext {
   return useMemo(
     () => ({
       platform,
-      openPreferences: () => useUIStore.getState().setPreferencesOpen(true),
+      openPreferences: () => useUIStore.getState().setActiveView('preferences'),
       showToast: (message, type = 'info') => {
         toast[type](message)
       },

@@ -15,7 +15,6 @@ beforeEach(() => {
   useUIStore.setState({
     layout: normalizeLayout(null),
     activeView: 'home',
-    preferencesOpen: false,
     commandPaletteOpen: false,
   })
 })

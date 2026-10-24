@@ -4,7 +4,7 @@ import { listen } from '@tauri-apps/api/event'
 import { quitApp } from '@/lib/app-exit'
 import { approveExit, registerExitGuard } from '@/lib/exit-guard'
 import { useTranslation } from 'react-i18next'
-import { Copy, Download, FolderPlus, Plus, RefreshCw, Star, Trash2, Upload } from 'lucide-react'
+import { Download, MoreHorizontal, Plus, RefreshCw, Upload } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   AlertDialog,
@@ -16,7 +16,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -27,14 +26,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
-import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import {
   copySnippet,
   exportLibraryFile,
@@ -49,13 +43,26 @@ import {
   type Snippet,
 } from '@/services/library'
 import { EngineControls } from './EngineControls'
-import { AttachmentEditor } from './AttachmentEditor'
-import { LibraryBackups } from './LibraryBackups'
-import { EditorFind } from './EditorFind'
+import { SnippetEditor } from './SnippetEditor'
+import { SnippetList } from './SnippetList'
+import { useUIStore } from '@/store/ui-store'
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { LibraryDashboard } from './LibraryDashboard'
 import { useLibraryMetadata, useSetFavorite } from '@/services/library-metadata'
 import { bindLibraryActions } from '@/lib/commands/library-commands'
-import { searchSnippets, validateSnippet, type SnippetValidation } from './model'
+import {
+  searchSnippets,
+  validateSnippet,
+  resolveFolderSelection,
+  type SnippetValidation,
+} from './model'
 
 type Draft = { snippet: Snippet; original: Snippet | null; base: Library }
 type Notice = {
@@ -80,13 +87,20 @@ export function LibraryView() {
   const favoriteIds = new Set(
     metadata.data?.filter((info) => info.favorite).map((info) => info.snippetId),
   )
-  const bodyInput = useRef<HTMLTextAreaElement>(null)
-  const list = useRef<HTMLElement>(null)
   const [findMode, setFindMode] = useState<'find' | 'replace' | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [query, setQuery] = useState('')
-  const [folder, setFolder] = useState('all')
-  const [tab, setTab] = useState('active')
+  const requestedFolder = useUIStore((state) => state.libraryFolder)
+  const folder = resolveFolderSelection(library.data?.folders ?? [], requestedFolder)
+  const tab = useUIStore((state) => state.libraryCollection)
+  const listPercent = useUIStore((state) => state.layout.listPercent)
+  const listWidth = useUIStore((state) => state.setSnippetListWidth)
+  function setFolder(value: string) {
+    useUIStore.getState().setLibraryFilter(useUIStore.getState().libraryCollection, value)
+  }
+  function setTab(value: 'active' | 'favorites' | 'trash') {
+    useUIStore.getState().setLibraryFilter(value, useUIStore.getState().libraryFolder)
+  }
   const [notice, setNotice] = useState<Notice>(null)
   const [validation, setValidation] = useState<SnippetValidation | null>(null)
   const [folderEditor, setFolderEditor] = useState<FolderEditor>(null)
@@ -107,6 +121,19 @@ export function LibraryView() {
     bindLibraryActions((action) => {
       if (busyRef.current) return
       if (action === 'new') guarded(() => newSnippet())
+      else if (action === 'new-folder')
+        guarded(() => {
+          setFolderEditor({ id: null, name: '' })
+          setFolderInvalid(false)
+        })
+      else if (action === 'manage-folder')
+        guarded(() => {
+          const current = library.data?.folders.find((item) => item.id === folder)
+          if (current) {
+            setFolderEditor({ ...current })
+            setFolderInvalid(false)
+          }
+        })
       else if (action === 'save') {
         if (draft && !draft.snippet.deleted) void saveDraft()
       } else if (action === 'search' || !draft) document.getElementById('library-search')?.focus()
@@ -212,14 +239,20 @@ export function LibraryView() {
   }
   function newSnippet(source?: Snippet) {
     if (!library.data) return
+    setQuery('')
+    const nextFolder =
+      source && folder !== 'all' && folder !== (source.folderId ?? 'unfiled') ? 'all' : folder
+    useUIStore.getState().setLibraryFilter('active', nextFolder)
     setDraft({
       base: library.data,
       original: null,
       snippet: {
         id: crypto.randomUUID(),
-        folderId:
-          source?.folderId ??
-          (library.data.folders.some((item) => item.id === folder) ? folder : null),
+        folderId: source
+          ? source.folderId
+          : library.data.folders.some((item) => item.id === folder)
+            ? folder
+            : null,
         title: source ? t('library.copyTitle', { title: source.title }) : '',
         trigger: source?.trigger ?? '',
         body: source?.body ?? '',
@@ -355,39 +388,62 @@ export function LibraryView() {
         query,
       )
     : []
+  const folderName = data?.folders.find((item) => item.id === folder)?.name
+  const heading =
+    folderName ??
+    t(
+      folder === 'unfiled'
+        ? 'library.unfiled'
+        : tab === 'favorites'
+          ? 'library.favorites'
+          : tab === 'trash'
+            ? 'library.trash'
+            : 'workspace.allSnippets',
+    )
   return (
-    <section className="flex min-w-0 flex-col gap-5 p-5 lg:p-7" aria-labelledby="library-heading">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 id="library-heading" className="text-2xl font-semibold tracking-tight">
-            {t('library.title')}
+    <section className="flex h-full min-w-0 flex-col" aria-labelledby="library-heading">
+      <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
+        <div className="min-w-0">
+          <h1 id="library-heading" className="truncate text-lg font-semibold tracking-tight">
+            {heading}
           </h1>
-          <p className="text-sm text-muted-foreground">{t('library.description')}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" disabled={busy || !data} onClick={beginImport}>
-            <Upload data-icon="inline-start" />
-            {t('library.import')}
+        <div className="flex items-center gap-2">
+          <Button size="sm" disabled={busy || !data} onClick={() => guarded(() => newSnippet())}>
+            <Plus data-icon="inline-start" />
+            {t('library.new')}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={busy || !data}
-            onClick={() => {
-              void perform(async () => {
-                if (await exportLibraryFile())
-                  setNotice({ kind: 'success', key: 'library.exported' })
-              })
-            }}
-          >
-            <Download data-icon="inline-start" />
-            {t('library.export')}
-          </Button>
-          <LibraryBackups />
-          <Button variant="outline" size="sm" disabled={busy} onClick={reload}>
-            <RefreshCw data-icon="inline-start" />
-            {t('library.reload')}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon-sm" variant="ghost" aria-label={t('workspace.libraryActions')}>
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuGroup>
+                <DropdownMenuItem disabled={busy || !data} onSelect={beginImport}>
+                  <Upload />
+                  {t('library.import')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={busy || !data}
+                  onSelect={() => {
+                    void perform(async () => {
+                      if (await exportLibraryFile())
+                        setNotice({ kind: 'success', key: 'library.exported' })
+                    })
+                  }}
+                >
+                  <Download />
+                  {t('library.export')}
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={busy} onSelect={reload}>
+                  <RefreshCw />
+                  {t('library.reload')}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
       <EngineControls
@@ -396,9 +452,6 @@ export function LibraryView() {
           data?.snippets.filter((snippet) => snippet.enabled && !snippet.deleted).length ?? 0
         }
       />
-      {data && metadata.data && (
-        <LibraryDashboard snippets={data.snippets} metadata={metadata.data} />
-      )}
       {(metadata.isError || favorite.isError) && (
         <Alert variant="destructive">
           <AlertTitle>{t('library.metadataError')}</AlertTitle>
@@ -428,382 +481,86 @@ export function LibraryView() {
         </Alert>
       ) : (
         data && (
-          <>
-            <div className="flex flex-wrap items-end gap-3">
-              <Field className="min-w-40 flex-1">
-                <FieldLabel htmlFor="library-search">{t('library.search')}</FieldLabel>
-                <Input
-                  id="library-search"
-                  type="search"
-                  value={query}
-                  placeholder={t('library.searchPlaceholder')}
-                  onChange={(event) => setQuery(event.target.value)}
-                />
-              </Field>
-              <Field className="w-auto">
-                <FieldLabel htmlFor="library-folder">{t('library.folder')}</FieldLabel>
-                <NativeSelect
-                  id="library-folder"
-                  value={folder}
-                  onChange={(event) => setFolder(event.target.value)}
-                >
-                  <NativeSelectOption value="all">{t('library.allFolders')}</NativeSelectOption>
-                  <NativeSelectOption value="unfiled">{t('library.unfiled')}</NativeSelectOption>
-                  {data.folders.map((item) => (
-                    <NativeSelectOption key={item.id} value={item.id}>
-                      {item.name}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              </Field>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={busy}
-                onClick={() =>
-                  guarded(() => {
-                    setFolderEditor({ id: null, name: '' })
-                    setFolderInvalid(false)
-                  })
-                }
-              >
-                <FolderPlus data-icon="inline-start" />
-                {t('library.newFolder')}
-              </Button>
-              {data.folders.some((item) => item.id === folder) && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() =>
-                    guarded(() => {
-                      const current = data.folders.find((item) => item.id === folder)!
-                      setFolderEditor({ ...current })
-                      setFolderInvalid(false)
-                    })
-                  }
-                >
-                  {t('library.manageFolder')}
-                </Button>
-              )}
-              <Button size="sm" disabled={busy} onClick={() => guarded(() => newSnippet())}>
-                <Plus data-icon="inline-start" />
-                {t('library.new')}
-              </Button>
-            </div>
-            <ToggleGroup
-              type="single"
-              variant="outline"
-              value={tab}
-              onValueChange={(value) => {
-                if (value) setTab(value)
-              }}
-              aria-label={t('library.collection')}
+          <ResizablePanelGroup
+            direction="horizontal"
+            className="min-h-0 flex-1"
+            onLayout={(values) => {
+              if (values.length === 2) listWidth(values[0])
+            }}
+          >
+            <ResizablePanel
+              id="snippets"
+              order={1}
+              defaultSize={listPercent}
+              minSize={25}
+              maxSize={50}
             >
-              <ToggleGroupItem value="active">{t('library.active')}</ToggleGroupItem>
-              <ToggleGroupItem value="favorites">{t('library.favorites')}</ToggleGroupItem>
-              <ToggleGroupItem value="trash">{t('library.trash')}</ToggleGroupItem>
-            </ToggleGroup>
-            <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(12rem,0.8fr)_minmax(18rem,1.5fr)]">
-              <section
-                ref={list}
-                aria-label={t('library.snippets')}
-                className="flex min-w-0 flex-col gap-2"
-                onKeyDown={(event) => {
-                  if (
-                    busy ||
-                    event.altKey ||
-                    event.ctrlKey ||
-                    event.metaKey ||
-                    event.nativeEvent.isComposing
-                  )
-                    return
-                  const button =
-                    event.target instanceof Element
-                      ? event.target.closest<HTMLElement>('button[data-snippet-id]')
-                      : null
-                  if (!button) return
-                  const index = visible.findIndex(
-                    (snippet) => snippet.id === button.dataset.snippetId,
-                  )
-                  if (index < 0) return
-                  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-                    event.preventDefault()
-                    const next =
-                      visible[
-                        (index + (event.key === 'ArrowDown' ? 1 : -1) + visible.length) %
-                          visible.length
-                      ]
-                    list.current
-                      ?.querySelector<HTMLElement>(`button[data-snippet-id="${next.id}"]`)
-                      ?.focus()
-                  } else if (event.key === 'Delete' && !visible[index].deleted) {
-                    event.preventDefault()
-                    changeDeleted(visible[index], true)
-                  } else if (event.key === 'Escape') {
-                    event.preventDefault()
-                    guarded(() => setDraft(null))
-                  }
-                }}
-              >
-                <p className="text-xs text-muted-foreground">
-                  {t('library.count', { count: visible.length })}
-                </p>
-                {visible.length ? (
-                  visible.map((snippet) => (
-                    <Button
-                      key={snippet.id}
-                      data-snippet-id={snippet.id}
-                      variant={draft?.snippet.id === snippet.id ? 'secondary' : 'outline'}
-                      className="h-auto min-h-16 w-full justify-start whitespace-normal py-3 text-start"
-                      disabled={busy}
-                      onClick={() => guarded(() => select(snippet))}
-                    >
-                      <span className="flex min-w-0 flex-1 flex-col gap-1">
-                        <span className="truncate font-medium">{snippet.title}</span>
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {snippet.trigger}
-                        </span>
-                      </span>
-                      {!snippet.enabled && <Badge variant="outline">{t('common.disabled')}</Badge>}
-                      {favoriteIds.has(snippet.id) && (
-                        <Star className="size-4 fill-current" aria-hidden="true" />
-                      )}
-                    </Button>
-                  ))
-                ) : (
-                  <Empty>
-                    <EmptyHeader>
-                      <EmptyTitle>{t('library.empty')}</EmptyTitle>
-                      <EmptyDescription>{t('library.emptyDescription')}</EmptyDescription>
-                    </EmptyHeader>
-                  </Empty>
-                )}
-              </section>
-              <section aria-label={t('library.editor')} className="min-w-0 rounded-lg border p-4">
+              <SnippetList
+                snippets={visible}
+                selected={draft?.snippet.id ?? null}
+                favorites={favoriteIds}
+                busy={busy}
+                query={query}
+                onQuery={setQuery}
+                onSelect={(snippet) => guarded(() => select(snippet))}
+                onDelete={(snippet) => changeDeleted(snippet, true)}
+                onClearSelection={() => guarded(() => setDraft(null))}
+              />
+            </ResizablePanel>
+            <ResizableHandle />
+            <ResizablePanel id="editor" order={2} defaultSize={100 - listPercent} minSize={45}>
+              <section aria-label={t('library.editor')} className="h-full min-w-0">
                 {draft ? (
-                  <form
-                    className="flex flex-col gap-5"
-                    onSubmit={(event) => {
-                      event.preventDefault()
+                  <SnippetEditor
+                    key={draft.snippet.id}
+                    snippet={draft.snippet}
+                    original={draft.original}
+                    folders={draft.base.folders}
+                    revision={draft.base.revision}
+                    dirty={dirty}
+                    busy={busy}
+                    stale={stale}
+                    validation={validation}
+                    favorite={favoriteIds.has(draft.snippet.id)}
+                    favoritePending={favorite.isPending}
+                    findMode={findMode}
+                    onFind={setFindMode}
+                    onEdit={edit}
+                    onSave={() => {
                       void saveDraft()
                     }}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h2 className="font-semibold">{t('library.editor')}</h2>
-                      {dirty && <Badge variant="secondary">{t('library.unsaved')}</Badge>}
-                      {draft.snippet.deleted && (
-                        <Badge variant="outline">{t('library.inTrash')}</Badge>
-                      )}
-                    </div>
-                    <FieldGroup>
-                      <Field data-invalid={validation === 'title'}>
-                        <FieldLabel htmlFor="snippet-title">{t('library.field.title')}</FieldLabel>
-                        <Input
-                          id="snippet-title"
-                          value={draft.snippet.title}
-                          disabled={busy || draft.snippet.deleted}
-                          aria-invalid={validation === 'title'}
-                          onChange={(event) => edit({ title: event.target.value })}
-                        />
-                        {validation === 'title' && (
-                          <FieldError>{t('library.validation.title')}</FieldError>
-                        )}
-                      </Field>
-                      <Field
-                        data-invalid={validation === 'trigger' || validation === 'duplicateTrigger'}
-                      >
-                        <FieldLabel htmlFor="snippet-trigger">
-                          {t('library.field.trigger')}
-                        </FieldLabel>
-                        <Input
-                          id="snippet-trigger"
-                          value={draft.snippet.trigger}
-                          autoComplete="off"
-                          autoCapitalize="off"
-                          spellCheck={false}
-                          disabled={busy || draft.snippet.deleted}
-                          aria-invalid={
-                            validation === 'trigger' || validation === 'duplicateTrigger'
-                          }
-                          onChange={(event) => edit({ trigger: event.target.value })}
-                        />
-                        <FieldDescription>{t('library.triggerHelp')}</FieldDescription>
-                        {(validation === 'trigger' || validation === 'duplicateTrigger') && (
-                          <FieldError>{t(`library.validation.${validation}`)}</FieldError>
-                        )}
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="snippet-folder">
-                          {t('library.field.folder')}
-                        </FieldLabel>
-                        <NativeSelect
-                          id="snippet-folder"
-                          value={draft.snippet.folderId ?? ''}
-                          disabled={busy || draft.snippet.deleted}
-                          onChange={(event) => edit({ folderId: event.target.value || null })}
-                        >
-                          <NativeSelectOption value="">{t('library.unfiled')}</NativeSelectOption>
-                          {draft.base.folders.map((item) => (
-                            <NativeSelectOption key={item.id} value={item.id}>
-                              {item.name}
-                            </NativeSelectOption>
-                          ))}
-                        </NativeSelect>
-                      </Field>
-                      <Field data-invalid={validation === 'body'}>
-                        <FieldLabel htmlFor="snippet-body">{t('library.field.body')}</FieldLabel>
-                        <Textarea
-                          id="snippet-body"
-                          ref={bodyInput}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Escape' && findMode) {
-                              event.preventDefault()
-                              setFindMode(null)
-                            }
-                          }}
-                          value={draft.snippet.body}
-                          rows={8}
-                          className="resize-y"
-                          disabled={busy || draft.snippet.deleted}
-                          aria-invalid={validation === 'body'}
-                          onChange={(event) => edit({ body: event.target.value })}
-                        />
-                        <FieldDescription>{t('library.bodyHelp')}</FieldDescription>
-                        {validation === 'body' && (
-                          <FieldError>{t('library.validation.body')}</FieldError>
-                        )}
-                      </Field>
-                      <Field orientation="horizontal">
-                        <FieldLabel htmlFor="snippet-enabled">{t('library.enabled')}</FieldLabel>
-                        <Switch
-                          id="snippet-enabled"
-                          checked={draft.snippet.enabled}
-                          disabled={busy || draft.snippet.deleted}
-                          onCheckedChange={(enabled) => edit({ enabled })}
-                        />
-                      </Field>
-                    </FieldGroup>
-                    {findMode && (
-                      <EditorFind
-                        key={draft.snippet.id}
-                        mode={findMode}
-                        value={draft.snippet.body}
-                        onChange={(body) => edit({ body })}
-                        textarea={bodyInput}
-                        onClose={() => setFindMode(null)}
-                      />
-                    )}
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={busy || draft.snippet.deleted}
-                        onClick={() => setFindMode('find')}
-                      >
-                        {t('editor.find')}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={busy || draft.snippet.deleted}
-                        onClick={() => setFindMode('replace')}
-                      >
-                        {t('editor.findReplace')}
-                      </Button>
-                      {draft.original && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={busy || stale || favorite.isPending || draft.snippet.deleted}
-                          aria-pressed={favoriteIds.has(draft.snippet.id)}
-                          onClick={() =>
-                            favorite.mutate({
-                              id: draft.snippet.id,
-                              revision: draft.base.revision,
-                              favorite: !favoriteIds.has(draft.snippet.id),
-                            })
-                          }
-                        >
-                          <Star data-icon="inline-start" />
-                          {t(
-                            favoriteIds.has(draft.snippet.id)
-                              ? 'library.unfavorite'
-                              : 'library.favorite',
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="submit" disabled={busy || !dirty || draft.snippet.deleted}>
-                        {t(busy ? 'library.saving' : 'library.save')}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={busy || !draft.snippet.body}
-                        onClick={() => {
-                          void perform(async () => {
-                            await copySnippet(draft.snippet.body)
-                            setNotice({ kind: 'success', key: 'library.copied' })
-                          })
-                        }}
-                      >
-                        <Copy data-icon="inline-start" />
-                        {t('library.copy')}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => guarded(() => newSnippet(draft.snippet))}
-                      >
-                        {t('library.duplicate')}
-                      </Button>
-                      {draft.original && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={busy}
-                          onClick={() => changeDeleted(draft.original!, !draft.original!.deleted)}
-                        >
-                          <Trash2 data-icon="inline-start" />
-                          {t(draft.snippet.deleted ? 'library.restore' : 'library.moveToTrash')}
-                        </Button>
-                      )}
-                    </div>
-                    <Separator />
-                    {draft.original ? (
-                      <AttachmentEditor
-                        key={draft.snippet.id}
-                        id={draft.snippet.id}
-                        revision={draft.base.revision}
-                        disabled={busy || stale || draft.snippet.deleted}
-                      />
-                    ) : (
-                      <p className="text-sm text-muted-foreground">{t('attachments.saveFirst')}</p>
-                    )}
-                    <section
-                      aria-label={t('library.preview')}
-                      className="flex min-w-0 flex-col gap-2"
-                    >
-                      <h3 className="text-sm font-medium">{t('library.preview')}</h3>
-                      <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-muted p-3 font-sans text-sm">
-                        {draft.snippet.body || t('library.previewEmpty')}
-                      </pre>
-                    </section>
-                  </form>
+                    onCopy={() => {
+                      void perform(async () => {
+                        await copySnippet(draft.snippet.body)
+                        setNotice({ kind: 'success', key: 'library.copied' })
+                      })
+                    }}
+                    onDuplicate={() => guarded(() => newSnippet(draft.snippet))}
+                    onDelete={() => changeDeleted(draft.original!, !draft.original!.deleted)}
+                    onFavorite={() =>
+                      favorite.mutate({
+                        id: draft.snippet.id,
+                        revision: draft.base.revision,
+                        favorite: !favoriteIds.has(draft.snippet.id),
+                      })
+                    }
+                  />
                 ) : (
-                  <Empty>
-                    <EmptyHeader>
-                      <EmptyTitle>{t('library.choose')}</EmptyTitle>
-                      <EmptyDescription>{t('library.chooseDescription')}</EmptyDescription>
-                    </EmptyHeader>
-                  </Empty>
+                  <div className="flex h-full flex-col gap-5 overflow-y-auto p-5 lg:p-6">
+                    <Empty className="flex-1">
+                      <EmptyHeader>
+                        <EmptyTitle>{t('library.choose')}</EmptyTitle>
+                        <EmptyDescription>{t('library.chooseDescription')}</EmptyDescription>
+                      </EmptyHeader>
+                    </Empty>
+                    {metadata.data && (
+                      <LibraryDashboard snippets={data.snippets} metadata={metadata.data} />
+                    )}
+                  </div>
                 )}
               </section>
-            </div>
-          </>
+            </ResizablePanel>
+          </ResizablePanelGroup>
         )
       )}
       <AlertDialog

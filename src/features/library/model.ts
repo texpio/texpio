@@ -6,6 +6,13 @@ import {
 } from '@/services/library'
 
 export type SnippetValidation = 'title' | 'trigger' | 'body' | 'duplicateTrigger'
+export function resolveFolderSelection(folders: Library['folders'], selected: string) {
+  return selected === 'all' ||
+    selected === 'unfiled' ||
+    folders.some((folder) => folder.id === selected)
+    ? selected
+    : 'all'
+}
 export function validateSnippet(snippet: Snippet, library: Library): SnippetValidation | null {
   if (
     !snippet.title.trim() ||

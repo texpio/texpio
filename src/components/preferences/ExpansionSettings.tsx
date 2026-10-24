@@ -28,7 +28,11 @@ const optionLabels = {
   balanced: 'product.option.balanced',
   careful: 'product.option.careful',
 } as const
-export function ExpansionSettings() {
+export function ExpansionSettings({
+  section = 'all',
+}: {
+  section?: 'all' | 'general' | 'expansion' | 'shortcuts' | 'data'
+}) {
   const { t } = useTranslation()
   const client = useQueryClient()
   const query = useQuery({ queryKey: key, queryFn: loadProductSettings, retry: false })
@@ -57,9 +61,42 @@ export function ExpansionSettings() {
       ],
     },
   ] as const
+  const shownChoices = choices.filter(
+    (field) =>
+      section === 'all' ||
+      (section === 'shortcuts'
+        ? field.name === 'clipboardMode'
+        : section === 'expansion' && field.name !== 'clipboardMode'),
+  )
+  const shownSwitches = (
+    [
+      'preserveTerminator',
+      'restoreClipboard',
+      'clipboardEnabled',
+      'enabled',
+      'autostart',
+      'closeToTray',
+    ] as const
+  ).filter(
+    (name) =>
+      section === 'all' ||
+      (section === 'general'
+        ? ['enabled', 'autostart', 'closeToTray'].includes(name)
+        : section === 'shortcuts'
+          ? name === 'clipboardEnabled'
+          : section === 'expansion' && ['preserveTerminator', 'restoreClipboard'].includes(name)),
+  )
+  // Keep this mutation owner alive even while Data or another main view is shown.
+  if (section === 'data' && !query.isError && !save.isError) return null
   return (
     <FieldSet>
-      <FieldLegend>{t('product.settings')}</FieldLegend>
+      <FieldLegend>
+        {t(
+          section === 'all' || section === 'data'
+            ? 'product.settings'
+            : `preferences.group.${section}`,
+        )}
+      </FieldLegend>
       {(query.isError || save.isError) && (
         <Alert variant="destructive">
           <AlertTitle>
@@ -72,7 +109,7 @@ export function ExpansionSettings() {
         </Alert>
       )}
       <FieldGroup>
-        {choices.map((field) => (
+        {shownChoices.map((field) => (
           <Field key={field.name}>
             <FieldLabel htmlFor={`expansion-${field.name}`}>
               {t(`product.field.${field.name}`)}
@@ -101,16 +138,7 @@ export function ExpansionSettings() {
             )}
           </Field>
         ))}
-        {(
-          [
-            'preserveTerminator',
-            'restoreClipboard',
-            'clipboardEnabled',
-            'enabled',
-            'autostart',
-            'closeToTray',
-          ] as const
-        ).map((name) => (
+        {shownSwitches.map((name) => (
           <Field
             key={name}
             orientation="horizontal"
@@ -131,66 +159,76 @@ export function ExpansionSettings() {
             />
           </Field>
         ))}
-        <Field orientation="horizontal" data-disabled={disabled}>
-          <FieldContent>
-            <FieldLabel htmlFor="expansion-allowSoftwareInput">
-              {t('product.field.allowSoftwareInput')}
-            </FieldLabel>
-            <FieldDescription id="expansion-software-input-help">
-              {t('product.softwareInputHelp')}
-            </FieldDescription>
-          </FieldContent>
-          <Switch
-            id="expansion-allowSoftwareInput"
-            aria-describedby="expansion-software-input-help"
-            checked={query.data?.allowSoftwareInput ?? false}
-            disabled={disabled}
-            onCheckedChange={(value) => update({ allowSoftwareInput: value })}
-          />
-        </Field>
-        {(['toggleShortcut', 'clipboardShortcut'] as const).map((name) => (
-          <Field key={name}>
-            <FieldLabel htmlFor={`expansion-${name}`}>{t(`product.field.${name}`)}</FieldLabel>
-            <Input
-              id={`expansion-${name}`}
+        {(section === 'all' || section === 'expansion') && (
+          <Field orientation="horizontal" data-disabled={disabled}>
+            <FieldContent>
+              <FieldLabel htmlFor="expansion-allowSoftwareInput">
+                {t('product.field.allowSoftwareInput')}
+              </FieldLabel>
+              <FieldDescription id="expansion-software-input-help">
+                {t('product.softwareInputHelp')}
+              </FieldDescription>
+            </FieldContent>
+            <Switch
+              id="expansion-allowSoftwareInput"
+              aria-describedby="expansion-software-input-help"
+              checked={query.data?.allowSoftwareInput ?? false}
               disabled={disabled}
-              key={query.data?.[name]}
-              defaultValue={query.data?.[name] ?? ''}
-              maxLength={128}
+              onCheckedChange={(value) => update({ allowSoftwareInput: value })}
+            />
+          </Field>
+        )}
+        {(section === 'all' || section === 'shortcuts') &&
+          (['toggleShortcut', 'clipboardShortcut'] as const).map((name) => (
+            <Field key={name}>
+              <FieldLabel htmlFor={`expansion-${name}`}>{t(`product.field.${name}`)}</FieldLabel>
+              <Input
+                id={`expansion-${name}`}
+                disabled={disabled}
+                key={query.data?.[name]}
+                defaultValue={query.data?.[name] ?? ''}
+                maxLength={128}
+                onBlur={(event) => {
+                  const value = event.currentTarget.value.trim()
+                  if (value && value !== query.data?.[name]) update({ [name]: value })
+                  else event.currentTarget.value = query.data?.[name] ?? ''
+                }}
+              />
+            </Field>
+          ))}
+        {(section === 'all' || section === 'general') && (
+          <p className="text-xs text-muted-foreground">{t('product.desktopHelp')}</p>
+        )}
+        {(section === 'all' || section === 'expansion') && (
+          <Field>
+            <FieldLabel htmlFor="expansion-delay">
+              {t('product.field.attachmentDelayMs')}
+            </FieldLabel>
+            <Input
+              id="expansion-delay"
+              type="number"
+              min={100}
+              max={5000}
+              step={100}
+              disabled={disabled}
+              key={query.data?.attachmentDelayMs}
+              defaultValue={query.data?.attachmentDelayMs ?? 500}
               onBlur={(event) => {
-                const value = event.currentTarget.value.trim()
-                if (value && value !== query.data?.[name]) update({ [name]: value })
-                else event.currentTarget.value = query.data?.[name] ?? ''
+                const value = event.currentTarget.valueAsNumber
+                if (Number.isInteger(value) && value >= 100 && value <= 5000)
+                  update({ attachmentDelayMs: value })
+                else event.currentTarget.value = String(query.data?.attachmentDelayMs ?? 500)
               }}
             />
           </Field>
-        ))}
-        <p className="text-xs text-muted-foreground">{t('product.desktopHelp')}</p>
-        <Field>
-          <FieldLabel htmlFor="expansion-delay">{t('product.field.attachmentDelayMs')}</FieldLabel>
-          <Input
-            id="expansion-delay"
-            type="number"
-            min={100}
-            max={5000}
-            step={100}
-            disabled={disabled}
-            key={query.data?.attachmentDelayMs}
-            defaultValue={query.data?.attachmentDelayMs ?? 500}
-            onBlur={(event) => {
-              const value = event.currentTarget.valueAsNumber
-              if (Number.isInteger(value) && value >= 100 && value <= 5000)
-                update({ attachmentDelayMs: value })
-              else event.currentTarget.value = String(query.data?.attachmentDelayMs ?? 500)
-            }}
-          />
-        </Field>
+        )}
       </FieldGroup>
-      {(query.data?.insertion === 'type' || query.data?.clipboardMode === 'type') && (
-        <Alert>
-          <AlertDescription>{t('product.typeNotice')}</AlertDescription>
-        </Alert>
-      )}
+      {section !== 'general' &&
+        (query.data?.insertion === 'type' || query.data?.clipboardMode === 'type') && (
+          <Alert>
+            <AlertDescription>{t('product.typeNotice')}</AlertDescription>
+          </Alert>
+        )}
     </FieldSet>
   )
 }

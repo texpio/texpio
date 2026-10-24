@@ -40,7 +40,7 @@ export function LibraryDashboard({
             {t(group.label as 'dashboard.recent' | 'dashboard.frequent')}
           </h2>
           {group.items.length ? (
-            <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+            <ul className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
               {group.items.map((info) => (
                 <li key={info.snippetId} className="truncate">
                   {titles.get(info.snippetId)}{' '}

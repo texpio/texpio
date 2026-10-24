@@ -1,14 +1,8 @@
 import { registerCommands } from './registry'
 import { navigationCommands } from './navigation-commands'
 import { windowCommands } from './window-commands'
-import { notificationCommands } from './notification-commands'
 import { libraryCommands } from './library-commands'
-registerCommands([
-  ...navigationCommands,
-  ...windowCommands,
-  ...notificationCommands,
-  ...libraryCommands,
-])
+registerCommands([...navigationCommands, ...windowCommands, ...libraryCommands])
 export {
   registerCommands,
   executeCommand,

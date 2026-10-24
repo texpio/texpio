@@ -67,3 +67,11 @@ it('cancels startup without attaching a late menu', async () => {
   await menu.dispose()
   expect(fake.attach).not.toHaveBeenCalled()
 })
+it('does not expose the removed Developer page or right sidebar in the native menu', async () => {
+  const menu = startNativeMenu(context)
+  await menu.ready
+  const ids = fake.resources.map((item) => item.options.id).filter(Boolean)
+  expect(ids.some((id) => String(id).endsWith('open-developer'))).toBe(false)
+  expect(ids.some((id) => String(id).endsWith('toggle-right-sidebar'))).toBe(false)
+  await menu.dispose()
+})

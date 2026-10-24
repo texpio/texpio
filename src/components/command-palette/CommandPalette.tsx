@@ -18,11 +18,7 @@ function OpenPalette() {
   const { t } = useTranslation()
   const context = useCommandContext()
   const [search, setSearch] = useState('')
-  const activeView = useUIStore((state) => state.activeView)
-  const commands = getAllCommands(context, search).filter(
-    (command) =>
-      command.palette !== false && (command.group !== 'developer' || activeView === 'developer'),
-  )
+  const commands = getAllCommands(context, search).filter((command) => command.palette !== false)
   const groups = [...new Set(commands.map((command) => command.group ?? 'other'))]
   return (
     <CommandDialog

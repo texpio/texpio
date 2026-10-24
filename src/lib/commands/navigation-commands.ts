@@ -1,4 +1,4 @@
-import { Code, Home, Search, Settings, PanelLeft, PanelRight } from 'lucide-react'
+import { Home, Search, Settings, PanelLeft } from 'lucide-react'
 import { useUIStore } from '@/store/ui-store'
 import type { AppCommand } from './types'
 import { showQuickPane } from '@/services/quick-pane'
@@ -10,7 +10,6 @@ export const navigationCommands: AppCommand[] = [
     isAvailable: (context) => context.platform !== 'unknown',
     execute: () => {
       const state = useUIStore.getState()
-      state.setPreferencesOpen(false)
       state.setUpdateDialogOpen(true)
     },
   },
@@ -29,14 +28,6 @@ export const navigationCommands: AppCommand[] = [
     execute: () => useUIStore.getState().setActiveView('home'),
   },
   {
-    id: 'open-developer',
-    labelKey: 'shell.developer',
-    icon: Code,
-    group: 'navigation',
-    keywords: ['probe', 'expansion', 'diagnostics'],
-    execute: () => useUIStore.getState().setActiveView('developer'),
-  },
-  {
     id: 'open-preferences',
     labelKey: 'commands.openPreferences.label',
     descriptionKey: 'commands.openPreferences.description',
@@ -52,7 +43,6 @@ export const navigationCommands: AppCommand[] = [
     group: 'navigation',
     shortcut: 'CmdOrCtrl+K',
     palette: false,
-    isAvailable: () => !useUIStore.getState().preferencesOpen,
     execute: () => {
       const state = useUIStore.getState()
       state.setCommandPaletteOpen(!state.commandPaletteOpen)
@@ -66,18 +56,7 @@ export const navigationCommands: AppCommand[] = [
     shortcut: 'CmdOrCtrl+1',
     execute: () => {
       const state = useUIStore.getState()
-      state.setSidebarVisible('left', !state.layout.leftVisible)
-    },
-  },
-  {
-    id: 'toggle-right-sidebar',
-    labelKey: 'menu.toggleRightSidebar',
-    icon: PanelRight,
-    group: 'navigation',
-    shortcut: 'CmdOrCtrl+2',
-    execute: () => {
-      const state = useUIStore.getState()
-      state.setSidebarVisible('right', !state.layout.rightVisible)
+      state.setSidebarVisible(!state.layout.leftVisible)
     },
   },
 ]
