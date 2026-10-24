@@ -397,5 +397,6 @@
   "product.field.toggleShortcut": "اختصار تبديل التوسيع",
   "product.field.clipboardShortcut": "اختصار إدراج الحافظة",
   "product.desktopHelp": "يُشغّل Texpio في علبة النظام عند تسجيل الدخول. فعّل التوسيع عند التشغيل بشكل منفصل. تتطلب الاختصارات مفتاح تعديل؛ عند التعارض يبقى الاختصار السابق نشطًا.",
-  "product.clipboardIncomplete": "تعذر استعادة بعض صيغ الحافظة."
+  "product.clipboardIncomplete": "تعذر استعادة بعض صيغ الحافظة.",
+  "product.error.shortcutUnavailable": "اختصار لوحة المفاتيح غير متاح. اختر اختصارًا آخر في التفضيلات."
 }

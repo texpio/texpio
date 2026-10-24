@@ -86,3 +86,17 @@ it('persists desktop options and shortcuts without overwriting other settings', 
     }),
   )
 })
+it('explains a native shortcut conflict without discarding acknowledged settings', async () => {
+  native.save.mockRejectedValue(
+    Object.assign(new Error('unavailable'), { code: 'shortcutUnavailable' }),
+  )
+  show()
+  await waitFor(() => expect(screen.getByLabelText('Insertion method')).toBeEnabled())
+  await userEvent.selectOptions(screen.getByLabelText('Insertion method'), 'type')
+  expect(
+    await screen.findByText(
+      'A keyboard shortcut is unavailable. Choose another shortcut in Preferences.',
+    ),
+  ).toBeVisible()
+  expect(screen.getByLabelText('Insertion method')).toHaveValue('paste')
+})

@@ -17,6 +17,7 @@ const errors: ProductError[] = [
   'invalidSettings',
   'unavailable',
   'attachmentMissing',
+  'shortcutUnavailable',
 ]
 export function parseProductStatus(value: unknown): ProductStatus {
   if (typeof value !== 'object' || value === null) throw new ProductCommandError('unavailable')

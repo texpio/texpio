@@ -59,7 +59,7 @@ impl Default for ProductSettings {
             clipboard_enabled: true,
             clipboard_shortcut: "CmdOrCtrl+Shift+V".into(),
             clipboard_mode: InsertionMode::Paste,
-            toggle_shortcut: "CmdOrCtrl+Shift+Space".into(),
+            toggle_shortcut: "CmdOrCtrl+Alt+Shift+Space".into(),
             autostart: false,
             close_to_tray: true,
             attachment_delay_ms: 500,

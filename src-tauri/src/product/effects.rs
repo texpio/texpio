@@ -16,6 +16,7 @@ pub enum ProductError {
     InvalidSettings,
     Unavailable,
     AttachmentMissing,
+    ShortcutUnavailable,
 }
 
 pub trait EffectBackend {

@@ -104,7 +104,7 @@ impl DesktopBackend for Native {
                     dispatch(app.clone(), published.clone(), action, epoch);
                 }
             })
-            .map_err(|_| ProductError::Unavailable)
+            .map_err(|_| ProductError::ShortcutUnavailable)
     }
     fn unregister(&mut self, chord: &str) -> Result<(), ProductError> {
         self.app
@@ -173,8 +173,8 @@ impl DesktopSettingsActor {
                 let mut controller = DesktopController::new(backend);
                 if let Ok(settings) = initial {
                     let initialized = controller.initialize(settings.clone());
-                    if initialized.is_err() {
-                        report(&app, Err(ProductError::Unavailable));
+                    if let Err(error) = initialized {
+                        report(&app, Err(error));
                     }
                     if settings.enabled {
                         let engine = app.state::<Arc<ProductEngine>>();

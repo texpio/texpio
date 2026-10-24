@@ -25,6 +25,13 @@ fn password_style(class: &str, style: u32) -> bool {
     (class.eq_ignore_ascii_case("edit") || class.to_ascii_lowercase().starts_with("richedit"))
         && style & ES_PASSWORD as u32 != 0
 }
+fn compatibility_interval(class: &str, mode: InsertionMode) -> Duration {
+    if mode == InsertionMode::Type && class.eq_ignore_ascii_case("RichEditD2DPT") {
+        Duration::from_millis(100)
+    } else {
+        Duration::ZERO
+    }
+}
 
 fn event(vk: VIRTUAL_KEY, scan: u16, flags: KEYBD_EVENT_FLAGS) -> INPUT {
     INPUT {
@@ -74,6 +81,7 @@ pub struct NativeEdit {
     board: Option<PasteBoard>,
     lease: Option<ClipboardLease>,
     files: super::payload::FileDelivery,
+    strict_clipboard: bool,
     pub submitted_events: u32,
     pub clipboard_incomplete: bool,
 }
@@ -107,6 +115,7 @@ impl NativeEdit {
         if password_style(&class, style) {
             return Err(ProductError::Unavailable);
         }
+        let minimum_interval = compatibility_interval(&class, settings.insertion);
         Ok(Self {
             target,
             generation,
@@ -114,10 +123,11 @@ impl NativeEdit {
             settings,
             armed_cancel: Cell::new(armed_cancel),
             next_send: Instant::now(),
-            minimum_interval: Duration::ZERO,
+            minimum_interval,
             board: None,
             lease: None,
             files: Default::default(),
+            strict_clipboard: false,
             submitted_events: 0,
             clipboard_incomplete: false,
         })
@@ -126,7 +136,15 @@ impl NativeEdit {
         self.files = files;
         self
     }
+    pub fn require_complete_clipboard(mut self) -> Self {
+        self.strict_clipboard = true;
+        self
+    }
     fn paste_shortcut(&mut self) -> Result<(), ProductError> {
+        self.board
+            .as_ref()
+            .ok_or(ProductError::Clipboard)?
+            .ensure_owned(self.lease.as_ref().ok_or(ProductError::Clipboard)?)?;
         self.send(
             &[
                 event(VK_CONTROL, 0, KEYBD_EVENT_FLAGS(0)),
@@ -257,9 +275,10 @@ impl EffectBackend for NativeEdit {
                         &self.files.files
                     },
                     self.settings.restore_clipboard,
+                    self.strict_clipboard,
                 )?
             } else {
-                board.begin_text(text, self.settings.restore_clipboard)?
+                board.begin_text(text, self.settings.restore_clipboard, self.strict_clipboard)?
             };
             self.clipboard_incomplete = lease.incomplete;
             self.board = Some(board);
@@ -299,16 +318,12 @@ impl EffectBackend for NativeEdit {
                         .replace_text(self.lease.as_mut().ok_or(ProductError::Clipboard)?, text)?;
                 }
                 self.settle(Duration::from_millis(25))?;
-                self.send(
-                    &[
-                        event(VK_CONTROL, 0, KEYBD_EVENT_FLAGS(0)),
-                        event(VK_V, 0, KEYBD_EVENT_FLAGS(0)),
-                        event(VK_V, 0, KEYEVENTF_KEYUP),
-                        event(VK_CONTROL, 0, KEYEVENTF_KEYUP),
-                    ],
-                    false,
-                )?;
-                self.settle(Duration::from_millis(200))
+                self.paste_shortcut()?;
+                self.settle(Duration::from_millis(200))?;
+                self.board
+                    .as_ref()
+                    .ok_or(ProductError::Clipboard)?
+                    .ensure_owned(self.lease.as_ref().ok_or(ProductError::Clipboard)?)
             }
         }
     }
@@ -353,7 +368,11 @@ pub fn diagnostic_dispatch(
         preserve_terminator: false,
         ..Default::default()
     };
-    let mut native = NativeEdit::new(target, generation, 1, settings)?;
+    let mut native = NativeEdit::new(target, generation, 1, settings)?.require_complete_clipboard();
+    println!(
+        "Product compatibility interval: {} ms",
+        native.minimum_interval.as_millis()
+    );
     // Debug fixture experiment only; never changes normal product settings.
     #[cfg(debug_assertions)]
     if let Ok(value) = std::env::var("TEXPIO_TRIAL_INTERVAL_MS") {
@@ -362,7 +381,9 @@ pub fn diagnostic_dispatch(
             .ok()
             .filter(|value| *value <= 100)
             .ok_or(ProductError::InvalidSettings)?;
-        native.minimum_interval = Duration::from_millis(milliseconds);
+        native.minimum_interval = native
+            .minimum_interval
+            .max(Duration::from_millis(milliseconds));
         println!("Diagnostic minimum interval: {milliseconds} ms");
     }
     let expansion = Expansion {
@@ -386,6 +407,21 @@ pub fn diagnostic_dispatch(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn modern_notepad_type_is_paced_without_slowing_paste_or_classic_edit() {
+        assert_eq!(
+            compatibility_interval("RichEditD2DPT", InsertionMode::Type),
+            Duration::from_millis(100)
+        );
+        assert_eq!(
+            compatibility_interval("RichEditD2DPT", InsertionMode::Paste),
+            Duration::ZERO
+        );
+        assert_eq!(
+            compatibility_interval("EDIT", InsertionMode::Type),
+            Duration::ZERO
+        );
+    }
     #[test]
     fn password_style_bit_is_only_interpreted_for_edit_controls() {
         assert!(password_style("Edit", ES_PASSWORD as u32));

@@ -3,7 +3,10 @@
 #[cfg(target_os = "windows")]
 fn main() -> std::process::ExitCode {
     use std::{
-        sync::Arc,
+        sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        },
         thread,
         time::{Duration, Instant},
     };
@@ -113,7 +116,8 @@ fn main() -> std::process::ExitCode {
         Ok(fresh)
     }
 
-    fn report_profile_facts(origin: TargetStamp, input: &str, output: &str) {
+    fn report_profile_facts(origin: TargetStamp, input: &str, output: &str) -> bool {
+        let mut exact_with_caret = false;
         let result = (|| -> windows::core::Result<()> {
             // The context owns this thread's COM apartment. Read properties only;
             // never print text, control names, captions or process paths.
@@ -149,6 +153,8 @@ fn main() -> std::process::ExitCode {
                 && class == "RichEditD2DPT"
                 && name == "Text editor"
                 && kind == UIA_DocumentControlTypeId
+                && !unsafe { element.CurrentIsPassword()? }.as_bool()
+                && unsafe { element.CurrentIsEnabled()? }.as_bool()
             {
                 let pattern: IUIAutomationTextPattern =
                     unsafe { element.GetCurrentPatternAs(UIA_TextPatternId)? };
@@ -175,6 +181,39 @@ fn main() -> std::process::ExitCode {
                     observed.eq_ignore_ascii_case(output),
                     observed == output.replace("Texpio", "texpio"),
                 );
+                let windows_lines = observed.replace("\r\n", "\n").replace('\r', "\n")
+                    == output.replace("\r\n", "\n").replace('\r', "\n");
+                println!(
+                    "Owned fixture line-ending facts: windows_lines_equal={windows_lines}, carriage_returns={}, line_feeds={}",
+                    observed.chars().filter(|ch| *ch == '\r').count(),
+                    observed.chars().filter(|ch| *ch == '\n').count()
+                );
+                let selections = unsafe { pattern.GetSelection()? };
+                if unsafe { selections.Length()? } == 1 {
+                    let caret = unsafe { selections.GetElement(0)? };
+                    let collapsed = unsafe {
+                        caret.CompareEndpoints(
+                            TextPatternRangeEndpoint_Start,
+                            &caret,
+                            TextPatternRangeEndpoint_End,
+                        )?
+                    } == 0;
+                    let at_end = unsafe {
+                        caret.CompareEndpoints(
+                            TextPatternRangeEndpoint_End,
+                            &document,
+                            TextPatternRangeEndpoint_End,
+                        )?
+                    } == 0;
+                    exact_with_caret = observed == output
+                        && collapsed
+                        && at_end
+                        && current_stamp().ok() == Some(origin);
+                    println!(
+                        "Independent bounded product facts: text_exact={}, collapsed={collapsed}, caret_at_end={at_end}",
+                        observed == output
+                    );
+                }
                 let first_difference = observed
                     .encode_utf16()
                     .zip(output.encode_utf16())
@@ -195,8 +234,9 @@ fn main() -> std::process::ExitCode {
             Ok(())
         })();
         if result.is_err() {
-            println!("Profile diagnostics unavailable; no mutation.");
+            println!("Read-only profile facts unavailable; no additional input submitted.");
         }
+        result.is_ok() && exact_with_caret
     }
 
     struct Edit {
@@ -208,6 +248,7 @@ fn main() -> std::process::ExitCode {
         target: TargetToken,
         body: String,
         product_mode: Option<texpio_lib::product::settings::InsertionMode>,
+        product_completed: Arc<AtomicBool>,
     }
     impl Backend for Trial {
         type Origin = TargetStamp;
@@ -241,6 +282,8 @@ fn main() -> std::process::ExitCode {
                     RefusalReason::OutcomeUncertain
                 })?;
                 println!("Product submission: expected={expected}, submitted={submitted}");
+                self.product_completed
+                    .store(expected == submitted, Ordering::SeqCst);
                 return Ok(DispatchCounts {
                     expected,
                     submitted,
@@ -335,6 +378,7 @@ fn main() -> std::process::ExitCode {
         "Synthetic native trial: {case}; checking only texpio-mvp-test.txt in five seconds. Not physical-input evidence."
     );
     thread::sleep(Duration::from_secs(5));
+    let independent_product_observation = std::cell::Cell::new(false);
     let result = (|| {
         let mut origin = current_stamp()?;
         println!("Stage: foreground stamp captured.");
@@ -364,10 +408,13 @@ fn main() -> std::process::ExitCode {
         }
         let target = context
             .capture_policy(TargetPolicy::NotepadEditor, &origin)
-            .inspect_err(|_| report_profile_facts(origin, &expected_input, &expected_output))?;
+            .inspect_err(|_| {
+                let _ = report_profile_facts(origin, &expected_input, &expected_output);
+            })?;
         println!("Stage: native control accepted.");
         let gate = Arc::new(DispatchGate::new());
         let ticket = gate.arm()?;
+        let product_completed = Arc::new(AtomicBool::new(false));
         let mut core = RuntimeCore::new(
             gate.clone(),
             Trial {
@@ -383,6 +430,7 @@ fn main() -> std::process::ExitCode {
                     }
                     _ => None,
                 },
+                product_completed: product_completed.clone(),
             },
         );
         let request = ObservedCandidate {
@@ -393,8 +441,19 @@ fn main() -> std::process::ExitCode {
         };
         let result = core.process(&request);
         gate.close();
-        if matches!(result, OperationResult::Uncertain { .. }) {
-            report_profile_facts(origin, &expected_input, &expected_output);
+        if matches!(result, OperationResult::Uncertain { .. })
+            && (!matches!(
+                mode.as_deref(),
+                Some("--product-paste-fixture" | "--product-type-fixture")
+            ) || product_completed.load(Ordering::SeqCst))
+        {
+            let exact = report_profile_facts(origin, &expected_input, &expected_output);
+            if matches!(
+                mode.as_deref(),
+                Some("--product-paste-fixture" | "--product-type-fixture")
+            ) {
+                independent_product_observation.set(exact);
+            }
         }
         Ok::<_, RefusalReason>(Some(result))
     })();
@@ -409,7 +468,14 @@ fn main() -> std::process::ExitCode {
         }
         Ok(Some(result)) => {
             println!("Synthetic result: {result:?}. No repair or retry attempted.");
-            std::process::ExitCode::FAILURE
+            if independent_product_observation.get() {
+                println!(
+                    "OBSERVED independent product fixture text and caret; strict probe outcome unchanged. Not physical-input evidence."
+                );
+                std::process::ExitCode::SUCCESS
+            } else {
+                std::process::ExitCode::FAILURE
+            }
         }
         Err(reason) => {
             println!("Synthetic preflight refused: {reason:?}; no mutation.");

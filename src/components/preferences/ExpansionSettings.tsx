@@ -50,7 +50,13 @@ export function ExpansionSettings() {
       <FieldLegend>{t('product.settings')}</FieldLegend>
       {(query.isError || save.isError) && (
         <Alert variant="destructive">
-          <AlertTitle>{t('product.settingsError')}</AlertTitle>
+          <AlertTitle>
+            {t(
+              save.error && 'code' in save.error && save.error.code === 'shortcutUnavailable'
+                ? 'product.error.shortcutUnavailable'
+                : 'product.settingsError',
+            )}
+          </AlertTitle>
         </Alert>
       )}
       <FieldGroup>

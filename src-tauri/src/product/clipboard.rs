@@ -89,39 +89,23 @@ impl PasteBoard {
     }
     pub fn text(&self) -> Result<Option<String>, ProductError> {
         let _locked = self.lock()?;
-        // SAFETY: clipboard is locked, handle lifetime ends before unlocking.
-        unsafe {
-            let Ok(handle) = GetClipboardData(13) else {
-                return Ok(None);
-            };
-            let memory = HGLOBAL(handle.0);
-            let size = GlobalSize(memory);
-            if size > 8 * 1024 * 1024 || !size.is_multiple_of(2) {
-                return Err(ProductError::Clipboard);
-            }
-            let pointer = GlobalLock(memory);
-            if pointer.is_null() {
-                return Err(ProductError::Clipboard);
-            }
-            let units = std::slice::from_raw_parts(pointer.cast::<u16>(), size / 2);
-            let count = units
-                .iter()
-                .position(|unit| *unit == 0)
-                .unwrap_or(units.len());
-            let result = String::from_utf16(&units[..count]).map_err(|_| ProductError::Clipboard);
-            let _ = GlobalUnlock(memory);
-            result.map(Some)
-        }
+        locked_text()
     }
-    pub fn begin_text(&self, text: &str, restore: bool) -> Result<ClipboardLease, ProductError> {
-        self.begin_formats(&[(13, text_bytes(text))], restore)
+    pub fn begin_text(
+        &self,
+        text: &str,
+        restore: bool,
+        require_complete: bool,
+    ) -> Result<ClipboardLease, ProductError> {
+        self.begin_formats(&[(13, text_bytes(text))], restore, require_complete)
     }
     pub fn begin_files(
         &self,
         paths: &[std::path::PathBuf],
         restore: bool,
+        require_complete: bool,
     ) -> Result<ClipboardLease, ProductError> {
-        self.begin_formats(&file_formats(paths)?, restore)
+        self.begin_formats(&file_formats(paths)?, restore, require_complete)
     }
     pub fn replace_text(&self, lease: &mut ClipboardLease, text: &str) -> Result<(), ProductError> {
         self.replace_formats(lease, &[(13, text_bytes(text))])
@@ -138,36 +122,77 @@ impl PasteBoard {
         lease: &mut ClipboardLease,
         formats: &[(u32, Vec<u8>)],
     ) -> Result<(), ProductError> {
-        let _locked = self.lock()?;
+        let locked = self.lock()?;
         unsafe {
-            if lease.sequence == 0 || GetClipboardSequenceNumber() != lease.sequence {
+            if lease.sequence == 0
+                || GetClipboardSequenceNumber() != lease.sequence
+                || GetClipboardOwner().ok() != Some(self.owner)
+            {
                 return Err(ProductError::Clipboard);
             }
             let result = write_formats(formats);
-            lease.sequence = GetClipboardSequenceNumber();
-            result
+            drop(locked);
+            lease.sequence = self.publication_sequence().unwrap_or(0);
+            result.and(if lease.sequence == 0 {
+                Err(ProductError::Clipboard)
+            } else {
+                Ok(())
+            })
         }
     }
     fn begin_formats(
         &self,
         formats: &[(u32, Vec<u8>)],
         restore: bool,
+        require_complete: bool,
     ) -> Result<ClipboardLease, ProductError> {
-        let _locked = self.lock()?;
+        let locked = self.lock()?;
+        if unsafe { GetClipboardSequenceNumber() } == 0 {
+            return Err(ProductError::Clipboard);
+        }
         let snapshot = if restore { Some(capture()?) } else { None };
-        unsafe {
-            if write_formats(formats).is_err() {
-                if let Some(snapshot) = &snapshot {
-                    let _ = restore_snapshot(snapshot);
-                }
-                return Err(ProductError::Clipboard);
+        if require_complete && snapshot.as_ref().is_some_and(|snapshot| !snapshot.complete) {
+            return Err(ProductError::Clipboard);
+        }
+        if write_formats(formats).is_err() {
+            if let Some(snapshot) = &snapshot {
+                let _ = restore_snapshot(snapshot);
             }
-            let incomplete = snapshot.as_ref().is_some_and(|snapshot| !snapshot.complete);
-            Ok(ClipboardLease {
-                snapshot,
-                sequence: GetClipboardSequenceNumber(),
-                incomplete,
-            })
+            return Err(ProductError::Clipboard);
+        }
+        let incomplete = snapshot.as_ref().is_some_and(|snapshot| !snapshot.complete);
+        drop(locked);
+        let sequence = self.publication_sequence()?;
+        Ok(ClipboardLease {
+            snapshot,
+            sequence,
+            incomplete,
+        })
+    }
+    // CloseClipboard can synthesize text formats and advance the sequence.
+    // Read it afterward, then verify our still-live owner HWND. A copy before
+    // that read changes owner; a later copy changes sequence.
+    fn publication_sequence(&self) -> Result<u32, ProductError> {
+        unsafe {
+            let sequence = GetClipboardSequenceNumber();
+            if sequence == 0 || GetClipboardOwner().ok() != Some(self.owner) {
+                Err(ProductError::Clipboard)
+            } else {
+                Ok(sequence)
+            }
+        }
+    }
+    pub fn ensure_owned(&self, lease: &ClipboardLease) -> Result<(), ProductError> {
+        let _locked = self.lock()?;
+        unsafe {
+            if lease.sequence == 0
+                || GetClipboardSequenceNumber() != lease.sequence
+                || GetClipboardOwner().ok() != Some(self.owner)
+            {
+                Err(ProductError::Clipboard)
+            } else {
+                Ok(())
+            }
         }
     }
     pub fn finish(&self, lease: ClipboardLease) -> Result<Option<bool>, ProductError> {
@@ -178,7 +203,10 @@ impl PasteBoard {
         // SAFETY: sequence comparison and restoration occur under the same lock;
         // no newer clipboard writer can be overwritten between them.
         unsafe {
-            if lease.sequence == 0 || GetClipboardSequenceNumber() != lease.sequence {
+            if lease.sequence == 0
+                || GetClipboardSequenceNumber() != lease.sequence
+                || GetClipboardOwner().ok() != Some(self.owner)
+            {
                 return Ok(None);
             }
             restore_snapshot(&snapshot).map(Some)
@@ -247,9 +275,73 @@ pub struct ClipboardLease {
     sequence: u32,
     pub incomplete: bool,
 }
+#[derive(Clone)]
 struct Snapshot {
     entries: Vec<(u32, Vec<u8>)>,
     complete: bool,
+}
+/// Explicit diagnostic only; retains/restores a complete original snapshot and
+/// refuses before writing if any current format cannot be preserved.
+#[cfg(debug_assertions)]
+pub fn diagnostic_formats_complete() -> Result<bool, ProductError> {
+    let board = PasteBoard::new()?;
+    let _locked = board.lock()?;
+    Ok(capture()?.complete)
+}
+#[cfg(debug_assertions)]
+pub fn diagnostic_owned_sequence() -> Result<(u32, u32, bool), ProductError> {
+    let board = PasteBoard::new()?;
+    let locked = board.lock()?;
+    let text = locked_text()?.ok_or(ProductError::Clipboard)?;
+    if !matches!(
+        text.as_str(),
+        "Texpio clipboard fixture" | "Texpio owned clipboard baseline"
+    ) {
+        return Err(ProductError::Clipboard);
+    }
+    write_formats(&[(13, text_bytes(&text))])?;
+    let during = unsafe { GetClipboardSequenceNumber() };
+    drop(locked);
+    let after = unsafe { GetClipboardSequenceNumber() };
+    let owned = unsafe { GetClipboardOwner().ok() == Some(board.owner) };
+    Ok((during, after, owned))
+}
+#[cfg(debug_assertions)]
+pub fn diagnostic_ownership_trial() -> Result<bool, ProductError> {
+    struct Trial {
+        board: PasteBoard,
+        lease: Option<ClipboardLease>,
+    }
+    impl Drop for Trial {
+        fn drop(&mut self) {
+            if let Some(lease) = self.lease.take() {
+                let _ = self.board.finish(lease);
+            }
+        }
+    }
+    let board = PasteBoard::new()?;
+    let original_text = board.text()?;
+    let lease = board.begin_text("Texpio owned clipboard baseline", true, true)?;
+    let stale = ClipboardLease {
+        snapshot: lease.snapshot.clone(),
+        sequence: lease.sequence,
+        incomplete: lease.incomplete,
+    };
+    let mut trial = Trial {
+        board,
+        lease: Some(lease),
+    };
+    trial.board.replace_text(
+        trial.lease.as_mut().ok_or(ProductError::Clipboard)?,
+        "Texpio newer owned copy",
+    )?;
+    let skipped = trial.board.finish(stale)?.is_none();
+    let kept = trial.board.text()?.as_deref() == Some("Texpio newer owned copy");
+    let restored = trial
+        .board
+        .finish(trial.lease.take().ok_or(ProductError::Clipboard)?)?;
+    let text_restored = trial.board.text()? == original_text;
+    Ok(skipped && kept && restored == Some(true) && text_restored)
 }
 // Caller must hold the clipboard lock; allocate every format before emptying it.
 fn restore_snapshot(snapshot: &Snapshot) -> Result<bool, ProductError> {
@@ -346,6 +438,48 @@ fn allocate(bytes: &[u8]) -> Result<HGLOBAL, ProductError> {
         let _ = GlobalUnlock(memory);
         Ok(memory)
     }
+}
+
+// The caller holds the clipboard lock for the complete read.
+fn locked_text() -> Result<Option<String>, ProductError> {
+    // SAFETY: clipboard is locked, handle lifetime ends before unlocking.
+    unsafe {
+        let Ok(handle) = GetClipboardData(13) else {
+            return Ok(None);
+        };
+        let memory = HGLOBAL(handle.0);
+        let size = GlobalSize(memory);
+        if size > 8 * 1024 * 1024 || !size.is_multiple_of(2) {
+            return Err(ProductError::Clipboard);
+        }
+        let pointer = GlobalLock(memory);
+        if pointer.is_null() {
+            return Err(ProductError::Clipboard);
+        }
+        let units = std::slice::from_raw_parts(pointer.cast::<u16>(), size / 2);
+        let count = units
+            .iter()
+            .position(|unit| *unit == 0)
+            .unwrap_or(units.len());
+        let result = String::from_utf16(&units[..count]).map_err(|_| ProductError::Clipboard);
+        let _ = GlobalUnlock(memory);
+        result.map(Some)
+    }
+}
+
+#[cfg(debug_assertions)]
+pub fn diagnostic_prepare_owned_text() -> Result<bool, ProductError> {
+    let board = PasteBoard::new()?;
+    let _locked = board.lock()?;
+    let expected = "Texpio clipboard fixture";
+    if !matches!(
+        locked_text()?.as_deref(),
+        Some("Texpio clipboard fixture" | "Texpio owned clipboard baseline")
+    ) {
+        return Ok(false);
+    }
+    write_formats(&[(13, text_bytes(expected))])?;
+    Ok(true)
 }
 
 #[cfg(test)]

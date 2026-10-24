@@ -397,5 +397,6 @@
   "product.field.toggleShortcut": "Expansion toggle shortcut",
   "product.field.clipboardShortcut": "Clipboard insertion shortcut",
   "product.desktopHelp": "Sign-in launch opens Texpio in the tray. Enable expansion on launch separately. Shortcuts require a modifier; conflicts leave the previous binding active.",
-  "product.clipboardIncomplete": "Some clipboard formats could not be restored."
+  "product.clipboardIncomplete": "Some clipboard formats could not be restored.",
+  "product.error.shortcutUnavailable": "A keyboard shortcut is unavailable. Choose another shortcut in Preferences."
 }

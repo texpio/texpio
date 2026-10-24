@@ -397,5 +397,6 @@
   "product.field.toggleShortcut": "Raccourci d’activation de l’expansion",
   "product.field.clipboardShortcut": "Raccourci d’insertion du presse-papiers",
   "product.desktopHelp": "Le lancement à l’ouverture de session place Texpio dans la zone de notification. Activez l’expansion au lancement séparément. Les raccourcis nécessitent un modificateur ; un conflit conserve le raccourci précédent.",
-  "product.clipboardIncomplete": "Certains formats du presse-papiers n’ont pas pu être restaurés."
+  "product.clipboardIncomplete": "Certains formats du presse-papiers n’ont pas pu être restaurés.",
+  "product.error.shortcutUnavailable": "Un raccourci clavier est indisponible. Choisissez-en un autre dans les préférences."
 }
