@@ -170,18 +170,18 @@ impl PasteBoard {
             })
         }
     }
-    pub fn finish(&self, lease: ClipboardLease) -> Result<bool, ProductError> {
+    pub fn finish(&self, lease: ClipboardLease) -> Result<Option<bool>, ProductError> {
         let Some(snapshot) = lease.snapshot else {
-            return Ok(false);
+            return Ok(None);
         };
         let _locked = self.lock()?;
         // SAFETY: sequence comparison and restoration occur under the same lock;
         // no newer clipboard writer can be overwritten between them.
         unsafe {
             if lease.sequence == 0 || GetClipboardSequenceNumber() != lease.sequence {
-                return Ok(false);
+                return Ok(None);
             }
-            restore_snapshot(&snapshot)
+            restore_snapshot(&snapshot).map(Some)
         }
     }
 }

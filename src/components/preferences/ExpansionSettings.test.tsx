@@ -18,7 +18,7 @@ const settings = {
   cancelKey: 'Escape',
   clipboardEnabled: true,
   clipboardShortcut: 'CmdOrCtrl+Shift+V',
-  clipboardMode: 'type',
+  clipboardMode: 'paste',
   toggleShortcut: 'CmdOrCtrl+Shift+Space',
   autostart: false,
   closeToTray: true,
@@ -55,4 +55,34 @@ it('keeps acknowledged settings and shows an error when a save fails', async () 
   await userEvent.selectOptions(await screen.findByLabelText('Insertion method'), 'type')
   expect(await screen.findByRole('alert')).toBeVisible()
   expect(screen.getByLabelText('Insertion method')).toHaveValue('paste')
+})
+it('persists desktop options and shortcuts without overwriting other settings', async () => {
+  show()
+  await waitFor(() =>
+    expect(screen.getByRole('switch', { name: 'Launch at Windows sign-in' })).toBeEnabled(),
+  )
+  await userEvent.click(screen.getByRole('switch', { name: 'Launch at Windows sign-in' }))
+  await waitFor(() =>
+    expect(native.save).toHaveBeenLastCalledWith({ ...settings, autostart: true }),
+  )
+  await userEvent.click(screen.getByRole('switch', { name: 'Keep running when the window closes' }))
+  await waitFor(() =>
+    expect(native.save).toHaveBeenLastCalledWith({
+      ...settings,
+      autostart: true,
+      closeToTray: false,
+    }),
+  )
+  const shortcut = screen.getByLabelText('Expansion toggle shortcut')
+  await userEvent.clear(shortcut)
+  await userEvent.type(shortcut, 'Ctrl+Alt+T')
+  await userEvent.tab()
+  await waitFor(() =>
+    expect(native.save).toHaveBeenLastCalledWith({
+      ...settings,
+      autostart: true,
+      closeToTray: false,
+      toggleShortcut: 'Ctrl+Alt+T',
+    }),
+  )
 })

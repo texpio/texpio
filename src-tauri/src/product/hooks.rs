@@ -27,6 +27,46 @@ use windows::Win32::{
 };
 
 static HOOK_OWNED: AtomicBool = AtomicBool::new(false);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn lock_keys_keep_initial_toggle_and_do_not_toggle_on_repeat() {
+        let mut keys = [0; 256];
+        keys[VK_CAPITAL.0 as usize] = 1;
+        update_keyboard(&mut keys, VK_CAPITAL.0 as usize, true);
+        assert_eq!(keys[VK_CAPITAL.0 as usize] & 1, 0);
+        update_keyboard(&mut keys, VK_CAPITAL.0 as usize, true);
+        assert_eq!(keys[VK_CAPITAL.0 as usize] & 1, 0);
+        update_keyboard(&mut keys, VK_CAPITAL.0 as usize, false);
+        update_keyboard(&mut keys, VK_CAPITAL.0 as usize, true);
+        assert_eq!(keys[VK_CAPITAL.0 as usize] & 1, 1);
+    }
+    #[test]
+    fn swallowed_cancel_keyup_is_consumed_even_after_effect_finishes() {
+        let engine = super::super::service::ProductEngine::new();
+        engine.shared.active.store(true, Ordering::SeqCst);
+        engine.shared.busy.store(true, Ordering::SeqCst);
+        let (sender, _receiver) = mpsc::sync_channel(1);
+        let mut context = HookContext {
+            shared: engine.shared.clone(),
+            jobs: sender,
+            history: TypedHistory::new(vec![], super::super::matcher::Boundary::Word),
+            settings: ProductSettings::default(),
+            keys: [0; 256],
+            last_target: None,
+            generation: 0,
+            swallowed_cancel: None,
+        };
+        let event = KBDLLHOOKSTRUCT {
+            vkCode: u32::from(VK_ESCAPE.0),
+            ..Default::default()
+        };
+        assert!(on_key(&mut context, event, WM_KEYDOWN));
+        engine.shared.busy.store(false, Ordering::SeqCst);
+        assert!(on_key(&mut context, event, WM_KEYUP));
+    }
+}
 struct Job {
     expansion: Expansion,
     target: TargetStamp,
@@ -40,6 +80,7 @@ struct HookContext {
     keys: [u8; 256],
     last_target: Option<TargetStamp>,
     generation: u64,
+    swallowed_cancel: Option<u16>,
 }
 thread_local! { static CONTEXT: RefCell<Option<HookContext>> = const { RefCell::new(None) }; }
 
@@ -75,6 +116,10 @@ impl HookRuntime {
                         Err(mpsc::RecvTimeoutError::Timeout) => continue,
                         Err(_) => break,
                     };
+                    let _effects = worker_shared
+                        .effects
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner());
                     let resolver = worker_shared
                         .files
                         .lock()
@@ -144,9 +189,10 @@ impl HookRuntime {
                         jobs,
                         history,
                         settings,
-                        keys: [0; 256],
+                        keys: initial_keyboard(),
                         last_target: None,
                         generation,
+                        swallowed_cancel: None,
                     })
                 });
                 // SAFETY: callbacks/TLS stay alive on this thread until both hooks are removed.
@@ -281,6 +327,43 @@ unsafe extern "system" fn mouse_callback(code: i32, message: WPARAM, data: LPARA
     }
     unsafe { CallNextHookEx(None, code, message, data) }
 }
+fn initial_keyboard() -> [u8; 256] {
+    let mut keys = [0; 256];
+    unsafe {
+        if GetKeyboardState(&mut keys).is_err() {
+            for key in [VK_CAPITAL, VK_NUMLOCK, VK_SCROLL] {
+                keys[key.0 as usize] = (GetKeyState(i32::from(key.0)) & 1) as u8;
+            }
+        }
+        for key in [
+            VK_LSHIFT,
+            VK_RSHIFT,
+            VK_LCONTROL,
+            VK_RCONTROL,
+            VK_LMENU,
+            VK_RMENU,
+            VK_LWIN,
+            VK_RWIN,
+        ] {
+            keys[key.0 as usize] = (keys[key.0 as usize] & 1)
+                | if GetAsyncKeyState(i32::from(key.0)) < 0 {
+                    0x80
+                } else {
+                    0
+                };
+        }
+    }
+    keys
+}
+fn update_keyboard(keys: &mut [u8; 256], vk: usize, down: bool) {
+    if matches!(vk, 0x14 | 0x90 | 0x91) && down && keys[vk] & 0x80 == 0 {
+        keys[vk] ^= 1;
+    }
+    keys[vk] = (keys[vk] & 1) | if down { 0x80 } else { 0 };
+    for (generic, left, right) in [(0x10, 0xA0, 0xA1), (0x11, 0xA2, 0xA3), (0x12, 0xA4, 0xA5)] {
+        keys[generic] = (keys[left] | keys[right]) & 0x80;
+    }
+}
 fn on_key(context: &mut HookContext, event: KBDLLHOOKSTRUCT, message: u32) -> bool {
     if !context.shared.active.load(Ordering::SeqCst) {
         return false;
@@ -300,19 +383,21 @@ fn on_key(context: &mut HookContext, event: KBDLLHOOKSTRUCT, message: u32) -> bo
         return false;
     }
     let vk = event.vkCode as usize;
-    if vk == VK_CAPITAL.0 as usize && down {
-        context.keys[vk] ^= 1;
-    }
-    context.keys[vk] = (context.keys[vk] & 1) | if down { 0x80 } else { 0 };
-    for (generic, left, right) in [(0x10, 0xA0, 0xA1), (0x11, 0xA2, 0xA3), (0x12, 0xA4, 0xA5)] {
-        context.keys[generic] = (context.keys[left] | context.keys[right]) & 0x80;
+    update_keyboard(&mut context.keys, vk, down);
+    if up && context.swallowed_cancel == Some(vk as u16) {
+        context.swallowed_cancel = None;
+        return true;
     }
     if context.shared.busy.load(Ordering::SeqCst) {
         if down {
             context.shared.generation.fetch_add(1, Ordering::SeqCst);
         }
         context.history.reset();
-        return down && context.settings.cancel_vk() == Some(vk as u16);
+        let cancel = down && context.settings.cancel_vk() == Some(vk as u16);
+        if cancel {
+            context.swallowed_cancel = Some(vk as u16);
+        }
+        return cancel;
     }
     if !down {
         return false;

@@ -44,6 +44,25 @@ impl SettingsStore {
 mod tests {
     use super::*;
     #[test]
+    fn desktop_settings_survive_independent_appearance_saves() {
+        let root = tempfile::tempdir().unwrap();
+        let store = SettingsStore::new(root.path().into());
+        let settings = ProductSettings {
+            autostart: true,
+            close_to_tray: false,
+            toggle_shortcut: "Ctrl+Alt+T".into(),
+            ..Default::default()
+        };
+        store.save(&settings).unwrap();
+        crate::commands::preferences::PreferencesStore::new(root.path().into())
+            .save_appearance(&crate::types::AppPreferences {
+                theme: crate::types::Theme::Dark,
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(store.load().unwrap(), settings);
+    }
+    #[test]
     fn mode_round_trips_and_corrupt_settings_are_preserved() {
         let directory = tempfile::tempdir().unwrap();
         let store = SettingsStore::new(directory.path().into());

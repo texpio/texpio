@@ -388,5 +388,14 @@
   "dashboard.expansions": "{{count}} completed expansions submitted",
   "dashboard.recent": "Recently used",
   "dashboard.frequent": "Most used",
-  "dashboard.empty": "No expansions recorded yet."
+  "dashboard.empty": "No expansions recorded yet.",
+  "product.field.clipboardMode": "Clipboard insertion method",
+  "product.field.clipboardEnabled": "Enable clipboard shortcut",
+  "product.field.enabled": "Start expansion when Texpio launches",
+  "product.field.autostart": "Launch at Windows sign-in",
+  "product.field.closeToTray": "Keep running when the window closes",
+  "product.field.toggleShortcut": "Expansion toggle shortcut",
+  "product.field.clipboardShortcut": "Clipboard insertion shortcut",
+  "product.desktopHelp": "Sign-in launch opens Texpio in the tray. Enable expansion on launch separately. Shortcuts require a modifier; conflicts leave the previous binding active.",
+  "product.clipboardIncomplete": "Some clipboard formats could not be restored."
 }

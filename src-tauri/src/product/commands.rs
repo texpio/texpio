@@ -6,7 +6,7 @@ use super::{
 };
 use crate::{engine::runtime::ProbeHandle, library_commands::LibraryService};
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 #[tauri::command]
 #[specta::specta]
@@ -78,14 +78,37 @@ pub async fn product_save_settings(
     let settings = settings.inner().clone();
     let engine = engine.inner().clone();
     let service = service.inner().clone();
+    #[cfg(target_os = "windows")]
+    let desktop = app
+        .state::<super::desktop_native::DesktopSettingsActor>()
+        .inner()
+        .clone();
     let saved = tauri::async_runtime::spawn_blocking(move || {
         if !input.validate() {
             return Err(ProductError::InvalidSettings);
         }
+        let previous = settings.load()?;
         let resume = engine.suspend_for_update()?;
-        settings.save(&input)?;
-        if let Some(ticket) = resume {
-            service.start_product_admitted(&engine, input.clone(), ticket)?;
+        #[cfg(target_os = "windows")]
+        let applied = desktop.apply(input.clone()).map(|_| ());
+        #[cfg(not(target_os = "windows"))]
+        let applied = settings.save(&input);
+        if let Err(error) = applied {
+            if let Some(ticket) = resume {
+                let _ = service.start_product_admitted(&engine, previous, ticket);
+            }
+            return Err(error);
+        }
+        if let Some(ticket) = resume
+            && let Err(error) = service.start_product_admitted(&engine, input.clone(), ticket)
+            && error != ProductError::Cancelled
+        {
+            engine
+                .shared
+                .status
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .last_error = Some(error);
         }
         Ok(input)
     })

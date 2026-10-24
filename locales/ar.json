@@ -388,5 +388,14 @@
   "dashboard.expansions": "{{count}} توسعات مكتملة مُرسلة",
   "dashboard.recent": "المستخدمة مؤخرًا",
   "dashboard.frequent": "الأكثر استخدامًا",
-  "dashboard.empty": "لم يُسجل أي توسيع بعد."
+  "dashboard.empty": "لم يُسجل أي توسيع بعد.",
+  "product.field.clipboardMode": "طريقة إدراج الحافظة",
+  "product.field.clipboardEnabled": "تفعيل اختصار الحافظة",
+  "product.field.enabled": "بدء التوسيع عند تشغيل Texpio",
+  "product.field.autostart": "التشغيل عند تسجيل الدخول إلى Windows",
+  "product.field.closeToTray": "الاستمرار عند إغلاق النافذة",
+  "product.field.toggleShortcut": "اختصار تبديل التوسيع",
+  "product.field.clipboardShortcut": "اختصار إدراج الحافظة",
+  "product.desktopHelp": "يُشغّل Texpio في علبة النظام عند تسجيل الدخول. فعّل التوسيع عند التشغيل بشكل منفصل. تتطلب الاختصارات مفتاح تعديل؛ عند التعارض يبقى الاختصار السابق نشطًا.",
+  "product.clipboardIncomplete": "تعذر استعادة بعض صيغ الحافظة."
 }

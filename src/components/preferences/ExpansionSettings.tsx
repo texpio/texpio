@@ -34,6 +34,7 @@ export function ExpansionSettings() {
     { name: 'insertion', values: ['paste', 'type'] },
     { name: 'boundary', values: ['word', 'anywhere'] },
     { name: 'typingSpeed', values: ['fast', 'balanced', 'careful'] },
+    { name: 'clipboardMode', values: ['paste', 'type'] },
     {
       name: 'cancelKey',
       values: [
@@ -74,17 +75,50 @@ export function ExpansionSettings() {
             </NativeSelect>
           </Field>
         ))}
-        {(['preserveTerminator', 'restoreClipboard'] as const).map((name) => (
+        {(
+          [
+            'preserveTerminator',
+            'restoreClipboard',
+            'clipboardEnabled',
+            'enabled',
+            'autostart',
+            'closeToTray',
+          ] as const
+        ).map((name) => (
           <Field key={name} orientation="horizontal">
             <FieldLabel htmlFor={`expansion-${name}`}>{t(`product.field.${name}`)}</FieldLabel>
             <Switch
               id={`expansion-${name}`}
-              checked={query.data?.[name] ?? true}
+              checked={
+                query.data?.[name] ??
+                (name === 'preserveTerminator' ||
+                  name === 'restoreClipboard' ||
+                  name === 'clipboardEnabled' ||
+                  name === 'closeToTray')
+              }
               disabled={disabled}
               onCheckedChange={(value) => update({ [name]: value })}
             />
           </Field>
         ))}
+        {(['toggleShortcut', 'clipboardShortcut'] as const).map((name) => (
+          <Field key={name}>
+            <FieldLabel htmlFor={`expansion-${name}`}>{t(`product.field.${name}`)}</FieldLabel>
+            <Input
+              id={`expansion-${name}`}
+              disabled={disabled}
+              key={query.data?.[name]}
+              defaultValue={query.data?.[name] ?? ''}
+              maxLength={128}
+              onBlur={(event) => {
+                const value = event.currentTarget.value.trim()
+                if (value && value !== query.data?.[name]) update({ [name]: value })
+                else event.currentTarget.value = query.data?.[name] ?? ''
+              }}
+            />
+          </Field>
+        ))}
+        <p className="text-xs text-muted-foreground">{t('product.desktopHelp')}</p>
         <Field>
           <FieldLabel htmlFor="expansion-delay">{t('product.field.attachmentDelayMs')}</FieldLabel>
           <Input
@@ -105,7 +139,7 @@ export function ExpansionSettings() {
           />
         </Field>
       </FieldGroup>
-      {query.data?.insertion === 'type' && (
+      {(query.data?.insertion === 'type' || query.data?.clipboardMode === 'type') && (
         <Alert>
           <AlertDescription>{t('product.typeNotice')}</AlertDescription>
         </Alert>

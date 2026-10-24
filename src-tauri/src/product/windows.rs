@@ -17,10 +17,14 @@ use std::{
 };
 use windows::Win32::UI::{
     Input::KeyboardAndMouse::*,
-    WindowsAndMessaging::{ES_PASSWORD, GWL_STYLE, GetWindowLongPtrW},
+    WindowsAndMessaging::{ES_PASSWORD, GWL_STYLE, GetClassNameW, GetWindowLongPtrW},
 };
 
 pub const PRODUCT_MARKER: usize = 0x54585056;
+fn password_style(class: &str, style: u32) -> bool {
+    (class.eq_ignore_ascii_case("edit") || class.to_ascii_lowercase().starts_with("richedit"))
+        && style & ES_PASSWORD as u32 != 0
+}
 
 fn event(vk: VIRTUAL_KEY, scan: u16, flags: KEYBD_EVENT_FLAGS) -> INPUT {
     INPUT {
@@ -87,15 +91,20 @@ impl NativeEdit {
         let cancel = settings.cancel_vk().ok_or(ProductError::InvalidSettings)?;
         // SAFETY: read-only modifier/cancel and control style observations.
         let armed_cancel = unsafe { GetAsyncKeyState(i32::from(cancel)) >= 0 };
-        if unsafe {
+        let focused = windows::Win32::Foundation::HWND(target.focused_window as *mut _);
+        let mut class = [0u16; 256];
+        let length = unsafe { GetClassNameW(focused, &mut class) };
+        if length <= 0 {
+            return Err(ProductError::Unavailable);
+        }
+        let class = String::from_utf16_lossy(&class[..length as usize]);
+        let style = unsafe {
             GetWindowLongPtrW(
                 windows::Win32::Foundation::HWND(target.focused_window as *mut _),
                 GWL_STYLE,
             )
-        } as u32
-            & ES_PASSWORD as u32
-            != 0
-        {
+        } as u32;
+        if password_style(&class, style) {
             return Err(ProductError::Unavailable);
         }
         Ok(Self {
@@ -188,7 +197,9 @@ impl NativeEdit {
     fn finish_clipboard(&mut self) -> Result<(), ProductError> {
         if let (Some(board), Some(lease)) = (self.board.as_ref(), self.lease.take()) {
             self.clipboard_incomplete |= lease.incomplete;
-            let _ = board.finish(lease)?;
+            if let Some(complete) = board.finish(lease)? {
+                self.clipboard_incomplete |= !complete;
+            }
         }
         Ok(())
     }
@@ -375,6 +386,13 @@ pub fn diagnostic_dispatch(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn password_style_bit_is_only_interpreted_for_edit_controls() {
+        assert!(password_style("Edit", ES_PASSWORD as u32));
+        assert!(password_style("RICHEDIT50W", ES_PASSWORD as u32));
+        assert!(!password_style("CustomWidget", ES_PASSWORD as u32));
+        assert!(!password_style("Edit", 0));
+    }
     #[test]
     fn encoding_keeps_supplementary_scalar_pairs_together_and_tabs_literal() {
         let emoji = character('👋');

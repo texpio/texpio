@@ -25,9 +25,23 @@ mod lifecycle_tests {
             || calls.borrow_mut().push("exit"),
         );
         assert_eq!(*calls.borrow(), vec!["stop", "exit"]);
-        assert_eq!(close_behavior("main"), CloseBehavior::Hide);
-        assert_eq!(close_behavior("quick-pane"), CloseBehavior::Hide);
-        assert_eq!(close_behavior("other"), CloseBehavior::Default);
+        assert_eq!(close_behavior("main", true), CloseBehavior::Hide);
+        assert_eq!(close_behavior("quick-pane", true), CloseBehavior::Hide);
+        assert_eq!(close_behavior("other", true), CloseBehavior::Default);
+    }
+    #[test]
+    fn startup_and_close_options_are_explicit_without_starting_hooks() {
+        assert_eq!(close_behavior("main", false), CloseBehavior::Quit);
+        assert_eq!(close_behavior("quick-pane", false), CloseBehavior::Hide);
+        assert!(!super::lifecycle::hidden_startup(["file--hidden".into()]));
+        assert!(super::lifecycle::hidden_startup(["--hidden".into()]));
+        assert_eq!(
+            super::lifecycle::startup_command(std::path::Path::new(
+                "C:\\Program Files\\Texpio\\texpio.exe"
+            ))
+            .unwrap(),
+            "\"C:\\Program Files\\Texpio\\texpio.exe\" --hidden"
+        );
     }
 }
 #[cfg(test)]
@@ -57,10 +71,21 @@ pub fn run() {
             }
         }))
         .on_window_event(|window, event| {
-            if lifecycle::close_behavior(window.label()) == lifecycle::CloseBehavior::Hide
-                && let tauri::WindowEvent::CloseRequested { api, .. } = event
-            {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let close_to_tray = window
+                    .app_handle()
+                    .try_state::<std::sync::Arc<product::store::SettingsStore>>()
+                    .and_then(|store| store.load().ok())
+                    .is_none_or(|settings| settings.close_to_tray);
+                let behavior = lifecycle::close_behavior(window.label(), close_to_tray);
+                if behavior == lifecycle::CloseBehavior::Default {
+                    return;
+                }
                 api.prevent_close();
+                if behavior == lifecycle::CloseBehavior::Quit {
+                    desktop::request_quit(window.app_handle());
+                    return;
+                }
                 let result = if window.label() == "quick-pane" {
                     commands::quick_pane::dismiss_quick_pane(window.app_handle().clone())
                         .map_err(|_| ())
@@ -146,6 +171,13 @@ pub fn run() {
                 // Window failure and shortcut conflict cannot prevent the main app from starting.
                 let _ = commands::quick_pane::init(app.handle());
                 commands::quick_pane::start_shortcut_worker(app.handle(), preferences);
+                #[cfg(target_os = "windows")]
+                app.manage(product::desktop_native::DesktopSettingsActor::start(
+                    app.handle(),
+                ));
+                if !lifecycle::hidden_startup(std::env::args_os().skip(1)) {
+                    desktop::show_main_window(app.handle())?;
+                }
             }
             Ok(())
         })
@@ -158,6 +190,15 @@ pub fn run() {
             std::process::exit(1)
         })
         .run(|app, event| {
+            #[cfg(target_os = "windows")]
+            if matches!(
+                event,
+                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+            ) && let Some(desktop) =
+                app.try_state::<product::desktop_native::DesktopSettingsActor>()
+            {
+                desktop.shutdown();
+            }
             if matches!(event, tauri::RunEvent::Exit)
                 && let Some(library) =
                     app.try_state::<std::sync::Arc<library_commands::LibraryService>>()

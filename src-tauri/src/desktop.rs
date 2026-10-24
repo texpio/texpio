@@ -52,6 +52,22 @@ pub fn show_main_window(app: &AppHandle) -> tauri::Result<()> {
     window.set_focus()?;
     Ok(())
 }
+pub fn request_quit(app: &AppHandle) {
+    crate::lifecycle::stop_then_exit(
+        || {
+            if let Some(engine) = app.try_state::<Arc<ProductEngine>>() {
+                engine.stop();
+            }
+            if let Some(probe) = app.try_state::<Arc<ProbeHandle>>() {
+                probe.stop();
+            }
+        },
+        || {
+            let _ = show_main_window(app);
+            let _ = app.emit_to("main", "quit-requested", ());
+        },
+    );
+}
 
 pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Open Texpio", true, None::<&str>)?;

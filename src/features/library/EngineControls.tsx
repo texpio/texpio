@@ -98,6 +98,11 @@ export function EngineControls({
         </div>
       </div>
       <p className="text-xs text-muted-foreground">{t('library.support')}</p>
+      {status.data?.clipboardIncomplete && (
+        <Alert>
+          <AlertDescription>{t('product.clipboardIncomplete')}</AlertDescription>
+        </Alert>
+      )}
       {(error || status.data?.lastError) && (
         <Alert variant="destructive">
           <AlertTitle>{t('library.engineNotice')}</AlertTitle>

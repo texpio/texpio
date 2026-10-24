@@ -52,3 +52,8 @@ it('does not offer Start when the saved library has no enabled non-trash snippet
   await userEvent.click(start)
   expect(native.start).not.toHaveBeenCalled()
 })
+it('discloses incomplete clipboard restoration separately from expansion submission', async () => {
+  native.status.mockResolvedValue({ ...stopped, clipboardIncomplete: true })
+  show()
+  expect(await screen.findByText('Some clipboard formats could not be restored.')).toBeVisible()
+})

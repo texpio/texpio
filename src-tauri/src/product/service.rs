@@ -31,6 +31,7 @@ pub(crate) struct Shared {
     pub status: Mutex<ProductStatus>,
     pub used: Mutex<Option<UsageRecorder>>,
     pub files: Mutex<Option<FileResolver>>,
+    pub effects: Mutex<()>,
 }
 type UsageRecorder = Arc<dyn Fn(&str) + Send + Sync>;
 type FileResolver =
@@ -47,6 +48,28 @@ impl Default for ProductEngine {
     }
 }
 impl ProductEngine {
+    pub(crate) fn suspend_admitted(
+        &self,
+        admission: u64,
+    ) -> Result<(Option<u64>, u64), ProductError> {
+        let (status, ticket, running) = self
+            .stop_checked(Some(admission))
+            .ok_or(ProductError::Cancelled)?;
+        let publication = self
+            .publication
+            .lock()
+            .map_err(|_| ProductError::Unavailable)?;
+        if *publication != ticket {
+            return Err(ProductError::Cancelled);
+        }
+        if status.phase != ProductPhase::Stopped || self.shared.active.load(Ordering::SeqCst) {
+            return Err(ProductError::Busy);
+        }
+        Ok((
+            running.then_some(ticket),
+            self.shared.generation.load(Ordering::SeqCst),
+        ))
+    }
     pub fn new() -> Self {
         Self {
             publication: Mutex::new(0),
@@ -57,6 +80,7 @@ impl ProductEngine {
                 status: Mutex::new(ProductStatus::default()),
                 used: Mutex::new(None),
                 files: Mutex::new(None),
+                effects: Mutex::new(()),
             }),
             #[cfg(target_os = "windows")]
             runtime: Mutex::new(None),
@@ -183,8 +207,15 @@ impl ProductEngine {
         self.stop_inner().0
     }
     fn stop_inner(&self) -> (ProductStatus, u64, bool) {
+        self.stop_checked(None)
+            .unwrap_or_else(|| (self.status(), self.admission(), false))
+    }
+    fn stop_checked(&self, expected: Option<u64>) -> Option<(ProductStatus, u64, bool)> {
         let (ticket, running) = {
             let mut publication = self.publication.lock().unwrap_or_else(|p| p.into_inner());
+            if expected.is_some_and(|expected| expected != *publication) {
+                return None;
+            }
             *publication = publication.wrapping_add(1);
             let running = self.shared.active.swap(false, Ordering::SeqCst);
             self.shared.generation.fetch_add(1, Ordering::SeqCst);
@@ -209,7 +240,7 @@ impl ProductEngine {
         let publication = self.publication.lock().unwrap_or_else(|p| p.into_inner());
         let mut status = self.shared.status.lock().unwrap_or_else(|p| p.into_inner());
         if *publication != ticket || self.shared.active.load(Ordering::SeqCst) {
-            return (status.clone(), ticket, running);
+            return Some((status.clone(), ticket, running));
         }
         status.phase = if stopped {
             ProductPhase::Stopped
@@ -221,7 +252,7 @@ impl ProductEngine {
         } else {
             Some(ProductError::Busy)
         };
-        (status.clone(), ticket, running)
+        Some((status.clone(), ticket, running))
     }
 }
 impl Drop for ProductEngine {
@@ -233,6 +264,20 @@ impl Drop for ProductEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn delayed_clipboard_request_cannot_run_after_stop() {
+        let engine = ProductEngine::new();
+        let request = engine.admission();
+        engine.stop();
+        assert_eq!(
+            engine.suspend_admitted(request),
+            Err(ProductError::Cancelled)
+        );
+        let current = engine.admission();
+        let (_, input) = engine.suspend_admitted(current).unwrap();
+        engine.stop();
+        assert_ne!(engine.shared.generation.load(Ordering::SeqCst), input);
+    }
     #[test]
     fn edit_suspension_never_restarts_an_engine_that_was_already_stopped() {
         let engine = ProductEngine::new();

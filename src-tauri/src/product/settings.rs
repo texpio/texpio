@@ -58,7 +58,7 @@ impl Default for ProductSettings {
             cancel_key: "Escape".into(),
             clipboard_enabled: true,
             clipboard_shortcut: "CmdOrCtrl+Shift+V".into(),
-            clipboard_mode: InsertionMode::Type,
+            clipboard_mode: InsertionMode::Paste,
             toggle_shortcut: "CmdOrCtrl+Shift+Space".into(),
             autostart: false,
             close_to_tray: true,
@@ -103,6 +103,7 @@ mod tests {
         assert!(!settings.enabled);
         assert!(!settings.autostart);
         assert_eq!(settings.insertion, InsertionMode::Paste);
+        assert_eq!(settings.clipboard_mode, InsertionMode::Paste);
         assert_eq!(settings.cancel_vk(), Some(0x1B));
         assert_eq!(settings.typing_speed.events_per_second(), 300);
         assert_eq!(

@@ -15,13 +15,13 @@ Reference: [design](../superpowers/specs/2026-10-24-windows-v1-design.md), Ampel
 | JSON backup/import | Implemented | Transaction/round-trip tests; selected-file native checks pending |
 | YAML/archive/import replace/recovery | Implemented, acceptance pending | JSON/YAML text+metadata, ZIP attachment bytes, one-shot preview tokens and explicit merge/replace. Corrupt DB/WAL/SHM preservation tests pass; actual-app dialogs still need acceptance |
 | Shared/personal switch/external refresh | Implemented, acceptance pending | Local-drive selection, atomic persisted routing, stale-save/attachment fencing and SQLite data-version watch tested; actual-app switch check pending |
-| Tray/close/single instance | Partial | Hide/restore passed; configurable behavior/toggle pending |
-| Autostart hidden/expansion hotkey | Planned | Existing quick-picker shortcut retained |
-| Product preferences | Partial | Insertion/boundary/terminator/restore/speed/cancel/delay controls implemented in existing dialog; persistence/failure tests pass. Hotkey/startup/data settings pending |
+| Tray/close/single instance | Implemented, acceptance pending | Existing tray/single-instance retained; close-to-tray preference sends Quit through the draft guard when disabled |
+| Autostart hidden/expansion hotkey | Implemented, acceptance pending | Configurable expansion/clipboard shortcuts, transactional conflict rollback, opt-in per-user hidden startup and separate enable-on-launch setting; fake-backend/lifecycle tests pass |
+| Product preferences | Partial | Insertion/boundary/terminator/restore/speed/cancel/delay controls implemented in existing dialog; persistence/failure tests pass. Hotkey/startup/data-location controls implemented; native acceptance pending |
 | Explicit Copy picker | Implemented | Actual clipboard/focus/Escape checks passed |
 | Manual update/diagnostics | Partial | Existing configured updater and redacted diagnostics retained |
 | Windows packaging | Implemented baseline | Executable/MSI/NSIS build at 84fefd6; rebuild after implementation |
 
 This tracker records v1 delivery, independently of strict Developer/P0 physical qualification and macOS/Linux research.
 
-Current checkpoint verification: `bun run check:all` passed **148 frontend tests, 149 Rust tests**, plus tooling/static checks after task 7. Matching/effects/settings and migration tests demonstrated failing-then-passing behavior. Native app lifecycle acceptance used an isolated identifier and no typed input; all owned connections/processes ended afterward. No claim that all rows are complete.
+Current checkpoint verification: `bun run check:all` passed **150 frontend tests, 158 Rust tests**, plus tooling/static checks after task 8 core. Matching/effects/settings and migration tests demonstrated failing-then-passing behavior. Native app lifecycle acceptance used an isolated identifier and no typed input; all owned connections/processes ended afterward. No claim that all rows are complete.
