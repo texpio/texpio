@@ -90,6 +90,14 @@ pub async fn prepare_for_relaunch(
     confirm_stopped(phase)
 }
 
+/// Main-window acknowledgement after its unsaved-draft confirmation.
+#[tauri::command]
+#[specta::specta]
+pub fn quit_app(app: AppHandle) -> Result<(), RefusalReason> {
+    app.exit(0);
+    Ok(())
+}
+
 #[derive(Clone, Copy, Deserialize, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub enum DiagnosticEvent {

@@ -35,6 +35,7 @@ fn main() {
             "update_quick_pane_shortcut",
             "get_update_configuration",
             "prepare_for_relaunch",
+            "quit_app",
             "record_diagnostic",
         ])),
     )

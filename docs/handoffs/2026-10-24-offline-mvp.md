@@ -2,6 +2,8 @@
 
 24 October 2026 · Checkpoint for continuation on another PC
 
+**Continuation update:** the final section records work after `d2f6d09`: toolchain setup, whole-change review/fixes, actual-app checks, new native isolation evidence and Espanso/Snipt/Ampello source research. Read that section before treating the older checkpoint's pending items as current.
+
 ## Objective and authorization
 
 Continue building a working Windows offline MVP of Texpio, an open-source local-first text expander. The user chose an **independent Rust engine modeled on Espanso's architecture**, retaining the existing Tauri/React/shadcn shell. They requested autonomous implementation while offline, authorized app testing, and subsequently explicitly requested committing/pushing all current changes and a handoff for another PC. Native execution in the current checkout and commit/push are authorized. Do not repeat completed naming, starter, architecture-choice or plan-approval conversations. Work remains incomplete; this is a checkpoint rather than release acceptance.
@@ -110,3 +112,40 @@ The original full check run passed 133 frontend tests, 109 Rust tests, 11 toolin
 A fresh full checkpoint `bun run check:all` passed before commit/push: **135 frontend tests across 27 files; 109 Rust tests; 11 tooling tests; one loopback fixture test; six ast-grep groups**. TypeScript, ESLint, AST lint, Prettier on its configured files, rustfmt and strict all-targets Clippy passed. The diagnostic helper is compiled by those checks; its synthetic native trials remain the failures described above. `git diff --check` and 107 local links across nine changed documents passed; the new handoff index link was checked afterward.
 
 The local debug executable is 30,489,600 bytes, SHA256 `F3B3987072A64488601D088D9A10F42D1EA2E215739EBBA0055496F6D6742F89`. It is ignored and not pushed. New checkouts must rebuild it. This digest does not turn a compiled app into native acceptance. Remote CI and whole-change review remain unverified/pending.
+
+## Continuation after d2f6d09
+
+The new PC checkout and remote matched `d2f6d097b779a4f665f5f04c551a84013b42b81c` before changes. Windows 11 Home Single Language build 26300, x64; Notepad 11.2607.14.0; WebView2 155.0.4283.62. Node 24.18.0, Bun 1.4.4 and Rust 1.99.1/rustfmt/Clippy are installed under ignored `.tools`; Visual Studio Build Tools 17.14.37806.7 and SDK 10.0.26100.0 installed successfully. The local `.tools/texpio-env.ps1` sets the process-local PATH and local Rust homes. Dot-source it before commands on this PC; recreate equivalent configuration on another PC. Frozen installation passed without changing dependency versions or lockfiles. Rust mirror archives matched official SHA-256 sidecars.
+
+### Review and application work already completed
+
+An independent read-only whole-change review covered `ee0ee96..d2f6d09`. Important findings were fixed with demonstrated failing-then-passing regressions:
+
+- A cancellation generation and short publication lock prevent a Resume admitted before Stop/library invalidation from arming or publishing a stale session. Provider calls, worker initialization/shutdown and native dispatch remain outside the short lock.
+- Native tray Quit stops observation and requests renderer acknowledgement; the existing draft dialog gates a main-only typed Quit command. Update installation and explicit restart await the same transient draft guard. Missing renderer acknowledgement leaves the app alive.
+
+The proposed Important conflict-recovery finding was withdrawn after Duplicate was verified to preserve the draft with a new ID/current revision. One minor wording follow-up remains for its discard confirmation. The security guide's stale clipboard capability description was corrected. Do not repeat the completed whole-change review solely because the older section says it is pending.
+
+A debug acceptance build used identifier `io.github.texpio.texpio.acceptance`, isolating its real SQLite data from the normal product library. Bounded loopback-only WebView2 checks, real native IPC and read-only native visibility checks passed Unicode save/restart; disabled duplicate; trash/restore; Quit cancel preserving a draft; confirmed discard/process exit; main and picker clipboard Copy; picker search focus/Copy/Escape hiding; main close-to-hide; and second-launch restoration. All owned test connections/processes ended and the engine was never armed. Incorrect initial selectors/visibility predicates were corrected in the harness, not counted as product defects. Physical tray gestures and selected-file dialog/scope checks remain open.
+
+### Current native blocker and strongest evidence
+
+The native helper now supports `--inspect-only` and `--prepare-fixture`. Preparation requires the exact caption and entire fixed synthetic input, selects one visible strict-profile editor, focuses it and collapses its caret; it changes no text. The real pipeline then retains every target/caret/suffix/composition/password/integrity/layout check. All helper runs have bounded parent deadlines, no hooks and no repair/replay.
+
+Fresh Notepad trials fully submitted input but failed exact output: greeting 52/52 events, accent 42/42. The first greeting had 19 UTF-16 units, first difference at offset 11; the exact owned-window capture showed `Tex` changed to `xxx`. After the user said they shut TextExpander down, zero TextExpander processes were verified and a **fresh** greeting still failed after 52/52 submission, first difference at offset 0. TextExpander was not restarted. **TextExpander alone does not explain this failure.** Other running software was not changed or blamed. Preserve failed fixtures; do not replay them.
+
+The new explicit `unicode_receiver_trial --owned-receiver` creates only its own standard Win32 EDIT and sends the same 52-event combined deletion/output sequence. Its final run passed: 19 exact WM_CHAR units and 19 exact final control units, no cancellation; its window closed and process exited. An initial fixture caret error was fixed to 7/7 and explicitly checked. This isolates successful basic Windows delivery but does not establish Notepad's root cause or universal app support. Product `windows/unicode.rs` was not changed during this diagnosis. Notepad automatic expansion remains failing/unqualified, and physical trials remain **0/300**.
+
+### Requested source research
+
+Read the committed [Espanso/Snipt comparison](../research/cross-platform-expansion-source-comparison.md) and [Ampello audit](../research/ampello-source-audit.md). Ignored source references are pinned: Espanso v2.4.1 `a87d1723f47a59e38d370e2f0c636d66d568b8f6`; development HEAD `fb90347ec0bdfceb0ea5cf1a1b36280fa2961463`; Snipt `dc5476049d3d0470c2c3685da3db6e62a71524bf`; Ampello `c6ba8ea4a227b063df945597d1223f43f6e2f074`. Snipt's Enigo 0.3.0/rdev 0.5.3 published source checksums matched its lockfile. No upstream app/build/test was run, no runtime source was copied and no product dependencies changed.
+
+Ampello is the closest Tauri/React/Rust/SQLite reference. Windows defaults to paste; Type uses separate deletion and paced scalar-sized SendInput calls, marked-event metering and cancellation. Its target checks/output guarantees are weaker than ours, and Linux explicitly refuses Wayland. These mechanisms provide controlled experimental variables, not a proven native fix. Preserve exact output verification, no blind fallback/repair and separate OS capability matrices. The independent-engine and Windows-first decisions remain in force.
+
+The next native investigation should vary one factor on a new disposable fixture and compare Notepad/control behavior: combined versus separated deletion, paced delivery, and receiver message flow. Do not silently enable a multi-batch or clipboard product strategy from upstream source alone. Keep the computer available and close only task-owned helpers/connections.
+
+### Verified continuation builds
+
+The final full `bun run check:all` passed **138 frontend/111 Rust tests**, plus 11 tooling tests, one loopback fixture, six AST groups, TypeScript/ESLint/Prettier/rustfmt and all-targets Clippy. The final owned receiver run passed separately; ordinary checks never sent native input. Whitespace checks and 88 local document links passed.
+
+Debug acceptance and optimized normal-identifier builds passed. The release command `bun run tauri build -- --locked` exited successfully and produced both MSI and NSIS installers. Exact artifact sizes/hashes are in the [acceptance record](../research/offline-mvp-acceptance.md). NSIS's stalled download was resolved with checksum-verified pinned cache files, without changing dependencies. Installers have not been installed/tested or signed. The normal release executable is now the continuation MVP, superseding the old template executable described earlier. Native expansion, physical campaigns, file-dialog scopes, physical tray gestures, signing and remote CI remain open.

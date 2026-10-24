@@ -1,7 +1,7 @@
 use crate::engine::{runtime::ProbeHandle, types::ProbePhase};
 use std::sync::Arc;
 use tauri::{
-    AppHandle, Manager,
+    AppHandle, Emitter, Manager,
     menu::{Menu, MenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
 };
@@ -92,7 +92,12 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
                             handle.stop();
                         }
                     },
-                    || app.exit(0),
+                    || {
+                        // Keep the app alive if the renderer is unavailable or its
+                        // listener is not ready. Only main can acknowledge Quit.
+                        let _ = show_main_window(app);
+                        let _ = app.emit_to("main", "quit-requested", ());
+                    },
                 );
             }
             _ => {}

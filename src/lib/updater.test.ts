@@ -1,6 +1,8 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
+import { waitFor } from '@testing-library/react'
+import { registerExitGuard } from './exit-guard'
 import {
   checkForUpdates,
   getUpdateConfiguration,
@@ -93,9 +95,24 @@ it('awaits Stop before explicit relaunch', async () => {
   )
   const pending = safeRelaunch()
   expect(relaunch).not.toHaveBeenCalled()
+  await waitFor(() => expect(native.stop).toHaveBeenCalled())
   release({ status: 'ok', data: null })
   await pending
   expect(relaunch).toHaveBeenCalledOnce()
+})
+it('cancelling the draft guard prevents both restart and update installation', async () => {
+  const unregister = registerExitGuard(async () => false)
+  try {
+    native.configuration.mockResolvedValue({ configured: true })
+    await checkForUpdates()
+    await expect(safeRelaunch()).resolves.toEqual({ success: false, code: 'unavailable' })
+    await expect(installUpdate()).resolves.toEqual({ success: false, code: 'unavailable' })
+    expect(native.stop).not.toHaveBeenCalled()
+    expect(relaunch).not.toHaveBeenCalled()
+    expect(update.install).not.toHaveBeenCalled()
+  } finally {
+    unregister()
+  }
 })
 it('keeps raw updater failures out of public results', async () => {
   native.configuration.mockResolvedValue({ configured: true })

@@ -33,6 +33,7 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         quick_pane::update_quick_pane_shortcut,
         lifecycle::get_update_configuration,
         lifecycle::prepare_for_relaunch,
+        lifecycle::quit_app,
         lifecycle::record_diagnostic,
     ])
 }

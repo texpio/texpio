@@ -2,6 +2,7 @@ import { isTauri } from '@tauri-apps/api/core'
 import { check, type Update, type DownloadEvent } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
 import { commands, requireDesktop, unwrapResult } from './tauri-bindings'
+import { approveExit } from './exit-guard'
 export type UpdateCheckResult =
   | { status: 'unconfigured' }
   | { status: 'no-update' }
@@ -71,6 +72,7 @@ export async function installUpdate(
   try {
     await activeUpdate.download(progress)
     requireDesktop()
+    if (!(await approveExit())) return { success: false, code: 'unavailable' }
     unwrapResult(await commands.prepareForRelaunch())
     await activeUpdate.install()
     return { success: true }
@@ -86,6 +88,7 @@ export async function safeRelaunch(): Promise<UpdateActionResult> {
   busy = true
   try {
     requireDesktop()
+    if (!(await approveExit())) return { success: false, code: 'unavailable' }
     unwrapResult(await commands.prepareForRelaunch())
     await relaunch()
     return { success: true }

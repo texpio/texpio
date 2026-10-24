@@ -18,9 +18,11 @@ const native = vi.hoisted(() => ({
   read: vi.fn(),
   stat: vi.fn(),
   clipboard: vi.fn(),
+  quit: vi.fn(),
+  listen: vi.fn().mockResolvedValue(() => {}),
 }))
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true }))
-vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockResolvedValue(() => {}) }))
+vi.mock('@tauri-apps/api/event', () => ({ listen: native.listen }))
 vi.mock('@/lib/bindings', () => ({
   commands: {
     libraryLoad: native.load,
@@ -32,6 +34,7 @@ vi.mock('@/lib/bindings', () => ({
     probeStatus: native.status,
     probeStop: native.stop,
     probePause: native.pause,
+    quitApp: native.quit,
   },
 }))
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: native.open, save: vi.fn() }))
@@ -86,6 +89,7 @@ beforeEach(() => {
   native.load.mockResolvedValue({ status: 'ok', data: structuredClone(initial) })
   native.status.mockResolvedValue({ status: 'ok', data: stopped })
   native.stop.mockResolvedValue({ status: 'ok', data: stopped })
+  native.quit.mockResolvedValue({ status: 'ok', data: null })
   native.save.mockImplementation(async (input) => ({
     status: 'ok',
     data: {
@@ -109,6 +113,38 @@ function show() {
     client,
   }
 }
+it('keeps an unsaved snippet when native Quit is cancelled and exits only after discard', async () => {
+  show()
+  await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
+  await userEvent.type(screen.getByLabelText('Body'), ' unsaved')
+  await waitFor(() =>
+    expect(native.listen.mock.calls.some(([event]) => event === 'quit-requested')).toBe(true),
+  )
+  const quit = native.listen.mock.calls.find(([event]) => event === 'quit-requested')![1]
+  act(() => quit({ payload: null }))
+  await userEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Keep editing' }),
+  )
+  expect(native.quit).not.toHaveBeenCalled()
+  expect(screen.getByLabelText('Body')).toHaveValue('Hello, नमस्ते 👋 unsaved')
+  act(() => quit({ payload: null }))
+  await userEvent.click(
+    within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Discard draft' }),
+  )
+  await waitFor(() => expect(native.quit).toHaveBeenCalledOnce())
+})
+
+it('acknowledges native Quit without a discard prompt when the editor is clean', async () => {
+  show()
+  await screen.findByRole('button', { name: /Greeting/ })
+  await waitFor(() =>
+    expect(native.listen.mock.calls.some(([event]) => event === 'quit-requested')).toBe(true),
+  )
+  const quit = native.listen.mock.calls.find(([event]) => event === 'quit-requested')![1]
+  act(() => quit({ payload: null }))
+  await waitFor(() => expect(native.quit).toHaveBeenCalledOnce())
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+})
 it('saves a new Unicode snippet only through explicit Save and retains the acknowledged revision', async () => {
   show()
   await screen.findByRole('button', { name: /Greeting/ })

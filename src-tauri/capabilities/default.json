@@ -38,6 +38,7 @@
     "allow-update-quick-pane-shortcut",
     "allow-get-update-configuration",
     "allow-prepare-for-relaunch",
+    "allow-quit-app",
     "allow-record-diagnostic",
     "updater:default",
     "process:allow-restart",

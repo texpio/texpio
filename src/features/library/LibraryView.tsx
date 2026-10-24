@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import { isTauri } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
+import { quitApp } from '@/lib/app-exit'
+import { approveExit, registerExitGuard } from '@/lib/exit-guard'
 import { useTranslation } from 'react-i18next'
 import { Copy, Download, FolderPlus, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -80,10 +84,57 @@ export function LibraryView() {
   } | null>(null)
   const [guardOpen, setGuardOpen] = useState(false)
   const pendingAction = useRef<(() => void) | null>(null)
+  const pendingCancel = useRef<(() => void) | null>(null)
   const [busy, setBusy] = useState(false)
   const busyRef = useRef(false)
   const dirty = !!draft && (!draft.original || !same(draft.snippet, draft.original))
   const stale = !!draft && !!library.data && draft.base.revision !== library.data.revision
+  useEffect(() => {
+    const unregister = registerExitGuard(
+      () =>
+        new Promise<boolean>((resolve) => {
+          if (busyRef.current || pendingAction.current) return resolve(false)
+          if (!dirty) return resolve(true)
+          pendingAction.current = () => resolve(true)
+          pendingCancel.current = () => resolve(false)
+          setGuardOpen(true)
+        }),
+    )
+    return () => {
+      unregister()
+      pendingCancel.current?.()
+      pendingCancel.current = null
+    }
+  }, [dirty])
+  useEffect(() => {
+    if (!isTauri()) return
+    let cancelled = false
+    let pending = false
+    let unlisten: (() => void) | undefined
+    void listen('quit-requested', () => {
+      if (cancelled || pending) return
+      pending = true
+      void (async () => {
+        try {
+          if ((await approveExit()) && !cancelled) await quitApp()
+        } catch {
+          if (!cancelled) setNotice({ kind: 'error', key: 'library.error.unavailable' })
+        } finally {
+          pending = false
+        }
+      })()
+    }).then(
+      (stop) => {
+        if (cancelled) stop()
+        else unlisten = stop
+      },
+      () => {},
+    )
+    return () => {
+      cancelled = true
+      unlisten?.()
+    }
+  }, [])
   useEffect(() => {
     if (!dirty) return
     const guard = (event: BeforeUnloadEvent) => {
@@ -612,7 +663,11 @@ export function LibraryView() {
         open={guardOpen}
         onOpenChange={(open) => {
           setGuardOpen(open)
-          if (!open) pendingAction.current = null
+          if (!open) {
+            pendingAction.current = null
+            pendingCancel.current?.()
+            pendingCancel.current = null
+          }
         }}
       >
         <AlertDialogContent>
@@ -626,6 +681,7 @@ export function LibraryView() {
               onClick={() => {
                 const action = pendingAction.current
                 pendingAction.current = null
+                pendingCancel.current = null
                 setDraft(null)
                 setValidation(null)
                 action?.()

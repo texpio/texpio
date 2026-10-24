@@ -207,6 +207,17 @@ async prepareForRelaunch() : Promise<Result<null, RefusalReason>> {
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Main-window acknowledgement after its unsaved-draft confirmation.
+ */
+async quitApp() : Promise<Result<null, RefusalReason>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("quit_app") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async recordDiagnostic(record: DiagnosticRecord) : Promise<void> {
     await TAURI_INVOKE("record_diagnostic", { record });
 }

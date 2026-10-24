@@ -83,6 +83,7 @@ pub struct ProbeHandle {
     excluded: Mutex<Vec<ReferenceProfile>>,
     session: Mutex<Option<Session>>,
     library_epoch: AtomicU64,
+    publication: Mutex<u64>,
     #[cfg(target_os = "windows")]
     job: Mutex<Option<WindowsJob>>,
 }
@@ -113,6 +114,7 @@ impl ProbeHandle {
             excluded: Mutex::new(Vec::new()),
             session: Mutex::new(None),
             library_epoch: AtomicU64::new(0),
+            publication: Mutex::new(0),
             #[cfg(target_os = "windows")]
             job: Mutex::new(None),
         }
@@ -153,6 +155,11 @@ impl ProbeHandle {
     }
 
     fn start_session(&self, session: Session) -> Result<ProbeStatus, RefusalReason> {
+        #[cfg(target_os = "windows")]
+        let admission = *self
+            .publication
+            .lock()
+            .map_err(|_| RefusalReason::OutcomeUncertain)?;
         if session.policy == TargetPolicy::NotepadEditor
             && session.library_epoch != self.library_epoch.load(Ordering::SeqCst)
         {
@@ -185,7 +192,7 @@ impl ProbeHandle {
                 job.shutdown()?;
             }
             *slot = None;
-            self.shared.gate.arm()?;
+            self.arm_session(admission)?;
             self.shared.uncertain.store(false, Ordering::SeqCst);
             *self
                 .shared
@@ -214,7 +221,12 @@ impl ProbeHandle {
                 return Err(reason);
             }
             *slot = Some(job);
+            let publication = self
+                .publication
+                .lock()
+                .map_err(|_| RefusalReason::OutcomeUncertain)?;
             if !self.shared.gate.is_active()
+                || *publication != admission
                 || (session.policy == TargetPolicy::NotepadEditor
                     && session.library_epoch != self.library_epoch.load(Ordering::SeqCst))
             {
@@ -229,9 +241,28 @@ impl ProbeHandle {
         }
     }
 
+    #[cfg(any(target_os = "windows", test))]
+    fn arm_session(&self, admission: u64) -> Result<(), RefusalReason> {
+        // Only bounded in-memory activation lives under this lock. Provider calls,
+        // native dispatch and worker initialization must remain outside it.
+        let publication = self
+            .publication
+            .lock()
+            .map_err(|_| RefusalReason::OutcomeUncertain)?;
+        if *publication != admission {
+            return Err(RefusalReason::StaleContext);
+        }
+        self.shared.gate.arm().map(|_| ())
+    }
+
     pub fn stop(&self) -> ProbeStatus {
-        let outcome = self.shared.gate.close();
-        *self.session.lock().unwrap_or_else(|p| p.into_inner()) = None;
+        let outcome = {
+            let mut publication = self.publication.lock().unwrap_or_else(|p| p.into_inner());
+            *publication = publication.wrapping_add(1);
+            let outcome = self.shared.gate.close();
+            *self.session.lock().unwrap_or_else(|p| p.into_inner()) = None;
+            outcome
+        };
         #[cfg(target_os = "windows")]
         let cleanup = match self.job.try_lock() {
             Ok(mut slot) => {
@@ -259,6 +290,10 @@ impl ProbeHandle {
 
     pub fn set_paused(&self, paused: bool) -> Result<ProbeStatus, RefusalReason> {
         if paused {
+            let admission = *self
+                .publication
+                .lock()
+                .map_err(|_| RefusalReason::OutcomeUncertain)?;
             let session = self
                 .session
                 .lock()
@@ -266,6 +301,13 @@ impl ProbeHandle {
                 .clone();
             let stopped = self.stop();
             if stopped.phase == ProbePhase::Stopped {
+                let publication = self
+                    .publication
+                    .lock()
+                    .map_err(|_| RefusalReason::OutcomeUncertain)?;
+                if *publication != admission.wrapping_add(1) {
+                    return Err(RefusalReason::StaleContext);
+                }
                 self.shared
                     .status
                     .lock()
@@ -318,6 +360,39 @@ impl Drop for ProbeHandle {
 mod tests {
     use super::super::types::{ProbePhase, ReferenceProfile};
     use super::*;
+
+    #[test]
+    fn stop_cancels_a_start_admitted_before_native_initialization() {
+        assert_cancelled_start(ProbeHandle::stop);
+    }
+
+    #[test]
+    fn content_update_cancels_an_admitted_resume_before_observation_can_start() {
+        assert_cancelled_start(ProbeHandle::invalidate_library);
+    }
+
+    fn assert_cancelled_start(cancel: fn(&ProbeHandle) -> ProbeStatus) {
+        use std::sync::Barrier;
+        let handle = Arc::new(ProbeHandle::new());
+        let admission = *handle.publication.lock().unwrap();
+        let ready = Arc::new(Barrier::new(2));
+        let resume = Arc::new(Barrier::new(2));
+        let worker = {
+            let handle = handle.clone();
+            let ready = ready.clone();
+            let resume = resume.clone();
+            std::thread::spawn(move || {
+                ready.wait();
+                resume.wait();
+                handle.arm_session(admission)
+            })
+        };
+        ready.wait();
+        assert_eq!(cancel(&handle).phase, ProbePhase::Stopped);
+        resume.wait();
+        assert_eq!(worker.join().unwrap(), Err(RefusalReason::StaleContext));
+        assert!(!handle.shared.gate.is_active());
+    }
 
     #[test]
     fn construction_and_stop_do_not_start_native_observation() {

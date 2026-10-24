@@ -10,4 +10,8 @@ The Windows offline MVP opens a local snippet library on Home, with explicit sav
 
 The [Espanso source audit](research/espanso-source-audit.md) records native platform mechanisms, implementation tradeoffs and proposed engine options. The [Windows probe evidence](research/windows-expansion-probe.md) retains observed results and outstanding qualification gates.
 
+The [Espanso/Snipt comparison](research/cross-platform-expansion-source-comparison.md) traces their pinned native backends and dependency limitations across Windows, macOS, X11 and Wayland, and relates those mechanisms to the current Windows insertion failure.
+
+The [Ampello source audit](research/ampello-source-audit.md) examines a close Tauri/React/Rust/SQLite counterpart, including paced typing, cancellation, clipboard tradeoffs and its explicit Wayland limit.
+
 Adapted from [tauri-template](https://github.com/dannysmith/tauri-template/tree/1295f691bbdf373896e7c0f1cc969e2040fbf42c/docs), MIT. [Attribution](../THIRD_PARTY_NOTICES.md).

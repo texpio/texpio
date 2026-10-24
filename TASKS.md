@@ -151,13 +151,24 @@ The user requested autonomous implementation and authorized Computer Use/app tes
 - [x] Add an independent product policy for ordinary Notepad editors without broadening strict P0 fixture profiles.
 - [x] Add explicit native Start/Pause/Stop controls and invalidate active/paused old rules before library changes.
 - [x] Turn the quick pane into a searchable snippet Copy picker; keep captured-target insertion separate.
-- [x] Pass whole-project checks (135 frontend/109 Rust tests plus tooling/static checks) and a Windows debug no-bundle build.
-- [ ] Finish the whole-change independent review and optimized MVP release build.
+- [x] Pass whole-project checks (138 frontend/111 Rust tests plus tooling/static checks) and a Windows debug no-bundle build.
+- [x] Complete the whole-change independent review; fix stale Resume publication and native Quit draft loss with RED/GREEN regressions.
+- [x] Finish the optimized MVP executable/MSI/NSIS build and record artifact hashes; installation/signing remain unverified.
 - [x] Save the portable cross-PC handoff and exact unresolved native evidence before the user-requested checkpoint.
-- [ ] Complete interactive app/clipboard/file-dialog/native insertion acceptance. After restart, the first submitted Notepad trial returned Outcome uncertain and left only the synthetic semicolon; stop and diagnose before further qualification. See the acceptance record and handoff.
+- [x] Verify actual-app Unicode save/restart, duplicate/trash/restore, Quit draft cancellation/discard, explicit clipboard Copy, picker focus/Copy/Escape, close-to-hide and second-launch restoration using isolated synthetic data.
+- [ ] Complete file-dialog scopes, physical tray gestures and native insertion acceptance. Fresh Notepad trials fully submitted input but failed exact output even after TextExpander exited; an owned Win32 EDIT receiver passed. See the acceptance record and handoff.
 - [ ] Run physical typing, distribution, broader application/platform and original release-quality campaigns.
 
 Current development support target: ordinary Notepad editor controls, qualified US/English India layout mappings, literal lowercase `;` triggers followed by Space, Unicode plain-text bodies. The code retains exact suffix/caret/password/composition/integrity checks; native insertion is failing qualification and must not be called working. Explicit Copy is implemented independently of automatic expansion. Date/time/clipboard/cursor tokens, rich text, sync, macOS/Linux delivery and signing remain later work. The user requested a commit/push checkpoint and [handoff to another PC](docs/handoffs/2026-10-24-offline-mvp.md) before this phase was complete.
+
+## 11. Comparative expansion source research
+
+- [x] Clone/pin Snipt and inspect its actual capture/insertion paths and lockfile-qualified Enigo/rdev sources.
+- [x] Compare Espanso/Snipt mechanisms and limitations for Windows, macOS, X11 and Wayland with Texpio's contract.
+- [x] Clone/pin Ampello, trace Tauri integration and native backends, and inspect pacing/cancellation/clipboard behavior and configured tests.
+- [x] Save source-linked lessons and bounded next experiments without importing upstream runtime code or changing the approved insertion contract.
+
+Deliverables: [Espanso/Snipt comparison](docs/research/cross-platform-expansion-source-comparison.md) and [Ampello audit](docs/research/ampello-source-audit.md). Ampello is a close stack/product reference; it explicitly refuses Wayland. Static inspection and upstream compatibility claims do not qualify Texpio's native effects.
 
 ## Future decisions and execution work
 
