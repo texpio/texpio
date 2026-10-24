@@ -9,6 +9,7 @@ mod lifecycle;
 #[cfg(test)]
 mod lifecycle_service_tests;
 mod probe_commands;
+pub mod product;
 #[cfg(test)]
 mod service_tests;
 mod shortcuts;
