@@ -11,6 +11,7 @@ vi.mock('@/services/product', () => ({
 const settings = {
   enabled: false,
   allowSoftwareInput: false,
+  activation: 'immediate',
   boundary: 'word',
   preserveTerminator: true,
   insertion: 'paste',
@@ -48,6 +49,50 @@ it('persists insertion choice while retaining other native settings', async () =
   await userEvent.selectOptions(await screen.findByLabelText('Insertion method'), 'type')
   await waitFor(() => expect(native.save).toHaveBeenCalledWith({ ...settings, insertion: 'type' }))
   expect(screen.getByLabelText('Insertion method')).toHaveValue('type')
+})
+it('preserves the terminating character preference when switching activation modes', async () => {
+  show()
+  const activation = await screen.findByRole('combobox', { name: 'Expand abbreviation' })
+  const terminator = screen.getByRole('switch', { name: 'Keep the terminating character' })
+  await waitFor(() => expect(activation).toBeEnabled())
+  expect(activation).toHaveValue('immediate')
+  expect(terminator).toBeDisabled()
+  expect(terminator).toBeChecked()
+
+  await userEvent.selectOptions(activation, 'terminator')
+  await waitFor(() =>
+    expect(native.save).toHaveBeenLastCalledWith({ ...settings, activation: 'terminator' }),
+  )
+  await waitFor(() => expect(terminator).toBeEnabled())
+  expect(activation).toHaveValue('terminator')
+  expect(terminator).toBeChecked()
+
+  await userEvent.click(terminator)
+  await waitFor(() =>
+    expect(native.save).toHaveBeenLastCalledWith({
+      ...settings,
+      activation: 'terminator',
+      preserveTerminator: false,
+    }),
+  )
+  await waitFor(() => expect(activation).toBeEnabled())
+  await userEvent.selectOptions(activation, 'immediate')
+  await waitFor(() =>
+    expect(native.save).toHaveBeenLastCalledWith({ ...settings, preserveTerminator: false }),
+  )
+  await waitFor(() => expect(activation).toHaveValue('immediate'))
+  expect(terminator).toBeDisabled()
+  expect(terminator).not.toBeChecked()
+})
+it('keeps immediate activation and its disabled terminator control when a save fails', async () => {
+  native.save.mockRejectedValue(new Error('unavailable'))
+  show()
+  const activation = await screen.findByRole('combobox', { name: 'Expand abbreviation' })
+  await waitFor(() => expect(activation).toBeEnabled())
+  await userEvent.selectOptions(activation, 'terminator')
+  expect(await screen.findByRole('alert')).toBeVisible()
+  expect(activation).toHaveValue('immediate')
+  expect(screen.getByRole('switch', { name: 'Keep the terminating character' })).toBeDisabled()
 })
 it('requires opting in to remote keyboard compatibility and retains other native settings', async () => {
   show()

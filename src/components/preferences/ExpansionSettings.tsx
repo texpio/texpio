@@ -20,6 +20,8 @@ const key = ['expansion-settings'] as const
 const optionLabels = {
   paste: 'product.option.paste',
   type: 'product.option.type',
+  immediate: 'product.option.immediate',
+  terminator: 'product.option.terminator',
   word: 'product.option.word',
   anywhere: 'product.option.anywhere',
   fast: 'product.option.fast',
@@ -35,11 +37,13 @@ export function ExpansionSettings() {
     onSuccess: (settings) => client.setQueryData(key, settings),
   })
   const disabled = !query.data || query.isError || save.isPending
+  const terminatorDisabled = disabled || query.data?.activation !== 'terminator'
   function update(patch: Partial<ProductSettings>) {
     if (query.data) save.mutate({ ...query.data, ...patch })
   }
   const choices = [
     { name: 'insertion', values: ['paste', 'type'] },
+    { name: 'activation', values: ['immediate', 'terminator'] },
     { name: 'boundary', values: ['word', 'anywhere'] },
     { name: 'typingSpeed', values: ['fast', 'balanced', 'careful'] },
     { name: 'clipboardMode', values: ['paste', 'type'] },
@@ -75,6 +79,9 @@ export function ExpansionSettings() {
             </FieldLabel>
             <NativeSelect
               id={`expansion-${field.name}`}
+              aria-describedby={
+                field.name === 'activation' ? 'expansion-activation-help' : undefined
+              }
               disabled={disabled}
               value={query.data?.[field.name] ?? field.values[0]}
               onChange={(event) => update({ [field.name]: event.target.value })}
@@ -87,6 +94,11 @@ export function ExpansionSettings() {
                 </NativeSelectOption>
               ))}
             </NativeSelect>
+            {field.name === 'activation' && (
+              <FieldDescription id="expansion-activation-help">
+                {t('product.activationHelp')}
+              </FieldDescription>
+            )}
           </Field>
         ))}
         {(
@@ -99,7 +111,11 @@ export function ExpansionSettings() {
             'closeToTray',
           ] as const
         ).map((name) => (
-          <Field key={name} orientation="horizontal">
+          <Field
+            key={name}
+            orientation="horizontal"
+            data-disabled={name === 'preserveTerminator' ? terminatorDisabled : disabled}
+          >
             <FieldLabel htmlFor={`expansion-${name}`}>{t(`product.field.${name}`)}</FieldLabel>
             <Switch
               id={`expansion-${name}`}
@@ -110,7 +126,7 @@ export function ExpansionSettings() {
                   name === 'clipboardEnabled' ||
                   name === 'closeToTray')
               }
-              disabled={disabled}
+              disabled={name === 'preserveTerminator' ? terminatorDisabled : disabled}
               onCheckedChange={(value) => update({ [name]: value })}
             />
           </Field>

@@ -1,4 +1,4 @@
-use super::matcher::Boundary;
+use super::matcher::{Activation, Boundary};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
@@ -33,6 +33,7 @@ impl TypingSpeed {
 pub struct ProductSettings {
     pub enabled: bool,
     pub boundary: Boundary,
+    pub activation: Activation,
     pub preserve_terminator: bool,
     pub insertion: InsertionMode,
     pub restore_clipboard: bool,
@@ -52,6 +53,7 @@ impl Default for ProductSettings {
         Self {
             enabled: false,
             boundary: Boundary::Word,
+            activation: Activation::Immediate,
             preserve_terminator: true,
             insertion: InsertionMode::Paste,
             restore_clipboard: true,
@@ -105,6 +107,7 @@ mod tests {
         assert!(!settings.enabled);
         assert!(!settings.autostart);
         assert!(!settings.allow_software_input);
+        assert_eq!(settings.activation, Activation::Immediate);
         assert_eq!(settings.insertion, InsertionMode::Paste);
         assert_eq!(settings.clipboard_mode, InsertionMode::Paste);
         assert_eq!(settings.cancel_vk(), Some(0x1B));
@@ -113,6 +116,27 @@ mod tests {
             serde_json::from_str::<ProductSettings>("{}").unwrap(),
             settings
         );
+    }
+    #[test]
+    fn activation_round_trips_and_legacy_settings_become_immediate() {
+        let old: ProductSettings =
+            serde_json::from_str(r#"{"preserveTerminator":false,"allowSoftwareInput":true}"#)
+                .unwrap();
+        assert_eq!(old.activation, Activation::Immediate);
+        assert!(!old.preserve_terminator);
+        assert!(old.allow_software_input);
+        for activation in [Activation::Immediate, Activation::Terminator] {
+            let settings = ProductSettings {
+                activation,
+                ..old.clone()
+            };
+            assert_eq!(
+                serde_json::from_str::<ProductSettings>(&serde_json::to_string(&settings).unwrap())
+                    .unwrap(),
+                settings
+            );
+        }
+        assert!(serde_json::from_str::<ProductSettings>(r#"{"activation":"unknown"}"#).is_err());
     }
     #[test]
     fn invalid_shortcuts_delays_and_cancel_keys_are_refused() {

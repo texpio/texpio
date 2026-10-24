@@ -113,6 +113,70 @@ mod tests {
         );
     }
     #[test]
+    fn translation_accepts_one_unicode_scalar_but_never_a_partial_composition() {
+        assert_eq!(translated_character("é"), Some('é'));
+        assert_eq!(translated_character("👋"), Some('👋'));
+        assert_eq!(translated_character("\r"), Some('\n'));
+        assert_eq!(translated_character(""), None);
+        assert_eq!(translated_character("ab"), None);
+        assert_eq!(translated_character("e\u{301}"), None);
+    }
+    #[test]
+    fn completing_key_is_suppressed_only_when_its_exact_job_is_accepted() {
+        for (busy, disconnected) in [(false, false), (true, false), (false, true)] {
+            let engine = super::super::service::ProductEngine::new();
+            engine.shared.busy.store(busy, Ordering::SeqCst);
+            let (sender, receiver) = mpsc::sync_channel(1);
+            let mut receiver = Some(receiver);
+            if disconnected {
+                receiver.take();
+            }
+            let mut context = HookContext {
+                shared: engine.shared.clone(),
+                jobs: sender,
+                history: TypedHistory::new(
+                    vec![],
+                    super::super::matcher::Boundary::Word,
+                    super::super::matcher::Activation::Immediate,
+                ),
+                settings: ProductSettings::default(),
+                keys: [0; 256],
+                last_target: None,
+                generation: 7,
+                swallowed_cancel: None,
+                #[cfg(debug_assertions)]
+                facts: None,
+            };
+            let target = TargetStamp {
+                foreground_window: 1,
+                focused_window: 2,
+                process_id: 3,
+                thread_id: 4,
+                keyboard_layout: 5,
+            };
+            let expansion = Expansion {
+                rule: ProductRule {
+                    id: "test".into(),
+                    trigger: ";hello".into(),
+                    body: "Hello!".into(),
+                },
+                erase_count: 5,
+                terminator: None,
+            };
+            let accepted = submit_match(&mut context, expansion.clone(), target, 7);
+            assert_eq!(accepted, !busy && !disconnected);
+            assert_eq!(engine.shared.busy.load(Ordering::SeqCst), busy || accepted);
+            if accepted {
+                let job = receiver.unwrap().try_recv().unwrap();
+                assert_eq!(job.expansion, expansion);
+                assert!(job.target == target);
+                assert_eq!(job.ticket, 7);
+            } else if let Some(receiver) = receiver {
+                assert!(receiver.try_recv().is_err());
+            }
+        }
+    }
+    #[test]
     fn initial_modifier_seed_reconciles_generic_bits_with_observed_sides() {
         let mut keys = [0; 256];
         for generic in [0x10, 0x11, 0x12] {
@@ -177,6 +241,7 @@ mod tests {
                 body: "unused".into(),
             }],
             super::super::matcher::Boundary::Word,
+            super::super::matcher::Activation::Terminator,
         );
         for ch in ":probe".chars() {
             assert!(history.push(ch).is_none());
@@ -217,7 +282,11 @@ mod tests {
         let mut context = HookContext {
             shared: engine.shared.clone(),
             jobs: sender,
-            history: TypedHistory::new(vec![], super::super::matcher::Boundary::Word),
+            history: TypedHistory::new(
+                vec![],
+                super::super::matcher::Boundary::Word,
+                super::super::matcher::Activation::Immediate,
+            ),
             settings: ProductSettings::default(),
             keys: [0; 256],
             last_target: None,
@@ -233,6 +302,53 @@ mod tests {
         assert!(on_key(&mut context, event, WM_KEYDOWN));
         engine.shared.busy.store(false, Ordering::SeqCst);
         assert!(on_key(&mut context, event, WM_KEYUP));
+    }
+    #[test]
+    fn shortcut_backspace_discards_character_history_before_any_target_observation() {
+        for modifier in [VK_CONTROL, VK_MENU, VK_LWIN, VK_RWIN] {
+            let engine = super::super::service::ProductEngine::new();
+            engine.shared.active.store(true, Ordering::SeqCst);
+            let (sender, _receiver) = mpsc::sync_channel(1);
+            let mut history = TypedHistory::new(
+                vec![ProductRule {
+                    id: "test".into(),
+                    trigger: ";hello".into(),
+                    body: "hello".into(),
+                }],
+                super::super::matcher::Boundary::Word,
+                super::super::matcher::Activation::Immediate,
+            );
+            for ch in ";hellx".chars() {
+                assert!(history.push(ch).is_none());
+            }
+            let mut context = HookContext {
+                shared: engine.shared.clone(),
+                jobs: sender,
+                history,
+                settings: ProductSettings::default(),
+                keys: [0; 256],
+                last_target: None,
+                generation: 0,
+                swallowed_cancel: None,
+                #[cfg(debug_assertions)]
+                facts: Some(CaptureFacts::default()),
+            };
+            context.keys[modifier.0 as usize] = 0x80;
+            assert!(!on_key(
+                &mut context,
+                KBDLLHOOKSTRUCT {
+                    vkCode: u32::from(VK_BACK.0),
+                    ..Default::default()
+                },
+                WM_KEYDOWN
+            ));
+            assert!(context.history.push('o').is_none());
+            #[cfg(debug_assertions)]
+            {
+                assert_eq!(context.facts.as_ref().unwrap().shortcut_refused, 1);
+                assert_eq!(context.facts.as_ref().unwrap().stamp_refused, 0);
+            }
+        }
     }
 }
 struct Job {
@@ -352,7 +468,7 @@ impl HookRuntime {
             .name("texpio-product-hook".into())
             .spawn(move || {
                 let generation = hook_shared.generation.load(Ordering::SeqCst);
-                let history = TypedHistory::new(rules, settings.boundary);
+                let history = TypedHistory::new(rules, settings.boundary, settings.activation);
                 CONTEXT.with(|slot| {
                     *slot.borrow_mut() = Some(HookContext {
                         shared: hook_shared.clone(),
@@ -626,6 +742,18 @@ fn on_key(context: &mut HookContext, event: KBDLLHOOKSTRUCT, message: u32) -> bo
     if !down {
         return false;
     }
+    if matches!(vk,0x10..=0x12|0xA0..=0xA5|0x5B|0x5C|0x14) {
+        return false;
+    }
+    // Shortcut edits (notably Ctrl+Backspace) do not delete one scalar.
+    if [0x11, 0x12, 0x5B, 0x5C]
+        .iter()
+        .any(|index| context.keys[*index] & 0x80 != 0)
+    {
+        fact!(context, shortcut_refused);
+        context.history.reset();
+        return false;
+    }
     let generation = context.shared.generation.load(Ordering::SeqCst);
     let Ok(target) = current_stamp() else {
         fact!(context, stamp_refused);
@@ -644,21 +772,12 @@ fn on_key(context: &mut HookContext, event: KBDLLHOOKSTRUCT, message: u32) -> bo
         return false;
     }
     if vk == VK_BACK.0 as usize {
-        context.history.backspace();
-        return false;
+        return context
+            .history
+            .backspace()
+            .is_some_and(|expansion| submit_match(context, expansion, target, generation));
     }
     if matches!(vk, 0x21..=0x28 | 0x2D | 0x2E | 0x1B) {
-        context.history.reset();
-        return false;
-    }
-    if matches!(vk,0x10..=0x12|0xA0..=0xA5|0x5B|0x5C|0x14) {
-        return false;
-    }
-    if [0x11, 0x12, 0x5B, 0x5C]
-        .iter()
-        .any(|index| context.keys[*index] & 0x80 != 0)
-    {
-        fact!(context, shortcut_refused);
         context.history.reset();
         return false;
     }
@@ -673,7 +792,7 @@ fn on_key(context: &mut HookContext, event: KBDLLHOOKSTRUCT, message: u32) -> bo
             Some(GetKeyboardLayout(target.thread_id)),
         )
     };
-    if produced <= 0 {
+    if produced <= 0 || produced as usize > units.len() {
         fact!(context, translation_failed);
         context.history.reset();
         return false;
@@ -682,40 +801,56 @@ fn on_key(context: &mut HookContext, event: KBDLLHOOKSTRUCT, message: u32) -> bo
         context.history.reset();
         return false;
     };
-    for mut ch in text.chars() {
-        fact!(context, translated_scalars);
-        if ch == ' ' {
-            fact!(context, spaces);
-        }
-        if ch == '\r' {
-            ch = '\n';
-        }
-        if let Some(expansion) = context.history.push(ch) {
-            fact!(context, matches);
-            if context
-                .shared
-                .busy
-                .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-                .is_err()
-            {
-                return false;
-            }
-            let accepted = context
-                .jobs
-                .try_send(Job {
-                    expansion,
-                    target,
-                    ticket: generation,
-                })
-                .is_ok();
-            if !accepted {
-                context.shared.busy.store(false, Ordering::SeqCst);
-            }
-            if accepted {
-                fact!(context, accepted);
-            }
-            return accepted;
-        }
+    let Some(ch) = translated_character(&text) else {
+        // A single suppressed key cannot be modeled as a partially delivered
+        // multi-character composition. Invalidate instead of deleting guessed text.
+        context.history.reset();
+        return false;
+    };
+    fact!(context, translated_scalars);
+    if ch == ' ' {
+        fact!(context, spaces);
     }
-    false
+    context
+        .history
+        .push(ch)
+        .is_some_and(|expansion| submit_match(context, expansion, target, generation))
+}
+fn translated_character(text: &str) -> Option<char> {
+    let mut chars = text.chars();
+    let ch = chars.next()?;
+    chars
+        .next()
+        .is_none()
+        .then_some(if ch == '\r' { '\n' } else { ch })
+}
+fn submit_match(
+    context: &mut HookContext,
+    expansion: Expansion,
+    target: TargetStamp,
+    generation: u64,
+) -> bool {
+    fact!(context, matches);
+    if context
+        .shared
+        .busy
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        return false;
+    }
+    let accepted = context
+        .jobs
+        .try_send(Job {
+            expansion,
+            target,
+            ticket: generation,
+        })
+        .is_ok();
+    if !accepted {
+        context.shared.busy.store(false, Ordering::SeqCst);
+    } else {
+        fact!(context, accepted);
+    }
+    accepted
 }

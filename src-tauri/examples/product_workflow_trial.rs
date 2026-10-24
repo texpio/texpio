@@ -33,11 +33,18 @@ mod trial {
         },
         core::w,
     };
-    pub const EXPECTED: &str = "Texpio Windows paste works. ";
+    fn expected_text() -> &'static str {
+        if CORRECTION.with(Cell::get) {
+            "prefix Texpio Windows paste works."
+        } else {
+            "Texpio Windows paste works. "
+        }
+    }
     thread_local! {
         static GROUPS:RefCell<Vec<Vec<String>>>=const{RefCell::new(Vec::new())};
         static EDITOR:Cell<isize>=const{Cell::new(0)};
         static PHYSICAL:Cell<bool>=const{Cell::new(false)};
+        static CORRECTION:Cell<bool>=const{Cell::new(false)};
         static TICKS:Cell<u32>=const{Cell::new(0)};
         static MATCHED_AT:Cell<Option<u32>>=const{Cell::new(None)};
     }
@@ -62,7 +69,7 @@ mod trial {
                 }
             });
             let exact = PHYSICAL.with(|mode| mode.get())
-                && EDITOR.with(|editor| read(HWND(editor.get() as *mut _)) == EXPECTED);
+                && EDITOR.with(|editor| read(HWND(editor.get() as *mut _)) == expected_text());
             let settled = exact
                 && MATCHED_AT.with(|matched| {
                     let tick = TICKS.with(Cell::get);
@@ -134,9 +141,10 @@ mod trial {
             }
         }
     }
-    pub fn run(physical: bool) -> windows::core::Result<bool> {
+    pub fn run(physical: bool, correction: bool) -> windows::core::Result<bool> {
         unsafe {
             PHYSICAL.with(|mode| mode.set(physical));
+            CORRECTION.with(|mode| mode.set(correction));
             let instance: HINSTANCE = GetModuleHandleW(None)?.into();
             let class = WNDCLASSW {
                 lpfnWndProc: Some(procedure),
@@ -147,7 +155,9 @@ mod trial {
             if RegisterClassW(&class) == 0 {
                 return Err(windows::core::Error::from_thread());
             }
-            let title = if physical {
+            let title = if correction {
+                w!("Texpio immediate correction check — no Space after correction; Escape closes")
+            } else if physical {
                 w!("Texpio disposable typing check — type :v1probe then Space; Escape closes")
             } else {
                 w!("Texpio owned file-paste check — Escape cancels")
@@ -178,7 +188,11 @@ mod trial {
                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW,
                 )?;
             }
-            let label = if physical {
+            let label = if correction {
+                w!(
+                    "Type: prefix ;helllo — then Backspace twice, then o. No final Space. 3 minutes; Escape closes."
+                )
+            } else if physical {
                 w!("Type :v1probe then Space once. You have 3 minutes. Escape closes this window.")
             } else {
                 w!(
@@ -277,7 +291,8 @@ mod trial {
                                 trigger: String::new(),
                                 body: "".into(),
                             },
-                            terminator: ' ',
+                            erase_count: 0,
+                            terminator: None,
                         });
                         result.map(|_| edit.submitted_events)
                     });
@@ -309,7 +324,7 @@ mod trial {
             }
             generation.fetch_add(1, Ordering::SeqCst);
             let passed = if physical {
-                let exact = read(editor) == EXPECTED;
+                let exact = read(editor) == expected_text();
                 println!(
                     "Owned typing fixture exact={exact}; window closed. No physical qualification count is inferred by this helper."
                 );
@@ -338,15 +353,18 @@ mod trial {
 }
 #[cfg(target_os = "windows")]
 fn main() -> std::process::ExitCode {
-    let physical = match std::env::args().nth(1).as_deref() {
-        Some("--physical-paste") => true,
-        Some("--file-paste") => false,
+    let (physical, correction) = match std::env::args().nth(1).as_deref() {
+        Some("--physical-paste") => (true, false),
+        Some("--immediate-correction") => (true, true),
+        Some("--file-paste") => (false, false),
         _ => {
-            eprintln!("Usage: product_workflow_trial --physical-paste | --file-paste");
+            eprintln!(
+                "Usage: product_workflow_trial --physical-paste | --immediate-correction | --file-paste"
+            );
             return std::process::ExitCode::FAILURE;
         }
     };
-    if matches!(trial::run(physical), Ok(true)) {
+    if matches!(trial::run(physical, correction), Ok(true)) {
         std::process::ExitCode::SUCCESS
     } else {
         println!("Owned workflow not confirmed; diagnostic ended without replay.");

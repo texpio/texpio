@@ -55,7 +55,7 @@ pub fn perform(
 ) -> Result<(), ProductError> {
     backend.check()?;
     backend.prepare(&expansion.rule.body, settings.insertion)?;
-    backend.erase(expansion.rule.trigger.chars().count())?;
+    backend.erase(expansion.erase_count)?;
     backend.check()?;
     backend.before_content()?;
     if !expansion.rule.body.is_empty() {
@@ -64,8 +64,10 @@ pub fn perform(
     backend.check()?;
     backend.after_content()?;
     backend.check()?;
-    if settings.preserve_terminator {
-        backend.terminator(expansion.terminator)?;
+    if settings.preserve_terminator
+        && let Some(terminator) = expansion.terminator
+    {
+        backend.terminator(terminator)?;
     }
     Ok(())
 }
@@ -157,7 +159,8 @@ mod tests {
                 trigger: ":hello".into(),
                 body: "Café 👋".into(),
             },
-            terminator: ' ',
+            erase_count: 6,
+            terminator: Some(' '),
         }
     }
     #[test]
@@ -165,6 +168,28 @@ mod tests {
         let mut receiver = Receiver::default();
         perform(&mut receiver, &expansion(), &ProductSettings::default()).unwrap();
         assert_eq!(receiver.calls, ["erase:6", "body:Café 👋", "end: "]);
+    }
+    #[test]
+    fn immediate_completion_erases_only_delivered_characters_and_never_adds_a_space() {
+        let mut history = crate::product::matcher::TypedHistory::new(
+            vec![expansion().rule],
+            crate::product::matcher::Boundary::Word,
+            crate::product::matcher::Activation::Immediate,
+        );
+        let found = ":hello".chars().find_map(|ch| history.push(ch)).unwrap();
+        for mode in [InsertionMode::Paste, InsertionMode::Type] {
+            let mut receiver = Receiver::default();
+            perform(
+                &mut receiver,
+                &found,
+                &ProductSettings {
+                    insertion: mode,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            assert_eq!(receiver.calls, ["erase:5", "body:Café 👋"]);
+        }
     }
     #[test]
     fn failed_partial_deletion_is_never_retried_or_followed_by_text() {

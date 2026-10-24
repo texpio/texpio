@@ -396,7 +396,8 @@ pub fn diagnostic_dispatch(
             trigger: "x".repeat(delete_count),
             body: output.into(),
         },
-        terminator: ' ',
+        erase_count: delete_count,
+        terminator: None,
     };
     native.deliver(&expansion)?;
     let expected = delete_count as u32 * 2

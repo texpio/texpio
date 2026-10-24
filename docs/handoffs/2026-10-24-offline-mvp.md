@@ -1,5 +1,12 @@
 # Texpio offline MVP handoff
 
+**25 October behavior update:** immediate expansion and Backspace correction are
+implemented and passed the user-typed owned fixture. Read the
+[immediate expansion acceptance record](../research/immediate-expansion-acceptance.md)
+before following the older delimiter-only instructions below. The user confirmed
+Backspace at the end as their correction method. Full checks now pass 154 frontend
+and 188 Rust tests; cursor movement remains a history reset.
+
 24 October 2026 · Checkpoint for continuation on another PC
 
 **Continuation update:** the final section records work after `d2f6d09`: toolchain setup, whole-change review/fixes, actual-app checks, new native isolation evidence and Espanso/Snipt/Ampello source research. Read that section before treating the older checkpoint's pending items as current.

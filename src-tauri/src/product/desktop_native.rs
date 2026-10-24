@@ -384,7 +384,8 @@ fn clipboard(
                     trigger: String::new(),
                     body: text.into(),
                 },
-                terminator: ' ',
+                erase_count: 0,
+                terminator: None,
             };
             let result = edit.deliver(&expansion);
             let mut status = engine

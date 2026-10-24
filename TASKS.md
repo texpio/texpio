@@ -192,6 +192,21 @@ Latest complete quality run: 152 frontend/174 Rust tests plus tooling/static gat
 
 The trigger blocker was traced to Windows marking all user keystrokes as software-injected. With the explicit compatibility option enabled, the manual owned fixture passed: exact text plus terminator, one match, one submission and one usage record; Texpio's own injected output was ignored. The normal optimized preview is open with compatibility enabled for this PC and automatic expansion stopped at launch. See the [current acceptance record](docs/research/windows-v1-acceptance.md). No backend/sync or other OS delivery is in this scope.
 
+## 13. Immediate activation and Backspace corrections
+
+The user requested TextExpander-style immediate activation and confirmed that the
+misspelled abbreviation was corrected with Backspace at the end. See the
+[acceptance record](docs/research/immediate-expansion-acceptance.md).
+
+- [x] Default to immediate completion while retaining optional Space/punctuation activation.
+- [x] Preserve bounded correction history, reject shortcut edits and prevent truncated context from inventing word boundaries.
+- [x] Account for suppressed completing keys without deleting preceding text or appending an unwanted Space.
+- [x] Expose the activation preference in the existing UI and all three locales.
+- [x] Complete independent review and reproduce/fix unmatched-control history crossing browser fields.
+- [x] Pass 154 frontend and 188 Rust tests plus static/tooling checks and the isolated Windows build.
+- [x] Verify user-typed correction with exact native output retaining the preceding `prefix ` and no trailing Space; record the separate disposable-profile cleanup conflict.
+- [x] Finish optimized packages and reopen the updated preview.
+
 ## Future decisions and execution work
 
 - [ ] Check desired domains/app-store names and brand clearance before publishing.

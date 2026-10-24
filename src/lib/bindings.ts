@@ -412,6 +412,7 @@ async recordDiagnostic(record: DiagnosticRecord) : Promise<void> {
 
 /** user-defined types **/
 
+export type Activation = "immediate" | "terminator"
 export type AppInfo = { version: string; platform: string }
 export type AppPreferences = { theme: Theme; quick_pane_shortcut: string | null; language: Language | null }
 export type Attachment = { id: string; snippetId: string; name: string; digest: string; bytes: number; position: number; present: boolean }
@@ -440,7 +441,7 @@ export type ProbePhase = "stopped" | "running" | "paused" | "fault"
 export type ProbeStatus = { phase: ProbePhase; profile: ReferenceProfile | null; strategy: InsertionStrategy; counters: ProbeCounters; refusalReason: RefusalReason | null; lastActivityAgeMs: number | null }
 export type ProductError = "cancelled" | "targetChanged" | "modifiersHeld" | "inputBlocked" | "clipboard" | "busy" | "invalidSettings" | "unavailable" | "attachmentMissing" | "shortcutUnavailable"
 export type ProductPhase = "stopped" | "running" | "paused" | "fault"
-export type ProductSettings = { enabled: boolean; boundary: Boundary; preserveTerminator: boolean; insertion: InsertionMode; restoreClipboard: boolean; typingSpeed: TypingSpeed; cancelKey: string; clipboardEnabled: boolean; clipboardShortcut: string; clipboardMode: InsertionMode; allowSoftwareInput: boolean; toggleShortcut: string; autostart: boolean; closeToTray: boolean; attachmentDelayMs: number }
+export type ProductSettings = { enabled: boolean; boundary: Boundary; activation: Activation; preserveTerminator: boolean; insertion: InsertionMode; restoreClipboard: boolean; typingSpeed: TypingSpeed; cancelKey: string; clipboardEnabled: boolean; clipboardShortcut: string; clipboardMode: InsertionMode; allowSoftwareInput: boolean; toggleShortcut: string; autostart: boolean; closeToTray: boolean; attachmentDelayMs: number }
 export type ProductStatus = { phase: ProductPhase; submitted: number; cancelled: number; lastError: ProductError | null; clipboardIncomplete: boolean }
 export type RecoveryStatus = { canRecover: boolean }
 export type ReferenceProfile = "notepad" | "vsCode" | "chromeFixture"
