@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ImperativePanelHandle } from 'react-resizable-panels'
 import { useTranslation } from 'react-i18next'
-import { Code, Home, Keyboard } from 'lucide-react'
+import { Code, Home } from 'lucide-react'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +11,7 @@ import { useUIStore } from '@/store/ui-store'
 import { useTheme } from '@/hooks/use-theme'
 import { useSquareCornersEffect } from '@/hooks/useSquareCornersEffect'
 import { DeveloperView } from '@/features/developer/DeveloperView'
+import { LibraryView } from '@/features/library/LibraryView'
 import { CommandPalette } from '@/components/command-palette/CommandPalette'
 import { PreferencesDialog } from '@/components/preferences/PreferencesDialog'
 import { Toaster } from '@/components/ui/sonner'
@@ -143,25 +144,10 @@ export function MainWindow() {
             className="h-full min-h-0 overflow-y-auto"
             aria-label={t(view === 'home' ? 'shell.home' : 'shell.developer')}
           >
-            {view === 'developer' ? (
-              <DeveloperView />
-            ) : (
-              <section className="mx-auto flex max-w-2xl flex-col gap-6 px-8 py-16">
-                <Keyboard className="size-12 text-muted-foreground" aria-hidden="true" />
-                <Badge variant="secondary">{t('shell.ready')}</Badge>
-                <h1 className="text-3xl font-semibold tracking-tight">{t('shell.welcome')}</h1>
-                <p className="text-muted-foreground">{t('shell.description')}</p>
-                <Button
-                  className="self-start"
-                  onClick={() => {
-                    void runCommand('open-developer', context)
-                  }}
-                >
-                  <Code aria-hidden="true" />
-                  {t('shell.openDeveloper')}
-                </Button>
-              </section>
-            )}
+            <div hidden={view !== 'home'}>
+              <LibraryView />
+            </div>
+            {view === 'developer' && <DeveloperView />}
           </main>
         </ResizablePanel>
         <ResizableHandle disabled={!layout.rightVisible} />

@@ -113,6 +113,54 @@ async probeExclude(profile: ReferenceProfile) : Promise<Result<ProbeStatus, Prob
     else return { status: "error", error: e  as any };
 }
 },
+async libraryLoad() : Promise<Result<Library, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("library_load") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async librarySave(input: SaveLibrary) : Promise<Result<Library, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("library_save", { input }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async libraryExport() : Promise<Result<string, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("library_export") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async libraryImportPreview(json: string) : Promise<Result<ImportPreview, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("library_import_preview", { json }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async libraryImport(json: string, expectedRevision: number) : Promise<Result<Library, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("library_import", { json, expectedRevision }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async libraryStart() : Promise<Result<ProbeStatus, ProbeError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("library_start") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async showQuickPane() : Promise<Result<null, ServiceError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("show_quick_pane") };
@@ -180,16 +228,22 @@ export type DiagnosticEvent = "appStarted" | "renderFailed" | "commandFailed" | 
 export type DiagnosticLevel = "trace" | "debug" | "info" | "warn" | "error"
 export type DiagnosticRecord = { level: DiagnosticLevel; event: DiagnosticEvent; count: number | null }
 export type Fixture = { id: string; title: string; trigger: string; body: string }
+export type Folder = { id: string; name: string }
+export type ImportPreview = { folders: number; snippets: number; skipped: number }
 export type InsertionStrategy = "unicode" | "clipboard"
 export type JsonValue = null | boolean | number | string | JsonValue[] | Partial<{ [key in string]: JsonValue }>
 export type Language = "en" | "fr" | "ar"
+export type Library = { schemaVersion: number; revision: number; folders: Folder[]; snippets: Snippet[] }
+export type LibraryError = { code: string }
 export type ProbeCounters = { submitted: number; observed: number; refused: number; uncertain: number }
 export type ProbeError = { code: RefusalReason }
 export type ProbePhase = "stopped" | "running" | "paused" | "fault"
 export type ProbeStatus = { phase: ProbePhase; profile: ReferenceProfile | null; strategy: InsertionStrategy; counters: ProbeCounters; refusalReason: RefusalReason | null; lastActivityAgeMs: number | null }
 export type ReferenceProfile = "notepad" | "vsCode" | "chromeFixture"
 export type RefusalReason = "unsupportedPlatform" | "unsupportedProfile" | "unsupportedPasswordSemantics" | "passwordField" | "readOnly" | "disabledControl" | "selection" | "unsupportedLayout" | "composition" | "modifier" | "integrity" | "staleContext" | "providerTimeout" | "contextUnavailable" | "boundary" | "suffixMismatch" | "injectedInput" | "queueOverflow" | "clipboardState" | "clipboardChanged" | "outcomeUncertain" | "busy" | "stopped" | "excluded" | "shortcutConflict" | "pickerUnavailable"
+export type SaveLibrary = { expectedRevision: number; folders: Folder[]; snippets: Snippet[] }
 export type ServiceError = "invalidInput" | "corruptData" | "io" | "notFound" | "dataTooLarge" | "unavailable"
+export type Snippet = { id: string; folderId: string | null; title: string; trigger: string; body: string; enabled: boolean; deleted: boolean }
 export type StartOptions = { profile: ReferenceProfile; strategy: InsertionStrategy }
 export type Theme = "system" | "light" | "dark"
 export type UpdateConfiguration = { configured: boolean }

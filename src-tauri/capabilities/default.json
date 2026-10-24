@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main shell and explicitly armed Developer probe; no frontend filesystem or clipboard access",
+  "description": "Local snippet management, explicit file dialogs and clipboard Copy; guarded native expansion starts explicitly",
   "windows": [
     "main"
   ],
@@ -40,6 +40,18 @@
     "allow-prepare-for-relaunch",
     "allow-record-diagnostic",
     "updater:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "allow-library-load",
+    "allow-library-save",
+    "allow-library-export",
+    "allow-library-import-preview",
+    "allow-library-import",
+    "allow-library-start",
+    "clipboard-manager:allow-write-text",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
+    "fs:allow-stat"
   ]
 }

@@ -1,8 +1,8 @@
 # Texpio
 
-A local-first desktop text expander in development, targeting Windows first and macOS next. Optional paid managed sync is planned later.
+A local Windows desktop text expander in development. The offline MVP includes a snippet library with explicit save, folders, search, duplicate, trash/restore, JSON import preview/export and a searchable Copy picker. Home opens the library; no account or backend is required, and sync is not implemented.
 
-The desktop shell builds on the official Tauri 2 starter and the pinned dannysmith template, using React/TypeScript, shadcn, Zustand and TanStack Query with Bun 1.4.4. Home, Developer, Preferences, command palette and quick entry are implemented. The Rust expansion probe remains experimental with physical qualification incomplete. See [setup](docs/development.md), [user guide](docs/userguide/userguide.md) and [feature parity](docs/research/tauri-template-parity.md) for verification limits.
+The desktop shell builds on the official Tauri 2 starter and the pinned dannysmith template, using React/TypeScript, shadcn, Zustand and TanStack Query with Bun 1.4.4. Rust owns the local SQLite library and native Start/Pause/Stop controls. Automatic expansion uses literal plain-text bodies, semicolon-prefixed triggers and direct Unicode input in strictly identified Windows Notepad editor controls. It starts stopped; saving or importing stops it and requires an explicit restart. Native insertion and lifecycle compatibility remain unqualified, with physical automatic trials at **0/300**. See [setup](docs/development.md), the [user guide](docs/userguide/userguide.md) and the [MVP acceptance record](docs/research/offline-mvp-acceptance.md) for usage and verification limits.
 
 ## Planning documents
 
@@ -17,6 +17,9 @@ The desktop shell builds on the official Tauri 2 starter and the pinned dannysmi
 | [Foundation implementation plan](docs/superpowers/plans/2026-10-23-desktop-foundation.md)             | Approved tasks for prerequisite setup, scaffolding, desktop behavior, and verification                          |
 | [Windows expansion probe design](docs/superpowers/specs/2026-10-23-windows-expansion-probe-design.md) | Approved P0 native Rust scope, guarded replacement, test controls, and evidence gate                            |
 | [Windows expansion probe plan](docs/superpowers/plans/2026-10-23-windows-expansion-probe.md)          | Approved implementation tasks and native campaigns; Notepad read-only check passed, physical qualification pending |
+| [Windows offline MVP design](docs/superpowers/specs/2026-10-24-offline-mvp-design.md)                 | Local library, additive JSON interchange, Copy picker and guarded Notepad expansion scope                       |
+| [Windows offline MVP plan](docs/superpowers/plans/2026-10-24-offline-mvp.md)                           | Storage, UI, engine integration and acceptance work                                                              |
+| [Windows offline MVP acceptance](docs/research/offline-mvp-acceptance.md)                            | Implemented behavior, actual verification evidence and remaining native/release gates                           |
 | [Espanso source audit](docs/research/espanso-source-audit.md)                                         | Pinned native-engine research, four platform backends, architecture/reuse options and acceptance implications |
 | [Template audit and parity](docs/research/tauri-template-parity.md)                                   | Pinned upstream feature inventory, portable agent mapping and migration evidence tracker                        |
 | [Template adoption design](docs/superpowers/specs/2026-10-23-template-adoption-design.md)             | Approved full template shell with preserved engine, Bun and universal agent materials                           |

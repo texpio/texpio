@@ -135,10 +135,29 @@ Deliverables: [template source audit and parity tracker](docs/research/tauri-tem
 - [x] Inspect the shared matcher/render/effect pipeline, app configuration, manual testing and configured CI.
 - [x] Document independent modeling, selected-source reuse and sidecar integration options, including the pending GPL licensing question.
 - [x] Save a concrete proposed engine model and per-platform validation sequence; distinguish proposals from approved implementation.
-- [ ] Choose the engine reuse direction and strict-versus-compatibility contract.
+- [x] Record the user's selection: independent Rust engine modeled on Espanso's architecture.
+- [x] Preserve verified-target insertion for the first offline build; defer a history-only compatibility mode as an explicit future decision.
 - [ ] Approve the resulting engine design/amendment and implementation plan before changing the expansion contract.
 
 Deliverable: [Espanso source audit and Texpio engine options](docs/research/espanso-source-audit.md). No Espanso runtime code was added to Texpio, and upstream code was not built, installed or run. P0 remains unqualified with 0/300 physical trials.
+
+## 10. Windows offline MVP
+
+The user requested autonomous implementation and authorized Computer Use/app testing while offline on 24 October. See the [MVP design](docs/superpowers/specs/2026-10-24-offline-mvp-design.md), [execution plan](docs/superpowers/plans/2026-10-24-offline-mvp.md) and [acceptance record](docs/research/offline-mvp-acceptance.md). This development milestone does not declare the original P0/P1 release campaigns complete.
+
+- [x] Implement a Rust-owned SQLite library, revision checks, bounded validation, transactional saves/import and recoverable JSON snapshots.
+- [x] Implement folders, search, snippet editing/duplicate/trash/restore, explicit Copy and import/export preview workflows.
+- [x] Replace fixed-only matching with a validated immutable rule snapshot shared by the observer and insertion worker.
+- [x] Add an independent product policy for ordinary Notepad editors without broadening strict P0 fixture profiles.
+- [x] Add explicit native Start/Pause/Stop controls and invalidate active/paused old rules before library changes.
+- [x] Turn the quick pane into a searchable snippet Copy picker; keep captured-target insertion separate.
+- [x] Pass whole-project checks (135 frontend/109 Rust tests plus tooling/static checks) and a Windows debug no-bundle build.
+- [ ] Finish the whole-change independent review and optimized MVP release build.
+- [x] Save the portable cross-PC handoff and exact unresolved native evidence before the user-requested checkpoint.
+- [ ] Complete interactive app/clipboard/file-dialog/native insertion acceptance. After restart, the first submitted Notepad trial returned Outcome uncertain and left only the synthetic semicolon; stop and diagnose before further qualification. See the acceptance record and handoff.
+- [ ] Run physical typing, distribution, broader application/platform and original release-quality campaigns.
+
+Current development support target: ordinary Notepad editor controls, qualified US/English India layout mappings, literal lowercase `;` triggers followed by Space, Unicode plain-text bodies. The code retains exact suffix/caret/password/composition/integrity checks; native insertion is failing qualification and must not be called working. Explicit Copy is implemented independently of automatic expansion. Date/time/clipboard/cursor tokens, rich text, sync, macOS/Linux delivery and signing remain later work. The user requested a commit/push checkpoint and [handoff to another PC](docs/handoffs/2026-10-24-offline-mvp.md) before this phase was complete.
 
 ## Future decisions and execution work
 

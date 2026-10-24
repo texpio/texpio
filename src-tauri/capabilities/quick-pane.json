@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "quick-pane",
-  "description": "Floating entry: appearance, focus notifications, entry events, and dismissal only",
+  "description": "Read-only snippet picker with explicit clipboard Copy and dismissal",
   "windows": [
     "quick-pane"
   ],
@@ -11,6 +11,8 @@
     "allow-load-preferences",
     "allow-migrate-legacy-theme",
     "allow-dismiss-quick-pane",
-    "allow-record-diagnostic"
+    "allow-record-diagnostic",
+    "allow-library-load",
+    "clipboard-manager:allow-write-text"
   ]
 }

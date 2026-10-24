@@ -2,13 +2,14 @@
 use super::windows::worker::WindowsJob;
 use super::{
     control::{CloseOutcome, DispatchGate},
+    rules::{RuleSet, TargetPolicy},
     runtime::{OperationResult, StartOptions},
     types::{ProbePhase, ProbeStatus, ReferenceProfile, RefusalReason},
 };
 use std::{
     sync::{
         Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     time::Instant,
 };
@@ -80,8 +81,18 @@ impl SharedState {
 pub struct ProbeHandle {
     pub(crate) shared: Arc<SharedState>,
     excluded: Mutex<Vec<ReferenceProfile>>,
+    session: Mutex<Option<Session>>,
+    library_epoch: AtomicU64,
     #[cfg(target_os = "windows")]
     job: Mutex<Option<WindowsJob>>,
+}
+
+#[derive(Clone)]
+struct Session {
+    policy: TargetPolicy,
+    rules: Arc<RuleSet>,
+    profile: Option<ReferenceProfile>,
+    library_epoch: u64,
 }
 
 impl Default for ProbeHandle {
@@ -100,6 +111,8 @@ impl ProbeHandle {
                 uncertain: AtomicBool::new(false),
             }),
             excluded: Mutex::new(Vec::new()),
+            session: Mutex::new(None),
+            library_epoch: AtomicU64::new(0),
             #[cfg(target_os = "windows")]
             job: Mutex::new(None),
         }
@@ -109,26 +122,58 @@ impl ProbeHandle {
     }
 
     pub fn start(&self, options: StartOptions) -> Result<ProbeStatus, RefusalReason> {
+        if options.strategy != super::types::InsertionStrategy::Unicode {
+            return Err(RefusalReason::ClipboardState);
+        }
+        self.start_session(Session {
+            policy: TargetPolicy::Probe(options.profile),
+            rules: Arc::new(RuleSet::fixtures()),
+            profile: Some(options.profile),
+            library_epoch: 0,
+        })
+    }
+
+    /// Only Rust-validated, immutable library snapshots may start a product session.
+    pub fn start_library(&self, rules: Arc<RuleSet>) -> Result<ProbeStatus, RefusalReason> {
+        if rules.entries().is_empty() {
+            return Err(RefusalReason::ContextUnavailable);
+        }
+        self.start_session(Session {
+            policy: TargetPolicy::NotepadEditor,
+            rules,
+            profile: None,
+            library_epoch: self.library_epoch.load(Ordering::SeqCst),
+        })
+    }
+
+    /// Invalidates even an in-flight pause's saved snapshot before content changes.
+    pub fn invalidate_library(&self) -> ProbeStatus {
+        self.library_epoch.fetch_add(1, Ordering::SeqCst);
+        self.stop()
+    }
+
+    fn start_session(&self, session: Session) -> Result<ProbeStatus, RefusalReason> {
+        if session.policy == TargetPolicy::NotepadEditor
+            && session.library_epoch != self.library_epoch.load(Ordering::SeqCst)
+        {
+            return Err(RefusalReason::StaleContext);
+        }
+        let exclusion = session.profile.unwrap_or(ReferenceProfile::Notepad);
         if self
             .excluded
             .lock()
             .map_err(|_| RefusalReason::OutcomeUncertain)?
-            .contains(&options.profile)
+            .contains(&exclusion)
         {
             return Err(RefusalReason::Excluded);
         }
         #[cfg(not(target_os = "windows"))]
         {
-            let _ = options;
+            let _ = session;
             Err(RefusalReason::UnsupportedPlatform)
         }
         #[cfg(target_os = "windows")]
         {
-            if options.strategy != super::types::InsertionStrategy::Unicode {
-                // No clipboard APIs, owner window, native threads or input are touched.
-                // Format availability does not prove eager data or paste consumption.
-                return Err(RefusalReason::ClipboardState);
-            }
             let mut slot = self
                 .job
                 .lock()
@@ -148,17 +193,19 @@ impl ProbeHandle {
                 .lock()
                 .map_err(|_| RefusalReason::OutcomeUncertain)? = ProbeStatus {
                 phase: ProbePhase::Running,
-                profile: Some(options.profile),
-                strategy: options.strategy,
+                profile: session.profile,
+                strategy: super::types::InsertionStrategy::Unicode,
                 ..ProbeStatus::default()
             };
-            let mut job = match WindowsJob::spawn(self.shared.clone(), options.profile) {
-                Ok(job) => job,
-                Err(reason) => {
-                    self.shared.fail(reason, false);
-                    return Err(reason);
-                }
-            };
+            let mut job =
+                match WindowsJob::spawn(self.shared.clone(), session.policy, session.rules.clone())
+                {
+                    Ok(job) => job,
+                    Err(reason) => {
+                        self.shared.fail(reason, false);
+                        return Err(reason);
+                    }
+                };
             let ready = job.initialize();
             if let Err(reason) = ready {
                 self.shared.fail(reason, false);
@@ -167,15 +214,24 @@ impl ProbeHandle {
                 return Err(reason);
             }
             *slot = Some(job);
-            if !self.shared.gate.is_active() {
+            if !self.shared.gate.is_active()
+                || (session.policy == TargetPolicy::NotepadEditor
+                    && session.library_epoch != self.library_epoch.load(Ordering::SeqCst))
+            {
+                self.shared.gate.close();
                 return Err(RefusalReason::Stopped);
             }
+            *self
+                .session
+                .lock()
+                .map_err(|_| RefusalReason::OutcomeUncertain)? = Some(session);
             Ok(self.status())
         }
     }
 
     pub fn stop(&self) -> ProbeStatus {
         let outcome = self.shared.gate.close();
+        *self.session.lock().unwrap_or_else(|p| p.into_inner()) = None;
         #[cfg(target_os = "windows")]
         let cleanup = match self.job.try_lock() {
             Ok(mut slot) => {
@@ -203,6 +259,11 @@ impl ProbeHandle {
 
     pub fn set_paused(&self, paused: bool) -> Result<ProbeStatus, RefusalReason> {
         if paused {
+            let session = self
+                .session
+                .lock()
+                .map_err(|_| RefusalReason::OutcomeUncertain)?
+                .clone();
             let stopped = self.stop();
             if stopped.phase == ProbePhase::Stopped {
                 self.shared
@@ -210,14 +271,20 @@ impl ProbeHandle {
                     .lock()
                     .map_err(|_| RefusalReason::OutcomeUncertain)?
                     .phase = ProbePhase::Paused;
+                *self
+                    .session
+                    .lock()
+                    .map_err(|_| RefusalReason::OutcomeUncertain)? = session;
             }
             Ok(self.status())
         } else {
-            let status = self.status();
-            self.start(StartOptions {
-                profile: status.profile.ok_or(RefusalReason::Stopped)?,
-                strategy: status.strategy,
-            })
+            let session = self
+                .session
+                .lock()
+                .map_err(|_| RefusalReason::OutcomeUncertain)?
+                .clone()
+                .ok_or(RefusalReason::Stopped)?;
+            self.start_session(session)
         }
     }
 
@@ -259,6 +326,21 @@ mod tests {
         assert!(!handle.shared.gate.is_active());
         assert_eq!(handle.stop().phase, ProbePhase::Stopped);
         assert_eq!(handle.status().counters.submitted, 0);
+    }
+
+    #[test]
+    fn content_invalidation_prevents_resuming_a_paused_old_library_without_native_work() {
+        let handle = ProbeHandle::new();
+        let old = Session {
+            policy: TargetPolicy::NotepadEditor,
+            rules: Arc::new(RuleSet::fixtures()),
+            profile: None,
+            library_epoch: 0,
+        };
+        handle.invalidate_library();
+        assert_eq!(handle.start_session(old), Err(RefusalReason::StaleContext));
+        assert!(!handle.shared.gate.is_active());
+        assert!(handle.session.lock().unwrap().is_none());
     }
 
     #[test]

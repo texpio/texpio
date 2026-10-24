@@ -1,6 +1,6 @@
 # Texpio technology stack
 
-Selected direction · 23 October 2026
+Selected direction · updated 24 October 2026
 
 Texpio will start from the official Tauri React and TypeScript template. Windows comes first, followed by macOS. The user selected React, shadcn/ui, and the official starter, and confirmed that a separate existing Laravel/PostgreSQL project will provide accounts, billing, and future sync infrastructure.
 
@@ -13,9 +13,9 @@ Texpio will start from the official Tauri React and TypeScript template. Windows
 | UI | React, strict TypeScript, Vite SPA | Foundation |
 | Styling | Tailwind CSS 4, shadcn/ui components, Lucide icons | Foundation; add components as used |
 | Theme | System default plus light/dark override | Foundation |
-| IPC | Narrow Tauri commands, Serde DTOs, typed TypeScript wrappers | Foundation |
-| Local storage | SQLite through Rust-owned `rusqlite` with bundled SQLite | First persistent library feature |
-| Forms | React Hook Form + Zod | First snippet editor |
+| IPC | Narrow Tauri commands, Serde DTOs, pinned Specta-generated TypeScript and validated facades | Foundation and library |
+| Local storage | SQLite through Rust-owned bundled `rusqlite` 0.40.2, transactional library/revisions and JSON snapshots | Offline MVP |
+| Forms | Controlled React forms with frontend feedback and authoritative Rust validation; evaluate React Hook Form/Zod when needed | Offline MVP |
 | Async data | TanStack Query 5 over the IPC wrappers; React state for transient UI | First library queries/mutations |
 | Native input | Separate Rust engine; Windows adapter using Microsoft's `windows` crate | P0 feasibility work |
 | Desktop integration | Tauri tray API and official single-instance plugin | Foundation |
@@ -23,22 +23,22 @@ Texpio will start from the official Tauri React and TypeScript template. Windows
 | Frontend checks | Vitest, React Testing Library, ESLint, Prettier, TypeScript | Foundation |
 | Rust checks | Cargo tests, rustfmt, Clippy | Foundation |
 | Native UI smoke checks | WebdriverIO with the supported Tauri test integration | After a testable native workflow exists |
-| Package management | pnpm, Node LTS, Cargo; committed JavaScript and Cargo lockfiles | Foundation |
+| Package management | Bun 1.4.4, Node 24.18.0 for Node tools, pinned Rust/Cargo; committed `bun.lock` and `Cargo.lock` | Adopted shell and offline MVP |
 | CI and distribution | GitHub Actions; official Tauri action for release packaging later | Checks now; signed distribution at release |
 
 The official generator supplies the React/Vite/Tauri starting structure. Texpio adds styling, desktop lifecycle, testing, and its own application boundaries. The generator does not supply a text expansion engine. See the [official starter guide](https://v2.tauri.app/start/create-project/) and [shadcn's existing Vite project setup](https://ui.shadcn.com/docs/installation/vite).
 
-Resolve compatible stable package versions during scaffolding, then commit `pnpm-lock.yaml`, `Cargo.lock`, an exact `packageManager` value, and the tested Node/Rust toolchain versions. Keep Tauri on major version 2. Record the generator version used so the starting point can be reproduced; do not rely on a floating `latest` command in CI.
+The original scaffold used pnpm; the user later selected Bun and the approved template migration replaced its lockfile/scripts. Use the pinned toolchains and `bun install --frozen-lockfile`, retain Tauri major version 2, and use `bun run test` for Vitest. Generator provenance and migration evidence remain in the foundation/template records; do not rely on floating `latest` commands in CI.
 
 ## Application boundaries
 
-React owns presentation, form state, and interaction. Rust owns persisted records, validation at the command boundary, and native desktop behavior. Keep IPC wrappers in one frontend module and return structured errors. Frontend types and Rust DTOs must agree; test the serialized contract. Start with explicit types rather than introducing a prerelease code-generation dependency.
+React owns presentation, form state, and interaction. Rust owns persisted records, validation at the command boundary, and native desktop behavior. Use typed services and closed/redacted errors. The adopted template uses exactly pinned Specta dependencies for generated bindings; regenerate them after command changes and retain facade validation.
 
-The later storage layer will own a connection on a dedicated database worker and expose repository operations. Keep blocking SQLite work off the UI thread, input callback, and async executor. Use migrations and transactions, stable record IDs, and JSON interchange. React receives records through commands rather than raw SQL access. The [rusqlite API](https://docs.rs/rusqlite/latest/rusqlite/) provides the Rust SQLite integration.
+The offline library serializes operations and uses SQLite transactions with expected revisions; command facades use blocking workers. Keep SQLite work off the UI thread/input callback. Each operation owns its connection and transaction; stable IDs and versioned JSON are exposed through commands rather than raw SQL. See the pinned [rusqlite API](https://docs.rs/rusqlite/0.40.2/rusqlite/) and [MVP design](superpowers/specs/2026-10-24-offline-mvp-design.md).
 
 The native engine will keep a bounded transient matching buffer and an in-memory snippet index. It must operate independently of an open editor window. Do not forward a raw keyboard stream to React or store typed history. Actual observation, deletion, insertion, focus, clipboard, Unicode, and IME behavior remain subject to the [P0 evidence gate](phased-prds.md#p0--native-expansion-feasibility).
 
-The [Espanso source audit](research/espanso-source-audit.md) proposes shared Rust pipeline boundaries with separate Windows, macOS, Linux/X11 and Linux/Wayland adapters. This informs the next engine design; it does not select a fork, change Texpio's license, replace the approved P0 contract or qualify another platform.
+The user selected independent Rust implementation after the [Espanso source audit](research/espanso-source-audit.md). Immutable validated rule snapshots now feed the shared recognizer and native Windows effect worker. The MVP retains verified suffix/caret behavior and separate strict P0 profiles. macOS, X11 and Wayland remain separate future adapters; no source audit or build qualifies them. See [MVP acceptance](research/offline-mvp-acceptance.md) for current limits.
 
 ## Future service
 

@@ -6,12 +6,13 @@ use super::{
     properties::{OwnedVariant, explicit_bool},
 };
 use crate::engine::{
-    fixtures::fixtures,
     guard::{self, ExplicitBool, GuardEvidence},
+    rules::{RuleSet, TargetPolicy},
     types::{Candidate, ReferenceProfile, RefusalReason},
 };
 use std::{
     rc::Rc,
+    sync::Arc,
     sync::atomic::{AtomicU64, Ordering},
     time::{Duration, Instant},
 };
@@ -69,13 +70,14 @@ pub struct WindowsContext {
     automation: IUIAutomation,
     session: u64,
     apartment: Rc<Apartment>,
+    rules: Arc<RuleSet>,
 }
 
 #[derive(Clone)]
 pub struct TargetToken {
     session: u64,
     stamp: TargetStamp,
-    profile: ReferenceProfile,
+    policy: TargetPolicy,
     element: IUIAutomationElement,
     process: Rc<ProcessIdentity>,
     _apartment: Rc<Apartment>,
@@ -115,6 +117,10 @@ impl WindowsContext {
     }
 
     pub fn new() -> Result<Self, RefusalReason> {
+        Self::with_rules(Arc::new(RuleSet::fixtures()))
+    }
+
+    pub fn with_rules(rules: Arc<RuleSet>) -> Result<Self, RefusalReason> {
         // SAFETY: UIA has a dedicated MTA worker. No message-loop HWND is created here.
         unsafe {
             CoInitializeEx(None, COINIT_MULTITHREADED)
@@ -137,6 +143,7 @@ impl WindowsContext {
                 automation,
                 session: NEXT_SESSION.fetch_add(1, Ordering::Relaxed),
                 apartment,
+                rules,
             })
         }
     }
@@ -144,6 +151,14 @@ impl WindowsContext {
     pub fn capture(
         &mut self,
         profile: ReferenceProfile,
+        origin: &TargetStamp,
+    ) -> Result<TargetToken, RefusalReason> {
+        self.capture_policy(TargetPolicy::Probe(profile), origin)
+    }
+
+    pub fn capture_policy(
+        &mut self,
+        policy: TargetPolicy,
         origin: &TargetStamp,
     ) -> Result<TargetToken, RefusalReason> {
         let budget = Budget::new(PREPARE_BUDGET);
@@ -155,7 +170,7 @@ impl WindowsContext {
         let token = TargetToken {
             session: self.session,
             stamp: *origin,
-            profile,
+            policy,
             element,
             process,
             _apartment: self.apartment.clone(),
@@ -172,11 +187,11 @@ impl WindowsContext {
         body: &str,
     ) -> Result<PreparedEdit, RefusalReason> {
         let budget = Budget::new(PREPARE_BUDGET);
-        if !fixtures().iter().any(|fixture| {
-            fixture.id == candidate.fixture_id
-                && fixture.trigger == candidate.trigger
-                && fixture.body == body
-        }) {
+        if !self
+            .rules
+            .resolve(&candidate.fixture_id, &candidate.trigger)
+            .is_some_and(|rule| rule.body == body)
+        {
             return Err(RefusalReason::ContextUnavailable);
         }
         let (pattern, caret) = self.inspect(target, budget)?;
@@ -464,8 +479,8 @@ impl WindowsContext {
             ControlKind::Other
         };
         let caption = native::caption(&target.stamp)?;
-        if !profiles::qualifies(
-            target.profile,
+        if !profiles::qualifies_policy(
+            target.policy,
             &ControlFacts {
                 process: &target.process.executable,
                 caption: &caption,
@@ -484,7 +499,8 @@ impl WindowsContext {
         })?;
         let walker = budget.call(|| unsafe { self.automation.RawViewWalker() })?;
         let mut ancestor = element.clone();
-        let mut local_document = target.profile != ReferenceProfile::ChromeFixture;
+        let mut local_document =
+            target.policy != TargetPolicy::Probe(ReferenceProfile::ChromeFixture);
         for _ in 0..24 {
             if budget
                 .call(|| unsafe { self.automation.CompareElements(&root, &ancestor) })?

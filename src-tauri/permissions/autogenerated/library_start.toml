@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-library-start"
+description = "Enables the library_start command without any pre-configured scope."
+commands.allow = ["library_start"]
+
+[[permission]]
+identifier = "deny-library-start"
+description = "Denies the library_start command without any pre-configured scope."
+commands.deny = ["library_start"]

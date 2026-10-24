@@ -1,8 +1,9 @@
 use super::fixtures::Fixture;
 use super::types::{Candidate, EngineInput, PhysicalKey};
+use std::collections::HashMap;
 
 pub struct Recognizer {
-    matches: Vec<Candidate>,
+    matches: HashMap<Vec<u8>, Candidate>,
     suffix: Vec<u8>,
     held: [bool; 129],
     pending: Option<Candidate>,
@@ -22,6 +23,28 @@ impl Recognizer {
                 .map(|fixture| Candidate {
                     fixture_id: fixture.id.into(),
                     trigger: fixture.trigger.into(),
+                })
+                .map(|candidate| (candidate.trigger.as_bytes().to_vec(), candidate))
+                .collect(),
+            suffix: Vec::with_capacity(33),
+            held: [false; 129],
+            pending: None,
+        }
+    }
+
+    pub fn from_rules(rules: &super::rules::RuleSet) -> Self {
+        Self {
+            matches: rules
+                .entries()
+                .iter()
+                .map(|rule| {
+                    (
+                        rule.trigger.as_bytes().to_vec(),
+                        Candidate {
+                            fixture_id: rule.id.clone(),
+                            trigger: rule.trigger.clone(),
+                        },
+                    )
                 })
                 .collect(),
             suffix: Vec::with_capacity(33),
@@ -52,11 +75,7 @@ impl Recognizer {
             self.pending = None;
             match key {
                 PhysicalKey::Space => {
-                    self.pending = self
-                        .matches
-                        .iter()
-                        .find(|candidate| candidate.trigger.as_bytes() == self.suffix)
-                        .cloned();
+                    self.pending = self.matches.get(&self.suffix).cloned();
                 }
                 PhysicalKey::Ascii(b';') => {
                     self.suffix.clear();
@@ -252,5 +271,27 @@ mod tests {
         recognizer.clear();
         type_ascii(&mut recognizer, "lo");
         assert_eq!(space(&mut recognizer), None);
+    }
+
+    #[test]
+    fn user_rules_match_without_leaking_into_fixed_probe_rules() {
+        use crate::engine::rules::{Rule, RuleSet};
+        let rules = RuleSet::new(
+            12,
+            vec![Rule {
+                id: "owned-id".into(),
+                trigger: ";reply".into(),
+                body: "My custom response 👋".into(),
+            }],
+        )
+        .unwrap();
+        let mut recognizer = Recognizer::from_rules(&rules);
+        type_ascii(&mut recognizer, ";reply");
+        assert_eq!(space(&mut recognizer).unwrap().fixture_id, "owned-id");
+        type_ascii(&mut recognizer, ";hello");
+        assert_eq!(space(&mut recognizer), None);
+        let mut probe = Recognizer::new(&fixtures());
+        type_ascii(&mut probe, ";reply");
+        assert_eq!(space(&mut probe), None);
     }
 }

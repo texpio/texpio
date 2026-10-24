@@ -1,4 +1,4 @@
-//! Native floating entry window. It never inserts text in another application.
+//! Native floating snippet picker. Copy is explicit; it never inserts into another app.
 use crate::{
     commands::preferences::PreferencesStore,
     shortcuts::{DEFAULT_SHORTCUT, ShortcutActor, ShortcutBackend},
@@ -24,8 +24,8 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
         use tauri::{LogicalSize, Size};
         let panel = PanelBuilder::<_, QuickPanePanel>::new(app, LABEL)
             .url(WebviewUrl::App("quick-pane.html".into()))
-            .title("Texpio Quick Entry")
-            .size(Size::Logical(LogicalSize::new(500.0, 72.0)))
+            .title("Texpio Snippet Picker")
+            .size(Size::Logical(LogicalSize::new(600.0, 420.0)))
             .level(PanelLevel::Status)
             .transparent(true)
             .has_shadow(true)
@@ -50,8 +50,8 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
     }
     #[cfg(not(target_os = "macos"))]
     tauri::WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("quick-pane.html".into()))
-        .title("Texpio Quick Entry")
-        .inner_size(500.0, 72.0)
+        .title("Texpio Snippet Picker")
+        .inner_size(600.0, 420.0)
         .always_on_top(true)
         .skip_taskbar(true)
         .decorations(false)
@@ -72,8 +72,8 @@ fn position(app: &AppHandle) {
         let size = monitor.size();
         let origin = monitor.position();
         let scale = monitor.scale_factor();
-        let x = origin.x as f64 + (size.width as f64 - 500.0 * scale) / 2.0;
-        let y = origin.y as f64 + (size.height as f64 - 72.0 * scale) / 2.0;
+        let x = origin.x as f64 + (size.width as f64 - 600.0 * scale) / 2.0;
+        let y = origin.y as f64 + (size.height as f64 - 420.0 * scale) / 2.0;
         let _ = window.set_position(tauri::PhysicalPosition::new(x as i32, y as i32));
     }
 }

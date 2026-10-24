@@ -3,6 +3,7 @@ pub mod fixtures;
 pub mod guard;
 pub mod handle;
 pub mod recognizer;
+pub mod rules;
 pub mod runtime;
 pub mod types;
 #[cfg(target_os = "windows")]

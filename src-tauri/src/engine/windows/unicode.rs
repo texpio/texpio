@@ -17,7 +17,13 @@ pub fn unicode_plan(edit: &PreparedEdit) -> Result<InjectionPlan, RefusalReason>
 
 fn build_plan(delete_count: usize, output: &str) -> Result<InjectionPlan, RefusalReason> {
     let units = output.encode_utf16().count();
-    if delete_count > 33 || units == 0 || units > 2001 || output.contains('\0') {
+    if delete_count > 33
+        || units == 0
+        || units > 32_769
+        || output
+            .chars()
+            .any(|ch| ch.is_control() && !matches!(ch, '\t' | '\n' | '\r'))
+    {
         return Err(RefusalReason::ContextUnavailable);
     }
     let mut events = Vec::with_capacity((delete_count + units) * 2);
@@ -118,7 +124,15 @@ mod tests {
         assert!(units.contains(&10));
         assert!(!units.contains(&13));
         assert!(build_plan(34, "body ").is_err());
-        assert!(build_plan(0, &"x".repeat(2002)).is_err());
+        assert!(build_plan(0, &"x".repeat(32_770)).is_err());
         assert!(build_plan(0, "").is_err());
+    }
+
+    #[test]
+    fn maximum_saved_unicode_body_is_bounded_and_control_packets_are_refused() {
+        assert!(build_plan(33, &format!("{} ", "👋".repeat(16_384))).is_ok());
+        for body in ["bad\u{8}body", "bad\u{1b}body", "bad\u{7f}body", "\0"] {
+            assert!(build_plan(0, body).is_err());
+        }
     }
 }

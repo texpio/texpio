@@ -1,132 +1,164 @@
 import { StrictMode } from 'react'
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
-import { emit } from '@tauri-apps/api/event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { QuickPaneApp } from './QuickPaneApp'
 import { dismissQuickPane } from '@/services/quick-pane'
 import { applyLanguage } from '@/i18n/config'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { mockSystemTheme } from '@/test/system-theme'
-const native = vi.hoisted(() => ({ focus: vi.fn(), stop: vi.fn() }))
-vi.mock('@tauri-apps/api/event', () => ({ emit: vi.fn().mockResolvedValue(undefined) }))
+
+const native = vi.hoisted(() => ({
+  focus: vi.fn(),
+  stop: vi.fn(),
+  load: vi.fn(),
+  clipboard: vi.fn(),
+}))
+vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true }))
+vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn().mockResolvedValue(() => {}) }))
 vi.mock('@tauri-apps/api/window', () => ({
   getCurrentWindow: () => ({ onFocusChanged: native.focus }),
 }))
+vi.mock('@/lib/bindings', () => ({ commands: { libraryLoad: native.load } }))
+vi.mock('@tauri-apps/plugin-clipboard-manager', () => ({ writeText: native.clipboard }))
 vi.mock('@/services/quick-pane', () => ({ dismissQuickPane: vi.fn().mockResolvedValue(undefined) }))
-beforeEach(async () => {
+const data = {
+  schemaVersion: 1,
+  revision: 4,
+  folders: [],
+  snippets: [
+    {
+      id: '10000000-0000-4000-8000-000000000000',
+      folderId: null,
+      title: 'Greeting',
+      trigger: ';hello',
+      body: 'Hello, नमस्ते 👋',
+      enabled: true,
+      deleted: false,
+    },
+    {
+      id: '20000000-0000-4000-8000-000000000000',
+      folderId: null,
+      title: 'Address',
+      trigger: ';addr',
+      body: '123 Example Road',
+      enabled: true,
+      deleted: false,
+    },
+    {
+      id: '30000000-0000-4000-8000-000000000000',
+      folderId: null,
+      title: 'Disabled',
+      trigger: ';disabled',
+      body: 'Hidden',
+      enabled: false,
+      deleted: false,
+    },
+    {
+      id: '40000000-0000-4000-8000-000000000000',
+      folderId: null,
+      title: 'Deleted',
+      trigger: ';deleted',
+      body: 'Hidden',
+      enabled: true,
+      deleted: true,
+    },
+  ],
+}
+beforeEach(() => {
   native.focus.mockResolvedValue(native.stop)
-  await applyLanguage('en')
+  native.load.mockResolvedValue({ status: 'ok', data })
+  native.clipboard.mockResolvedValue(undefined)
 })
-it('Escape never submits entry', async () => {
-  render(<QuickPaneApp />)
-  await userEvent.type(screen.getByRole('textbox'), 'synthetic entry')
-  await userEvent.keyboard('{Escape}')
-  expect(dismissQuickPane).toHaveBeenCalledOnce()
-  expect(emit).not.toHaveBeenCalled()
-  expect(screen.getByRole('textbox')).toHaveValue('')
-})
-it('submits once despite repeated Enter and never emits empty text', async () => {
-  render(<QuickPaneApp />)
-  await userEvent.keyboard('{Enter}')
-  expect(emit).not.toHaveBeenCalled()
-  await userEvent.type(screen.getByRole('textbox'), 'sample')
-  fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter', repeat: true })
-  expect(emit).not.toHaveBeenCalled()
-  await userEvent.keyboard('{Enter}')
-  await waitFor(() =>
-    expect(emit).toHaveBeenCalledExactlyOnceWith('quick-pane-submit', { text: 'sample' }),
-  )
-})
-it('cancels on blur and cleans late focus listeners through StrictMode', async () => {
-  const view = render(
-    <StrictMode>
+function show(strict = false) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const pane = (
+    <QueryClientProvider client={client}>
       <QuickPaneApp />
-    </StrictMode>,
+    </QueryClientProvider>
   )
-  await userEvent.type(screen.getByRole('textbox'), 'discard')
-  const handler = native.focus.mock.calls[native.focus.mock.calls.length - 1]?.[0]
-  handler({ payload: false })
-  await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue(''))
-  expect(emit).not.toHaveBeenCalled()
+  return render(strict ? <StrictMode>{pane}</StrictMode> : pane)
+}
+it('searches snippet bodies and copies a chosen active snippet explicitly', async () => {
+  show()
+  await screen.findByRole('button', { name: 'Copy Greeting' })
+  expect(screen.queryByRole('button', { name: 'Copy Disabled' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Copy Deleted' })).not.toBeInTheDocument()
+  expect(native.clipboard).not.toHaveBeenCalled()
+  await userEvent.type(screen.getByRole('searchbox'), 'Example Road')
+  expect(screen.queryByRole('button', { name: 'Copy Greeting' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Copy Address' }))
+  await waitFor(() => expect(native.clipboard).toHaveBeenCalledExactlyOnceWith('123 Example Road'))
+  expect(dismissQuickPane).toHaveBeenCalledOnce()
+})
+it('Escape clears the query and never copies', async () => {
+  show()
+  await screen.findByRole('button', { name: 'Copy Greeting' })
+  await userEvent.type(screen.getByRole('searchbox'), 'synthetic query{Escape}')
+  expect(screen.getByRole('searchbox')).toHaveValue('')
+  expect(native.clipboard).not.toHaveBeenCalled()
+  expect(dismissQuickPane).toHaveBeenCalledOnce()
+})
+it('repeated Enter cannot issue a second pending clipboard write', async () => {
+  native.clipboard.mockImplementation(() => new Promise(() => {}))
+  show()
+  await screen.findByRole('button', { name: 'Copy Greeting' })
+  fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Enter', repeat: true })
+  expect(native.clipboard).not.toHaveBeenCalled()
+  await userEvent.keyboard('{Enter}{Enter}')
+  expect(native.clipboard).toHaveBeenCalledExactlyOnceWith('Hello, नमस्ते 👋')
+  expect(dismissQuickPane).not.toHaveBeenCalled()
+})
+it('keeps a failed copy available without exposing native details', async () => {
+  native.clipboard.mockRejectedValueOnce(new Error('private OS path'))
+  show()
+  await userEvent.click(await screen.findByRole('button', { name: 'Copy Greeting' }))
+  await screen.findByRole('alert')
+  expect(screen.getByRole('alert')).not.toHaveTextContent('private')
+  expect(screen.getByRole('button', { name: 'Copy Greeting' })).toBeEnabled()
+  expect(dismissQuickPane).not.toHaveBeenCalled()
+})
+it.each(['resolve', 'reject'])(
+  'blur dismisses and a late copy %s cannot hide a reopened picker',
+  async (outcome) => {
+    let resolve!: () => void
+    let reject!: (error: Error) => void
+    native.clipboard.mockReturnValueOnce(
+      new Promise<void>((done, fail) => {
+        resolve = done
+        reject = fail
+      }),
+    )
+    show()
+    await userEvent.click(await screen.findByRole('button', { name: 'Copy Greeting' }))
+    const handler = native.focus.mock.calls[native.focus.mock.calls.length - 1]![0]
+    act(() => handler({ payload: false }))
+    await waitFor(() => expect(dismissQuickPane).toHaveBeenCalledOnce())
+    act(() => handler({ payload: true }))
+    await userEvent.type(screen.getByRole('searchbox'), 'Address')
+    await act(async () => {
+      if (outcome === 'resolve') resolve()
+      else reject(new Error('late private failure'))
+    })
+    expect(screen.getByRole('searchbox')).toHaveValue('Address')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(dismissQuickPane).toHaveBeenCalledOnce()
+  },
+)
+it('cleans focus listeners through StrictMode and unmount', async () => {
+  const view = show(true)
+  await screen.findByRole('button', { name: 'Copy Greeting' })
   view.unmount()
   await waitFor(() => expect(native.stop).toHaveBeenCalledTimes(2))
 })
-it('uses translated entry text', async () => {
+it('uses translated search labels', async () => {
   await applyLanguage('fr')
-  render(<QuickPaneApp />)
-  expect(screen.getByRole('textbox')).toHaveAttribute('placeholder', 'Saisissez du texte…')
-})
-it('keeps an entry available when submission fails', async () => {
-  vi.mocked(emit).mockRejectedValueOnce(new Error('private OS detail'))
-  render(<QuickPaneApp />)
-  await userEvent.type(screen.getByRole('textbox'), 'retry me{Enter}')
-  await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('retry me'))
-  expect(screen.getByRole('alert')).not.toHaveTextContent('private')
-})
-function deferredEmission() {
-  let resolve!: () => void
-  let reject!: (reason: unknown) => void
-  const promise = new Promise<void>((done, fail) => {
-    resolve = done
-    reject = fail
-  })
-  return { promise, resolve, reject }
-}
-it.each([
-  { cancel: 'blur', outcome: 'reject' },
-  { cancel: 'Escape', outcome: 'reject' },
-  { cancel: 'blur', outcome: 'resolve' },
-  { cancel: 'Escape', outcome: 'resolve' },
-])('dismisses immediately on $cancel and ignores a late $outcome', async ({ cancel, outcome }) => {
-  const emission = deferredEmission()
-  vi.mocked(emit).mockReturnValueOnce(emission.promise)
-  render(<QuickPaneApp />)
-  await userEvent.type(screen.getByRole('textbox'), 'synthetic private entry{Enter}')
-  expect(emit).toHaveBeenCalledOnce()
-  if (cancel === 'blur') {
-    const handler = native.focus.mock.calls[native.focus.mock.calls.length - 1]?.[0]
-    act(() => handler({ payload: false }))
-  } else await userEvent.keyboard('{Escape}')
-  expect(dismissQuickPane).toHaveBeenCalledOnce()
-  await act(async () => {
-    if (outcome === 'reject') emission.reject(new Error('private native failure'))
-    else emission.resolve()
-  })
-  expect(screen.getByRole('textbox')).toHaveValue('')
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-  expect(dismissQuickPane).toHaveBeenCalledOnce()
-})
-it('a canceled submission cannot restore text or hide a reopened entry', async () => {
-  const emission = deferredEmission()
-  vi.mocked(emit).mockReturnValueOnce(emission.promise)
-  render(<QuickPaneApp />)
-  await userEvent.type(screen.getByRole('textbox'), 'discard me{Enter}{Escape}')
-  const handler = native.focus.mock.calls[native.focus.mock.calls.length - 1]?.[0]
-  act(() => handler({ payload: true }))
-  await userEvent.type(screen.getByRole('textbox'), 'new interaction')
-  await act(async () => emission.reject(new Error('late failure')))
-  expect(screen.getByRole('textbox')).toHaveValue('new interaction')
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-  expect(dismissQuickPane).toHaveBeenCalledOnce()
-})
-it('a late older submission does not release a newer submission guard', async () => {
-  const older = deferredEmission()
-  const newer = deferredEmission()
-  vi.mocked(emit).mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise)
-  render(<QuickPaneApp />)
-  await userEvent.type(screen.getByRole('textbox'), 'older{Enter}{Escape}')
-  const handler = native.focus.mock.calls[native.focus.mock.calls.length - 1]?.[0]
-  act(() => handler({ payload: true }))
-  await userEvent.type(screen.getByRole('textbox'), 'newer{Enter}')
-  expect(emit).toHaveBeenCalledTimes(2)
-  await act(async () => older.reject(new Error('old failure')))
-  await userEvent.keyboard('{Enter}')
-  expect(emit).toHaveBeenCalledTimes(2)
-  expect(dismissQuickPane).toHaveBeenCalledOnce()
-  await act(async () => newer.reject(new Error('new failure')))
-  expect(screen.getByRole('textbox')).toHaveValue('newer')
+  show()
+  expect(screen.getByRole('searchbox', { name: 'Rechercher des textes' })).toHaveAttribute(
+    'placeholder',
+    'Titre, déclencheur ou contenu…',
+  )
 })
 it('uses the shared provider for live appearance changes', async () => {
   mockSystemTheme()

@@ -74,7 +74,7 @@ function reason(value: unknown): value is RefusalReason {
 function integer(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 }
-function parseStatus(value: unknown): ProbeStatus {
+export function parseStatus(value: unknown): ProbeStatus {
   if (
     !record(value) ||
     !member(value.phase, phases) ||

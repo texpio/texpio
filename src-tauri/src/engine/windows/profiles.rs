@@ -1,4 +1,18 @@
 use super::super::types::ReferenceProfile;
+use crate::engine::rules::TargetPolicy;
+
+pub fn qualifies_policy(policy: TargetPolicy, facts: &ControlFacts<'_>) -> bool {
+    match policy {
+        TargetPolicy::Probe(profile) => qualifies(profile, facts),
+        TargetPolicy::NotepadEditor => {
+            facts.process.eq_ignore_ascii_case("notepad.exe")
+                && facts.framework == "Win32"
+                && facts.class == "RichEditD2DPT"
+                && facts.name == "Text editor"
+                && facts.kind == ControlKind::Document
+        }
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ControlKind {
@@ -105,5 +119,26 @@ mod tests {
         assert!(qualifies(ReferenceProfile::VsCode, &facts));
         facts.name = "Find";
         assert!(!qualifies(ReferenceProfile::VsCode, &facts));
+    }
+
+    #[test]
+    fn product_notepad_accepts_documents_but_never_widens_probe_or_search() {
+        use crate::engine::rules::TargetPolicy;
+        let mut facts = ControlFacts {
+            process: "notepad.exe",
+            caption: "My document - Notepad",
+            framework: "Win32",
+            class: "RichEditD2DPT",
+            automation_id: "",
+            name: "Text editor",
+            kind: ControlKind::Document,
+        };
+        assert!(qualifies_policy(TargetPolicy::NotepadEditor, &facts));
+        assert!(!qualifies(ReferenceProfile::Notepad, &facts));
+        facts.name = "Find";
+        assert!(!qualifies_policy(TargetPolicy::NotepadEditor, &facts));
+        facts.name = "Text editor";
+        facts.process = "other.exe";
+        assert!(!qualifies_policy(TargetPolicy::NotepadEditor, &facts));
     }
 }

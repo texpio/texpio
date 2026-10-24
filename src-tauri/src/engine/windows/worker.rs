@@ -7,10 +7,10 @@ use super::{
 };
 use crate::engine::{
     control::GateSnapshot,
-    fixtures::fixtures,
     handle::SharedState,
+    rules::{RuleSet, TargetPolicy},
     runtime::{Backend, DispatchCounts, ObservedCandidate, RuntimeCore},
-    types::{ReferenceProfile, RefusalReason},
+    types::RefusalReason,
 };
 use std::{
     sync::{
@@ -40,16 +40,21 @@ impl Drop for CloseOnExit {
 impl WindowsJob {
     pub fn spawn(
         state: Arc<SharedState>,
-        profile: ReferenceProfile,
+        policy: TargetPolicy,
+        rules: Arc<RuleSet>,
     ) -> Result<Self, RefusalReason> {
         let (sender, receiver) = mpsc::sync_channel(128);
-        let shared = Arc::new(ObserverShared::new(state.gate.clone(), sender));
+        let shared = Arc::new(ObserverShared::with_rules(
+            state.gate.clone(),
+            sender,
+            rules.clone(),
+        ));
         let worker_shared = shared.clone();
         let (ready_sender, ready) = mpsc::sync_channel(1);
         let worker = thread::Builder::new()
             .name("texpio-context".into())
             .spawn(move || {
-                let context = match WindowsContext::new() {
+                let context = match WindowsContext::with_rules(rules.clone()) {
                     Ok(context) => context,
                     Err(reason) => {
                         state.fail(reason, false);
@@ -60,7 +65,8 @@ impl WindowsJob {
                 let backend = WindowsBackend {
                     context,
                     target: None,
-                    profile,
+                    policy,
+                    rules,
                     shared: worker_shared.clone(),
                 };
                 let mut core = RuntimeCore::new(state.gate.clone(), backend);
@@ -153,7 +159,8 @@ impl Drop for WindowsJob {
 struct WindowsBackend {
     context: WindowsContext,
     target: Option<(u64, TargetStamp, TargetToken)>,
-    profile: ReferenceProfile,
+    policy: TargetPolicy,
+    rules: Arc<RuleSet>,
     shared: Arc<ObserverShared>,
 }
 struct NativeEdit {
@@ -178,7 +185,7 @@ impl WindowsBackend {
         }
         self.shared.gate.invalidate_context();
         let generation = self.shared.gate.snapshot().context;
-        let target = self.context.capture(self.profile, &origin)?;
+        let target = self.context.capture_policy(self.policy, &origin)?;
         if !self.shared.gate.is_active()
             || generation != self.shared.gate.snapshot().context
             || current_stamp()? != origin
@@ -210,16 +217,13 @@ impl Backend for WindowsBackend {
         if *generation != request.ticket.context || *origin != request.origin {
             return Err(RefusalReason::StaleContext);
         }
-        let fixture = fixtures()
-            .into_iter()
-            .find(|fixture| {
-                fixture.id == request.candidate.fixture_id
-                    && fixture.trigger == request.candidate.trigger
-            })
+        let rule = self
+            .rules
+            .resolve(&request.candidate.fixture_id, &request.candidate.trigger)
             .ok_or(RefusalReason::ContextUnavailable)?;
         let edit = self
             .context
-            .prepare_automatic(target, &request.candidate, &fixture.body)?;
+            .prepare_automatic(target, &request.candidate, &rule.body)?;
         let plan = unicode::unicode_plan(&edit)?;
         Ok(NativeEdit { edit, plan })
     }

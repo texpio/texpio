@@ -35,9 +35,9 @@ it('opens Developer without mounting or arming the probe from Home', async () =>
       </ThemeProvider>
     </QueryClientProvider>,
   )
-  expect(screen.getByRole('heading', { name: 'Your words, a little faster.' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Snippet library' })).toBeInTheDocument()
   expect(screen.queryByLabelText('Stopped probe')).not.toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Open expansion probe' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Developer' }))
   expect(screen.getByLabelText('Stopped probe')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /Minimize window/i })).not.toBeInTheDocument()
 })

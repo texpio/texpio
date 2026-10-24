@@ -3,6 +3,7 @@ use super::{TargetStamp, current_stamp, unicode::OWN_INPUT_MARKER};
 use crate::engine::{
     control::{DispatchGate, InputOrigin},
     recognizer::Recognizer,
+    rules::RuleSet,
     runtime::ObservedCandidate,
     types::{EngineInput, PhysicalKey, RefusalReason},
 };
@@ -58,6 +59,7 @@ pub struct ObserverShared {
     pub halt: AtomicBool,
     reason: AtomicU8,
     candidates: SyncSender<ObservedCandidate<TargetStamp>>,
+    rules: Arc<RuleSet>,
 }
 
 impl ObserverShared {
@@ -65,12 +67,21 @@ impl ObserverShared {
         gate: Arc<DispatchGate>,
         candidates: SyncSender<ObservedCandidate<TargetStamp>>,
     ) -> Self {
+        Self::with_rules(gate, candidates, Arc::new(RuleSet::fixtures()))
+    }
+
+    pub fn with_rules(
+        gate: Arc<DispatchGate>,
+        candidates: SyncSender<ObservedCandidate<TargetStamp>>,
+        rules: Arc<RuleSet>,
+    ) -> Self {
         Self {
             gate,
             eligible: Mutex::new(None),
             halt: AtomicBool::new(false),
             reason: AtomicU8::new(0),
             candidates,
+            rules,
         }
     }
     pub fn take_reason(&self) -> Option<RefusalReason> {
@@ -416,7 +427,7 @@ fn observe_thread(
                     keys,
                     caps: GetKeyState(i32::from(VK_CAPITAL.0)) & 1 != 0,
                     generation: shared.gate.snapshot().context,
-                    recognizer: Recognizer::new(&crate::engine::fixtures::fixtures()),
+                    recognizer: Recognizer::from_rules(&shared.rules),
                 })
             });
             let instance: HINSTANCE = GetModuleHandleW(None)?.into();

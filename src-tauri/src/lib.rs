@@ -3,6 +3,8 @@ mod commands;
 #[cfg(desktop)]
 mod desktop;
 pub mod engine;
+pub mod library;
+mod library_commands;
 mod lifecycle;
 #[cfg(test)]
 mod lifecycle_service_tests;
@@ -128,6 +130,9 @@ pub fn run() {
             let preferences =
                 std::sync::Arc::new(commands::preferences::PreferencesStore::new(root.clone()));
             app.manage(preferences.clone());
+            app.manage(std::sync::Arc::new(library_commands::LibraryService::new(
+                root.clone(),
+            )));
             app.manage(std::sync::Arc::new(commands::recovery::RecoveryStore::new(
                 root.join("recovery"),
             )));
