@@ -222,7 +222,7 @@
   "library.stop": "Stop expansion",
   "library.pause": "Pause",
   "library.resume": "Resume",
-  "library.support": "Windows Notepad only · US or English (India) keyboard · Type a trigger followed by Space. The engine starts stopped; saves and imports stop it.",
+  "library.support": "Windows prototype · Paste insertion · Finish a trigger with Space or punctuation. Saving refreshes the running engine automatically.",
   "library.probeActive": "A Developer probe session is active. Stop it before starting the library.",
   "library.engineNotice": "Expansion notice",
   "library.loading": "Loading…",
@@ -302,5 +302,13 @@
   "library.error.tooLarge": "This file exceeds the 8 MiB import limit.",
   "library.error.unsupportedVersion": "This library format is not supported.",
   "library.error.unavailable": "Open the Texpio desktop app to use the native library. If it is already open, retry the operation.",
-  "library.error.importConflict": "The file conflicts with existing IDs or active triggers, or the library changed. No records were imported. Review the file or reload."
+  "library.error.importConflict": "The file conflicts with existing IDs or active triggers, or the library changed. No records were imported. Review the file or reload.",
+  "product.error.cancelled": "Insertion stopped. Check the text before continuing.",
+  "product.error.targetChanged": "Insertion stopped because the active field changed.",
+  "product.error.modifiersHeld": "Release Ctrl, Alt, Shift and Windows keys before expanding.",
+  "product.error.inputBlocked": "Windows blocked input. Check the text before trying again.",
+  "product.error.clipboard": "The clipboard is unavailable. Check the text before trying again.",
+  "product.error.busy": "The expansion engine is busy. Stop it and try again.",
+  "product.error.invalidSettings": "Review the expansion settings.",
+  "product.error.unavailable": "The Windows expansion service is unavailable."
 }

@@ -222,7 +222,7 @@
   "library.stop": "إيقاف التوسيع",
   "library.pause": "إيقاف مؤقت",
   "library.resume": "استئناف",
-  "library.support": "المفكرة في Windows فقط · لوحة مفاتيح أمريكية أو إنجليزية (الهند) · اكتب الاختصار ثم مسافة. يبدأ المحرك متوقفًا؛ يؤدي الحفظ والاستيراد إلى إيقافه.",
+  "library.support": "نموذج Windows · إدراج باللصق · أنهِ الاختصار بمسافة أو علامة ترقيم. يحدث الحفظ المحرك النشط تلقائيًا.",
   "library.probeActive": "جلسة اختبار المطور نشطة. أوقفها قبل بدء المكتبة.",
   "library.engineNotice": "إشعار التوسيع",
   "library.loading": "جارٍ التحميل…",
@@ -302,5 +302,13 @@
   "library.error.tooLarge": "يتجاوز هذا الملف حد الاستيراد البالغ 8 MiB.",
   "library.error.unsupportedVersion": "تنسيق المكتبة هذا غير مدعوم.",
   "library.error.unavailable": "افتح تطبيق Texpio لسطح المكتب لاستخدام المكتبة الأصلية. إذا كان مفتوحًا بالفعل، حاول مجددًا.",
-  "library.error.importConflict": "يتعارض الملف مع معرّفات أو اختصارات نشطة موجودة، أو تغيرت المكتبة. لم يتم استيراد أي سجلات. راجع الملف أو أعد التحميل."
+  "library.error.importConflict": "يتعارض الملف مع معرّفات أو اختصارات نشطة موجودة، أو تغيرت المكتبة. لم يتم استيراد أي سجلات. راجع الملف أو أعد التحميل.",
+  "product.error.cancelled": "توقف الإدراج. راجع النص قبل المتابعة.",
+  "product.error.targetChanged": "توقف الإدراج لأن الحقل النشط تغير.",
+  "product.error.modifiersHeld": "حرر مفاتيح Ctrl وAlt وShift وWindows قبل التوسيع.",
+  "product.error.inputBlocked": "حظر Windows الإدخال. راجع النص قبل المحاولة مجددًا.",
+  "product.error.clipboard": "الحافظة غير متاحة. راجع النص قبل المحاولة مجددًا.",
+  "product.error.busy": "محرك التوسيع مشغول. أوقفه ثم حاول مجددًا.",
+  "product.error.invalidSettings": "راجع إعدادات التوسيع.",
+  "product.error.unavailable": "خدمة التوسيع في Windows غير متاحة."
 }

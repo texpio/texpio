@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-product-settings"
+description = "Enables the product_settings command without any pre-configured scope."
+commands.allow = ["product_settings"]
+
+[[permission]]
+identifier = "deny-product-settings"
+description = "Denies the product_settings command without any pre-configured scope."
+commands.deny = ["product_settings"]

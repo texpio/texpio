@@ -7,20 +7,19 @@ import { EngineControls } from './EngineControls'
 const native = vi.hoisted(() => ({ status: vi.fn(), stop: vi.fn(), start: vi.fn() }))
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true }))
 vi.mock('@/lib/bindings', () => ({
-  commands: { probeStatus: native.status, probeStop: native.stop, libraryStart: native.start },
+  commands: { productStatus: native.status, productStop: native.stop, productStart: native.start },
 }))
 const stopped = {
   phase: 'stopped',
-  profile: null,
-  strategy: 'unicode',
-  counters: { submitted: 0, observed: 0, refused: 0, uncertain: 0 },
-  refusalReason: null,
-  lastActivityAgeMs: null,
+  submitted: 0,
+  cancelled: 0,
+  lastError: null,
+  clipboardIncomplete: false,
 }
 beforeEach(() => {
-  native.status.mockResolvedValue({ status: 'ok', data: stopped })
+  native.status.mockResolvedValue(stopped)
   native.stop.mockImplementation(async () => {
-    native.status.mockResolvedValue({ status: 'ok', data: stopped })
+    native.status.mockResolvedValue(stopped)
     return { status: 'ok', data: stopped }
   })
 })
@@ -33,10 +32,7 @@ function show(eligibleCount = 1) {
   )
 }
 it('allows Stop to retry fault cleanup and only offers Start after the engine is stopped', async () => {
-  native.status.mockResolvedValue({
-    status: 'ok',
-    data: { ...stopped, phase: 'fault', refusalReason: 'busy' },
-  })
+  native.status.mockResolvedValue({ ...stopped, phase: 'fault', lastError: 'busy' })
   show()
   await screen.findByText('Fault')
   const stop = screen.getByRole('button', { name: 'Stop expansion' })

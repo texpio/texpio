@@ -32,6 +32,7 @@ pub(crate) struct Shared {
 }
 pub struct ProductEngine {
     pub(crate) shared: Arc<Shared>,
+    publication: Mutex<()>,
     #[cfg(target_os = "windows")]
     runtime: Mutex<Option<super::hooks::HookRuntime>>,
 }
@@ -43,6 +44,7 @@ impl Default for ProductEngine {
 impl ProductEngine {
     pub fn new() -> Self {
         Self {
+            publication: Mutex::new(()),
             shared: Arc::new(Shared {
                 generation: Arc::new(AtomicU64::new(0)),
                 active: AtomicBool::new(false),
@@ -60,10 +62,43 @@ impl ProductEngine {
             .unwrap_or_else(|p| p.into_inner())
             .clone()
     }
+    pub fn pause(&self) -> ProductStatus {
+        let result = self.stop();
+        if result.phase == ProductPhase::Stopped {
+            self.shared
+                .status
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .phase = ProductPhase::Paused;
+        }
+        self.status()
+    }
     pub fn start(
         &self,
         rules: Vec<ProductRule>,
         settings: ProductSettings,
+    ) -> Result<ProductStatus, ProductError> {
+        self.start_admitted(rules, settings, self.admission())
+    }
+    pub fn admission(&self) -> u64 {
+        self.shared.generation.load(Ordering::SeqCst)
+    }
+    fn admit(&self, ticket: u64) -> Result<(), ProductError> {
+        let _publication = self
+            .publication
+            .lock()
+            .map_err(|_| ProductError::Unavailable)?;
+        if self.admission() != ticket {
+            return Err(ProductError::Cancelled);
+        }
+        self.shared.active.store(true, Ordering::SeqCst);
+        Ok(())
+    }
+    pub(crate) fn start_admitted(
+        &self,
+        rules: Vec<ProductRule>,
+        settings: ProductSettings,
+        ticket: u64,
     ) -> Result<ProductStatus, ProductError> {
         if !settings.validate() {
             return Err(ProductError::InvalidSettings);
@@ -79,16 +114,32 @@ impl ProductEngine {
             if runtime.is_some() {
                 return Err(ProductError::Busy);
             }
-            self.shared.generation.fetch_add(1, Ordering::SeqCst);
-            self.shared.active.store(true, Ordering::SeqCst);
+            self.admit(ticket)?;
             match super::hooks::HookRuntime::launch(self.shared.clone(), rules, settings) {
                 Ok(worker) => {
                     *runtime = Some(worker);
+                    let publication = self
+                        .publication
+                        .lock()
+                        .map_err(|_| ProductError::Unavailable)?;
+                    if !self.shared.active.load(Ordering::SeqCst) || self.admission() != ticket {
+                        drop(publication);
+                        if let Some(worker) = runtime.as_mut() {
+                            worker.shutdown();
+                        }
+                        *runtime = None;
+                        return Err(ProductError::Cancelled);
+                    }
                     self.shared
                         .status
                         .lock()
                         .unwrap_or_else(|p| p.into_inner())
                         .phase = ProductPhase::Running;
+                    self.shared
+                        .status
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner())
+                        .last_error = None;
                     Ok(self.status())
                 }
                 Err(error) => {
@@ -99,8 +150,11 @@ impl ProductEngine {
         }
     }
     pub fn stop(&self) -> ProductStatus {
-        self.shared.active.store(false, Ordering::SeqCst);
-        self.shared.generation.fetch_add(1, Ordering::SeqCst);
+        {
+            let _publication = self.publication.lock().unwrap_or_else(|p| p.into_inner());
+            self.shared.active.store(false, Ordering::SeqCst);
+            self.shared.generation.fetch_add(1, Ordering::SeqCst);
+        }
         #[cfg(target_os = "windows")]
         let stopped = self
             .runtime
@@ -140,6 +194,14 @@ impl Drop for ProductEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn stop_cancels_admission_before_any_native_hook_can_start() {
+        let engine = ProductEngine::new();
+        let ticket = engine.admission();
+        engine.stop();
+        assert_eq!(engine.admit(ticket), Err(ProductError::Cancelled));
+        assert!(!engine.shared.active.load(Ordering::SeqCst));
+    }
     #[test]
     fn construction_and_stop_have_no_native_side_effects_and_cancel_prior_tickets() {
         let engine = ProductEngine::new();

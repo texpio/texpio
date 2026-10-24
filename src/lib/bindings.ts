@@ -161,6 +161,49 @@ async libraryStart() : Promise<Result<ProbeStatus, ProbeError>> {
     else return { status: "error", error: e  as any };
 }
 },
+async productStatus() : Promise<ProductStatus> {
+    return await TAURI_INVOKE("product_status");
+},
+async productStart() : Promise<Result<ProductStatus, ProductError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("product_start") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async productStop() : Promise<Result<ProductStatus, ProductError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("product_stop") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async productPause() : Promise<Result<ProductStatus, ProductError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("product_pause") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async productSettings() : Promise<Result<ProductSettings, ProductError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("product_settings") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async productSaveSettings(input: ProductSettings) : Promise<Result<ProductSettings, ProductError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("product_save_settings", { input }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async showQuickPane() : Promise<Result<null, ServiceError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("show_quick_pane") };
@@ -235,12 +278,14 @@ async recordDiagnostic(record: DiagnosticRecord) : Promise<void> {
 
 export type AppInfo = { version: string; platform: string }
 export type AppPreferences = { theme: Theme; quick_pane_shortcut: string | null; language: Language | null }
+export type Boundary = "word" | "anywhere"
 export type DiagnosticEvent = "appStarted" | "renderFailed" | "commandFailed" | "notificationFailed" | "recoverySaved" | "recoveryFailed" | "updateFailed" | "unknown"
 export type DiagnosticLevel = "trace" | "debug" | "info" | "warn" | "error"
 export type DiagnosticRecord = { level: DiagnosticLevel; event: DiagnosticEvent; count: number | null }
 export type Fixture = { id: string; title: string; trigger: string; body: string }
 export type Folder = { id: string; name: string }
 export type ImportPreview = { folders: number; snippets: number; skipped: number }
+export type InsertionMode = "paste" | "type"
 export type InsertionStrategy = "unicode" | "clipboard"
 export type JsonValue = null | boolean | number | string | JsonValue[] | Partial<{ [key in string]: JsonValue }>
 export type Language = "en" | "fr" | "ar"
@@ -250,6 +295,10 @@ export type ProbeCounters = { submitted: number; observed: number; refused: numb
 export type ProbeError = { code: RefusalReason }
 export type ProbePhase = "stopped" | "running" | "paused" | "fault"
 export type ProbeStatus = { phase: ProbePhase; profile: ReferenceProfile | null; strategy: InsertionStrategy; counters: ProbeCounters; refusalReason: RefusalReason | null; lastActivityAgeMs: number | null }
+export type ProductError = "cancelled" | "targetChanged" | "modifiersHeld" | "inputBlocked" | "clipboard" | "busy" | "invalidSettings" | "unavailable"
+export type ProductPhase = "stopped" | "running" | "paused" | "fault"
+export type ProductSettings = { enabled: boolean; boundary: Boundary; preserveTerminator: boolean; insertion: InsertionMode; restoreClipboard: boolean; typingSpeed: TypingSpeed; cancelKey: string; clipboardEnabled: boolean; clipboardShortcut: string; clipboardMode: InsertionMode; toggleShortcut: string; autostart: boolean; closeToTray: boolean; attachmentDelayMs: number }
+export type ProductStatus = { phase: ProductPhase; submitted: number; cancelled: number; lastError: ProductError | null; clipboardIncomplete: boolean }
 export type ReferenceProfile = "notepad" | "vsCode" | "chromeFixture"
 export type RefusalReason = "unsupportedPlatform" | "unsupportedProfile" | "unsupportedPasswordSemantics" | "passwordField" | "readOnly" | "disabledControl" | "selection" | "unsupportedLayout" | "composition" | "modifier" | "integrity" | "staleContext" | "providerTimeout" | "contextUnavailable" | "boundary" | "suffixMismatch" | "injectedInput" | "queueOverflow" | "clipboardState" | "clipboardChanged" | "outcomeUncertain" | "busy" | "stopped" | "excluded" | "shortcutConflict" | "pickerUnavailable"
 export type SaveLibrary = { expectedRevision: number; folders: Folder[]; snippets: Snippet[] }
@@ -257,6 +306,7 @@ export type ServiceError = "invalidInput" | "corruptData" | "io" | "notFound" | 
 export type Snippet = { id: string; folderId: string | null; title: string; trigger: string; body: string; enabled: boolean; deleted: boolean }
 export type StartOptions = { profile: ReferenceProfile; strategy: InsertionStrategy }
 export type Theme = "system" | "light" | "dark"
+export type TypingSpeed = "fast" | "balanced" | "careful"
 export type UpdateConfiguration = { configured: boolean }
 
 /** tauri-specta globals **/

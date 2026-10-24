@@ -63,8 +63,16 @@ async fn control(
 pub async fn probe_start(
     app: AppHandle,
     handle: State<'_, Arc<ProbeHandle>>,
+    product: State<'_, Arc<crate::product::service::ProductEngine>>,
     options: StartOptions,
 ) -> Result<ProbeStatus, ProbeError> {
+    let product = product.inner().clone();
+    let stopped = tauri::async_runtime::spawn_blocking(move || product.stop())
+        .await
+        .map_err(|_| ProbeError::from(RefusalReason::Busy))?;
+    if stopped.phase != crate::product::service::ProductPhase::Stopped {
+        return Err(RefusalReason::Busy.into());
+    }
     control(app, handle.inner().clone(), move |handle| {
         handle.start(options)
     })

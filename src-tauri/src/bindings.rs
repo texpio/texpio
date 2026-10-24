@@ -1,6 +1,7 @@
 use crate::{
     commands::{lifecycle, metadata, notifications, preferences, quick_pane, recovery},
     library_commands, probe_commands,
+    product::commands as product,
 };
 use specta_typescript::{BigIntExportBehavior, Typescript};
 
@@ -26,6 +27,12 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         library_commands::library_import_preview,
         library_commands::library_import,
         library_commands::library_start,
+        product::product_status,
+        product::product_start,
+        product::product_stop,
+        product::product_pause,
+        product::product_settings,
+        product::product_save_settings,
         quick_pane::show_quick_pane,
         quick_pane::dismiss_quick_pane,
         quick_pane::toggle_quick_pane,

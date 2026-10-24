@@ -4,8 +4,14 @@ import { useTranslation } from 'react-i18next'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { getProbeStatus, pauseProbe, ProbeCommandError, stopProbe } from '@/lib/probe'
-import { libraryKeys, startLibrary } from '@/services/library'
+import {
+  getProductStatus,
+  pauseProduct,
+  ProductCommandError,
+  stopProduct,
+  startProduct,
+} from '@/services/product'
+import { libraryKeys } from '@/services/library'
 
 export function EngineControls({
   dirty,
@@ -19,7 +25,7 @@ export function EngineControls({
   const [error, setError] = useState<string | null>(null)
   const status = useQuery({
     queryKey: libraryKeys.engine,
-    queryFn: getProbeStatus,
+    queryFn: getProductStatus,
     retry: false,
     refetchInterval: 1000,
   })
@@ -27,18 +33,20 @@ export function EngineControls({
     onMutate: () => client.cancelQueries({ queryKey: libraryKeys.engine }),
     mutationFn: (action: 'start' | 'stop' | 'pause') =>
       action === 'start'
-        ? startLibrary()
+        ? startProduct()
         : action === 'stop'
-          ? stopProbe()
-          : pauseProbe(status.data?.phase !== 'paused'),
+          ? stopProduct()
+          : status.data?.phase === 'paused'
+            ? startProduct()
+            : pauseProduct(),
     onSuccess: (next) => {
       client.setQueryData(libraryKeys.engine, next)
       setError(null)
     },
     onError: (reason) =>
       setError(
-        reason instanceof ProbeCommandError
-          ? t(`probe.refusal.${reason.code}`)
+        reason instanceof ProductCommandError
+          ? t(`product.error.${reason.code}`)
           : t('library.error.unavailable'),
       ),
   })
@@ -90,14 +98,11 @@ export function EngineControls({
         </div>
       </div>
       <p className="text-xs text-muted-foreground">{t('library.support')}</p>
-      {active && status.data?.profile !== null && (
-        <p className="text-xs text-muted-foreground">{t('library.probeActive')}</p>
-      )}
-      {(error || status.data?.refusalReason) && (
+      {(error || status.data?.lastError) && (
         <Alert variant="destructive">
           <AlertTitle>{t('library.engineNotice')}</AlertTitle>
           <AlertDescription>
-            {error ?? t(`probe.refusal.${status.data!.refusalReason!}`)}
+            {error ?? t(`product.error.${status.data!.lastError!}`)}
           </AlertDescription>
         </Alert>
       )}

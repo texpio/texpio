@@ -77,9 +77,14 @@ pub fn get_update_configuration(
 pub async fn prepare_for_relaunch(
     app: AppHandle,
     handle: State<'_, Arc<ProbeHandle>>,
+    product: State<'_, Arc<crate::product::service::ProductEngine>>,
 ) -> Result<(), RefusalReason> {
     let handle = handle.inner().clone();
+    let product = product.inner().clone();
     let phase = tauri::async_runtime::spawn_blocking(move || {
+        if product.stop().phase != crate::product::service::ProductPhase::Stopped {
+            return crate::engine::types::ProbePhase::Fault;
+        }
         handle.stop();
         handle.status().phase
     })

@@ -1,4 +1,10 @@
-use crate::engine::{runtime::ProbeHandle, types::ProbePhase};
+use crate::{
+    engine::runtime::ProbeHandle,
+    product::{
+        service::{ProductEngine, ProductPhase as ProbePhase},
+        store::SettingsStore,
+    },
+};
 use std::sync::Arc;
 use tauri::{
     AppHandle, Emitter, Manager,
@@ -14,19 +20,17 @@ struct ProbeTrayItems {
 pub fn refresh_probe_tray(app: &AppHandle) {
     let (Some(items), Some(handle)) = (
         app.try_state::<ProbeTrayItems>(),
-        app.try_state::<Arc<ProbeHandle>>(),
+        app.try_state::<Arc<ProductEngine>>(),
     ) else {
         return;
     };
     let phase = handle.status().phase;
-    let _ = items.pause.set_text(if phase == ProbePhase::Paused {
-        "Resume expansions"
-    } else {
+    let _ = items.pause.set_text(if phase == ProbePhase::Running {
         "Pause expansions"
+    } else {
+        "Enable expansions"
     });
-    let _ = items
-        .pause
-        .set_enabled(matches!(phase, ProbePhase::Running | ProbePhase::Paused));
+    let _ = items.pause.set_enabled(phase != ProbePhase::Fault);
     let _ = items.stop.set_enabled(phase != ProbePhase::Stopped);
     if let Some(tray) = app.tray_by_id("texpio-tray") {
         let text = match phase {
@@ -52,7 +56,7 @@ pub fn show_main_window(app: &AppHandle) -> tauri::Result<()> {
 pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Open Texpio", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let pause = MenuItem::with_id(app, "probe-pause", "Pause expansions", false, None::<&str>)?;
+    let pause = MenuItem::with_id(app, "probe-pause", "Enable expansions", true, None::<&str>)?;
     let stop = MenuItem::with_id(app, "probe-stop", "Stop expansions", false, None::<&str>)?;
     let menu = Menu::with_items(app, &[&open, &pause, &stop, &quit])?;
     app.manage(ProbeTrayItems { pause, stop });
@@ -73,13 +77,26 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
                 }
             }
             "probe-pause" => {
-                if let Some(handle) = app.try_state::<Arc<ProbeHandle>>() {
-                    let paused = handle.status().phase != ProbePhase::Paused;
-                    let _ = handle.set_paused(paused);
-                }
-                refresh_probe_tray(app);
+                let app = app.clone();
+                tauri::async_runtime::spawn_blocking(move || {
+                    let engine = app.state::<Arc<ProductEngine>>();
+                    if engine.status().phase == ProbePhase::Running {
+                        engine.pause();
+                    } else {
+                        let probe = app.state::<Arc<ProbeHandle>>();
+                        probe.stop();
+                        let service = app.state::<Arc<crate::library_commands::LibraryService>>();
+                        if let Ok(settings) = app.state::<Arc<SettingsStore>>().load() {
+                            let _ = service.start_product(&engine, settings);
+                        }
+                    }
+                    refresh_probe_tray(&app);
+                });
             }
             "probe-stop" => {
+                if let Some(engine) = app.try_state::<Arc<ProductEngine>>() {
+                    engine.stop();
+                }
                 if let Some(handle) = app.try_state::<Arc<ProbeHandle>>() {
                     handle.stop();
                 }
@@ -88,6 +105,9 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             "quit" => {
                 crate::lifecycle::stop_then_exit(
                     || {
+                        if let Some(engine) = app.try_state::<Arc<ProductEngine>>() {
+                            engine.stop();
+                        }
                         if let Some(handle) = app.try_state::<Arc<ProbeHandle>>() {
                             handle.stop();
                         }

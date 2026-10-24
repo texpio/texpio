@@ -222,7 +222,7 @@
   "library.stop": "Arrêter",
   "library.pause": "Mettre en pause",
   "library.resume": "Reprendre",
-  "library.support": "Bloc-notes Windows uniquement · Clavier US ou anglais (Inde) · Tapez un déclencheur suivi d’une espace. Le moteur démarre arrêté ; un enregistrement ou import l’arrête.",
+  "library.support": "Prototype Windows · Insertion par collage · Terminez un déclencheur par une espace ou ponctuation. L’enregistrement actualise le moteur actif.",
   "library.probeActive": "Une session de test Développeur est active. Arrêtez-la avant de démarrer la bibliothèque.",
   "library.engineNotice": "Information sur le moteur",
   "library.loading": "Chargement…",
@@ -302,5 +302,13 @@
   "library.error.tooLarge": "Ce fichier dépasse la limite d’import de 8 Mio.",
   "library.error.unsupportedVersion": "Ce format de bibliothèque n’est pas pris en charge.",
   "library.error.unavailable": "Ouvrez l’application Texpio pour utiliser la bibliothèque native. Si elle est déjà ouverte, réessayez.",
-  "library.error.importConflict": "Le fichier contient des identités ou déclencheurs en conflit, ou la bibliothèque a changé. Aucun élément n’a été importé. Vérifiez le fichier ou rechargez."
+  "library.error.importConflict": "Le fichier contient des identités ou déclencheurs en conflit, ou la bibliothèque a changé. Aucun élément n’a été importé. Vérifiez le fichier ou rechargez.",
+  "product.error.cancelled": "Insertion arrêtée. Vérifiez le texte avant de continuer.",
+  "product.error.targetChanged": "Insertion arrêtée car le champ actif a changé.",
+  "product.error.modifiersHeld": "Relâchez Ctrl, Alt, Maj et Windows avant l’expansion.",
+  "product.error.inputBlocked": "Windows a bloqué la saisie. Vérifiez le texte avant de réessayer.",
+  "product.error.clipboard": "Presse-papiers indisponible. Vérifiez le texte avant de réessayer.",
+  "product.error.busy": "Le moteur est occupé. Arrêtez-le puis réessayez.",
+  "product.error.invalidSettings": "Vérifiez les paramètres d’expansion.",
+  "product.error.unavailable": "Le service d’expansion Windows est indisponible."
 }

@@ -131,6 +131,9 @@ pub fn run() {
             let preferences =
                 std::sync::Arc::new(commands::preferences::PreferencesStore::new(root.clone()));
             app.manage(preferences.clone());
+            app.manage(std::sync::Arc::new(product::store::SettingsStore::new(
+                root.clone(),
+            )));
             app.manage(std::sync::Arc::new(library_commands::LibraryService::new(
                 root.clone(),
             )));
@@ -147,6 +150,7 @@ pub fn run() {
             Ok(())
         })
         .manage(std::sync::Arc::new(engine::runtime::ProbeHandle::new()))
+        .manage(std::sync::Arc::new(product::service::ProductEngine::new()))
         .invoke_handler(bindings::builder().invoke_handler())
         .build(context)
         .unwrap_or_else(|_| {
@@ -154,6 +158,14 @@ pub fn run() {
             std::process::exit(1)
         })
         .run(|app, event| {
+            if matches!(
+                event,
+                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+            ) && let Some(engine) =
+                app.try_state::<std::sync::Arc<product::service::ProductEngine>>()
+            {
+                engine.stop();
+            }
             #[cfg(target_os = "macos")]
             if matches!(event, tauri::RunEvent::Reopen { .. }) {
                 let _ = desktop::show_main_window(app);

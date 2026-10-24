@@ -32,6 +32,13 @@ vi.mock('@/lib/bindings', () => ({
     libraryExport: native.export,
     libraryStart: native.start,
     probeStatus: native.status,
+    productStatus: async () => ({
+      phase: 'stopped',
+      submitted: 0,
+      cancelled: 0,
+      lastError: null,
+      clipboardIncomplete: false,
+    }),
     probeStop: native.stop,
     probePause: native.pause,
     quitApp: native.quit,

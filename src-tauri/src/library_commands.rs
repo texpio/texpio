@@ -20,6 +20,39 @@ pub struct LibraryService {
 }
 
 impl LibraryService {
+    pub(crate) fn start_product(
+        &self,
+        engine: &crate::product::service::ProductEngine,
+        settings: crate::product::settings::ProductSettings,
+    ) -> Result<crate::product::service::ProductStatus, crate::product::effects::ProductError> {
+        self.start_product_admitted(engine, settings, engine.admission())
+    }
+    pub(crate) fn start_product_admitted(
+        &self,
+        engine: &crate::product::service::ProductEngine,
+        settings: crate::product::settings::ProductSettings,
+        ticket: u64,
+    ) -> Result<crate::product::service::ProductStatus, crate::product::effects::ProductError> {
+        let _control = self
+            .control
+            .lock()
+            .map_err(|_| crate::product::effects::ProductError::Busy)?;
+        let library = self
+            .store
+            .load()
+            .map_err(|_| crate::product::effects::ProductError::Unavailable)?;
+        let rules = library
+            .snippets
+            .into_iter()
+            .filter(|snippet| snippet.enabled && !snippet.deleted)
+            .map(|snippet| crate::product::matcher::ProductRule {
+                id: snippet.id,
+                trigger: snippet.trigger,
+                body: snippet.body.into(),
+            })
+            .collect();
+        engine.start_admitted(rules, settings, ticket)
+    }
     pub fn new(root: PathBuf) -> Self {
         Self {
             store: LibraryStore::new(root),
@@ -110,11 +143,28 @@ pub async fn library_save(
     app: AppHandle,
     service: State<'_, Arc<LibraryService>>,
     handle: State<'_, Arc<ProbeHandle>>,
+    product: State<'_, Arc<crate::product::service::ProductEngine>>,
+    settings: State<'_, Arc<crate::product::store::SettingsStore>>,
     input: SaveLibrary,
 ) -> Result<Library, LibraryError> {
     let service = service.inner().clone();
     let handle = handle.inner().clone();
-    let result = blocking(move || service.save(&handle, input)).await;
+    let product = product.inner().clone();
+    let settings = settings.inner().clone();
+    let result = blocking(move || {
+        let running = product.status().phase == crate::product::service::ProductPhase::Running;
+        if product.stop().phase != crate::product::service::ProductPhase::Stopped {
+            return Err(storage_error());
+        }
+        let result = service.save(&handle, input);
+        if running {
+            let _ = settings
+                .load()
+                .and_then(|settings| service.start_product(&product, settings));
+        }
+        result
+    })
+    .await;
     #[cfg(desktop)]
     crate::desktop::refresh_probe_tray(&app);
     if result.is_ok() {
@@ -148,12 +198,29 @@ pub async fn library_import(
     app: AppHandle,
     service: State<'_, Arc<LibraryService>>,
     handle: State<'_, Arc<ProbeHandle>>,
+    product: State<'_, Arc<crate::product::service::ProductEngine>>,
+    settings: State<'_, Arc<crate::product::store::SettingsStore>>,
     json: String,
     expected_revision: u32,
 ) -> Result<Library, LibraryError> {
     let service = service.inner().clone();
     let handle = handle.inner().clone();
-    let result = blocking(move || service.import(&handle, &json, expected_revision)).await;
+    let product = product.inner().clone();
+    let settings = settings.inner().clone();
+    let result = blocking(move || {
+        let running = product.status().phase == crate::product::service::ProductPhase::Running;
+        if product.stop().phase != crate::product::service::ProductPhase::Stopped {
+            return Err(storage_error());
+        }
+        let result = service.import(&handle, &json, expected_revision);
+        if running {
+            let _ = settings
+                .load()
+                .and_then(|settings| service.start_product(&product, settings));
+        }
+        result
+    })
+    .await;
     #[cfg(desktop)]
     crate::desktop::refresh_probe_tray(&app);
     if result.is_ok() {
@@ -168,12 +235,19 @@ pub async fn library_start(
     app: AppHandle,
     service: State<'_, Arc<LibraryService>>,
     handle: State<'_, Arc<ProbeHandle>>,
+    product: State<'_, Arc<crate::product::service::ProductEngine>>,
 ) -> Result<ProbeStatus, ProbeError> {
     let service = service.inner().clone();
     let handle = handle.inner().clone();
-    let result = tauri::async_runtime::spawn_blocking(move || service.start(&handle))
-        .await
-        .map_err(|_| ProbeError::from(RefusalReason::OutcomeUncertain))?;
+    let product = product.inner().clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        if product.stop().phase != crate::product::service::ProductPhase::Stopped {
+            return Err(RefusalReason::Busy);
+        }
+        service.start(&handle)
+    })
+    .await
+    .map_err(|_| ProbeError::from(RefusalReason::OutcomeUncertain))?;
     #[cfg(desktop)]
     crate::desktop::refresh_probe_tray(&app);
     result.map_err(Into::into)

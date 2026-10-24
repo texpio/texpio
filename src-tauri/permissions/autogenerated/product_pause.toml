@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-product-pause"
+description = "Enables the product_pause command without any pre-configured scope."
+commands.allow = ["product_pause"]
+
+[[permission]]
+identifier = "deny-product-pause"
+description = "Denies the product_pause command without any pre-configured scope."
+commands.deny = ["product_pause"]
