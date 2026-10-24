@@ -5,6 +5,12 @@ use super::{
 #[path = "attachments.rs"]
 mod attachments;
 pub use attachments::{Attachment, FileSettings};
+#[path = "backup.rs"]
+mod backup;
+pub use backup::{BackupFormat, ImportMode, PreparedImport};
+#[path = "recovery.rs"]
+mod recovery;
+pub use recovery::RecoveryStatus;
 use rusqlite::{Connection, Transaction, TransactionBehavior, params};
 use std::{
     collections::HashMap,

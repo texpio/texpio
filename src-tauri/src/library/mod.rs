@@ -7,7 +7,10 @@ use specta::Type;
 
 mod store;
 mod validation;
-pub use store::{Attachment, FileSettings, LibraryStore};
+pub use store::{
+    Attachment, BackupFormat, FileSettings, ImportMode, LibraryStore, PreparedImport,
+    RecoveryStatus,
+};
 
 pub const SCHEMA_VERSION: u32 = 1;
 pub const MAX_JSON_BYTES: usize = 8 * 1024 * 1024;

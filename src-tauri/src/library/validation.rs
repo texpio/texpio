@@ -62,7 +62,7 @@ fn validate_name(name: &str) -> Result<(), LibraryError> {
     Ok(())
 }
 
-fn canonical_uuid(id: &str) -> bool {
+pub(super) fn canonical_uuid(id: &str) -> bool {
     id.len() == 36
         && id.bytes().enumerate().all(|(index, byte)| {
             if matches!(index, 8 | 13 | 18 | 23) {

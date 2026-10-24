@@ -1,4 +1,6 @@
 //! Content operations and native-session publication share one serialized boundary.
+#[path = "library_backups.rs"]
+pub(crate) mod backups;
 #[path = "library_files.rs"]
 pub(crate) mod files;
 #[path = "library_location.rs"]
@@ -23,6 +25,7 @@ pub struct LibraryService {
     control: Mutex<()>,
     watching: std::sync::atomic::AtomicBool,
     published_revision: std::sync::atomic::AtomicU32,
+    staged_backup: Mutex<Option<backups::StagedBackup>>,
 }
 
 impl LibraryService {
@@ -96,6 +99,7 @@ impl LibraryService {
             control: Mutex::new(()),
             watching: std::sync::atomic::AtomicBool::new(true),
             published_revision: std::sync::atomic::AtomicU32::new(u32::MAX),
+            staged_backup: Mutex::new(None),
         }
     }
 

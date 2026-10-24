@@ -255,7 +255,7 @@ impl LibraryStore {
         self.add_attachments(id, &[file])
     }
 }
-fn valid_leaf(name: &str) -> bool {
+pub(super) fn valid_leaf(name: &str) -> bool {
     let stem = name
         .split('.')
         .next()
@@ -273,7 +273,7 @@ fn valid_leaf(name: &str) -> bool {
             .iter()
             .any(|n| stem == format!("COM{n}") || stem == format!("LPT{n}"))
 }
-fn valid_digest(digest: &str) -> bool {
+pub(super) fn valid_digest(digest: &str) -> bool {
     digest.len() == 64
         && digest
             .bytes()

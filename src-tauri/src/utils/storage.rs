@@ -34,13 +34,16 @@ pub fn read_json<T: DeserializeOwned>(path: &Path, limit: usize) -> Result<T, Se
 
 pub fn write_json<T: Serialize>(path: &Path, data: &T, limit: usize) -> Result<(), ServiceError> {
     let bytes = serde_json::to_vec_pretty(data).map_err(|_| ServiceError::InvalidInput)?;
+    write_bytes(path, &bytes, limit)
+}
+pub fn write_bytes(path: &Path, bytes: &[u8], limit: usize) -> Result<(), ServiceError> {
     if bytes.len() > limit {
         return Err(ServiceError::DataTooLarge);
     }
     let parent = path.parent().ok_or(ServiceError::InvalidInput)?;
     fs::create_dir_all(parent).map_err(|_| ServiceError::Io)?;
     let mut temporary = tempfile::NamedTempFile::new_in(parent).map_err(|_| ServiceError::Io)?;
-    temporary.write_all(&bytes).map_err(|_| ServiceError::Io)?;
+    temporary.write_all(bytes).map_err(|_| ServiceError::Io)?;
     temporary
         .as_file()
         .sync_all()

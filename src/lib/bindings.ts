@@ -209,6 +209,54 @@ async librarySwitch(directory: string | null) : Promise<Result<LibraryLocation, 
     else return { status: "error", error: e  as any };
 }
 },
+async backupExport(path: string, format: BackupFormat) : Promise<Result<null, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("backup_export", { path, format }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async backupPreview(path: string, format: BackupFormat, mode: ImportMode) : Promise<Result<BackupPreview, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("backup_preview", { path, format, mode }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async backupDiscard(token: string) : Promise<Result<null, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("backup_discard", { token }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async backupImport(token: string) : Promise<Result<Library, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("backup_import", { token }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async libraryRecoveryStatus() : Promise<Result<RecoveryStatus, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("library_recovery_status") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async libraryRecover(confirmed: boolean) : Promise<Result<Library, LibraryError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("library_recover", { confirmed }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async attachmentAdd(id: string, revision: number, paths: string[]) : Promise<Result<Attachment[], LibraryError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("attachment_add", { id, revision, paths }) };
@@ -368,6 +416,8 @@ export type AppInfo = { version: string; platform: string }
 export type AppPreferences = { theme: Theme; quick_pane_shortcut: string | null; language: Language | null }
 export type Attachment = { id: string; snippetId: string; name: string; digest: string; bytes: number; position: number; present: boolean }
 export type AttachmentInput = { name: string; data: string }
+export type BackupFormat = "json" | "yaml" | "archive"
+export type BackupPreview = { token: string; revision: number; folders: number; snippets: number; skipped: number; files: number; replace: boolean }
 export type Boundary = "word" | "anywhere"
 export type DiagnosticEvent = "appStarted" | "renderFailed" | "commandFailed" | "notificationFailed" | "recoverySaved" | "recoveryFailed" | "updateFailed" | "unknown"
 export type DiagnosticLevel = "trace" | "debug" | "info" | "warn" | "error"
@@ -375,6 +425,7 @@ export type DiagnosticRecord = { level: DiagnosticLevel; event: DiagnosticEvent;
 export type FileSettings = { attachmentsFirst: boolean; strictOrder: boolean }
 export type Fixture = { id: string; title: string; trigger: string; body: string }
 export type Folder = { id: string; name: string }
+export type ImportMode = "merge" | "replace"
 export type ImportPreview = { folders: number; snippets: number; skipped: number }
 export type InsertionMode = "paste" | "type"
 export type InsertionStrategy = "unicode" | "clipboard"
@@ -391,6 +442,7 @@ export type ProductError = "cancelled" | "targetChanged" | "modifiersHeld" | "in
 export type ProductPhase = "stopped" | "running" | "paused" | "fault"
 export type ProductSettings = { enabled: boolean; boundary: Boundary; preserveTerminator: boolean; insertion: InsertionMode; restoreClipboard: boolean; typingSpeed: TypingSpeed; cancelKey: string; clipboardEnabled: boolean; clipboardShortcut: string; clipboardMode: InsertionMode; toggleShortcut: string; autostart: boolean; closeToTray: boolean; attachmentDelayMs: number }
 export type ProductStatus = { phase: ProductPhase; submitted: number; cancelled: number; lastError: ProductError | null; clipboardIncomplete: boolean }
+export type RecoveryStatus = { canRecover: boolean }
 export type ReferenceProfile = "notepad" | "vsCode" | "chromeFixture"
 export type RefusalReason = "unsupportedPlatform" | "unsupportedProfile" | "unsupportedPasswordSemantics" | "passwordField" | "readOnly" | "disabledControl" | "selection" | "unsupportedLayout" | "composition" | "modifier" | "integrity" | "staleContext" | "providerTimeout" | "contextUnavailable" | "boundary" | "suffixMismatch" | "injectedInput" | "queueOverflow" | "clipboardState" | "clipboardChanged" | "outcomeUncertain" | "busy" | "stopped" | "excluded" | "shortcutConflict" | "pickerUnavailable"
 export type SaveLibrary = { expectedRevision: number; folders: Folder[]; snippets: Snippet[] }

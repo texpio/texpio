@@ -50,6 +50,7 @@ import {
 } from '@/services/library'
 import { EngineControls } from './EngineControls'
 import { AttachmentEditor } from './AttachmentEditor'
+import { LibraryBackups } from './LibraryBackups'
 import { searchSnippets, validateSnippet, type SnippetValidation } from './model'
 
 type Draft = { snippet: Snippet; original: Snippet | null; base: Library }
@@ -358,6 +359,7 @@ export function LibraryView() {
             <Download data-icon="inline-start" />
             {t('library.export')}
           </Button>
+          <LibraryBackups />
           <Button variant="outline" size="sm" disabled={busy} onClick={reload}>
             <RefreshCw data-icon="inline-start" />
             {t('library.reload')}

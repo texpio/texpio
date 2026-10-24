@@ -13,7 +13,7 @@ Reference: [design](../superpowers/specs/2026-10-24-windows-v1-design.md), Ampel
 | Favorites/usage/dashboard | Partial | DB1→2 migration and native metadata/favorite APIs; usage keeps editor revision stable. UI dashboard/filter pending |
 | Editor keyboard navigation/find/replace | Partial | Existing accessible editor and Save; richer shortcuts pending |
 | JSON backup/import | Implemented | Transaction/round-trip tests; selected-file native checks pending |
-| YAML/archive/import replace/recovery | Planned | Preserve existing JSON compatibility |
+| YAML/archive/import replace/recovery | Implemented, acceptance pending | JSON/YAML text+metadata, ZIP attachment bytes, one-shot preview tokens and explicit merge/replace. Corrupt DB/WAL/SHM preservation tests pass; actual-app dialogs still need acceptance |
 | Shared/personal switch/external refresh | Implemented, acceptance pending | Local-drive selection, atomic persisted routing, stale-save/attachment fencing and SQLite data-version watch tested; actual-app switch check pending |
 | Tray/close/single instance | Partial | Hide/restore passed; configurable behavior/toggle pending |
 | Autostart hidden/expansion hotkey | Planned | Existing quick-picker shortcut retained |
@@ -24,4 +24,4 @@ Reference: [design](../superpowers/specs/2026-10-24-windows-v1-design.md), Ampel
 
 This tracker records v1 delivery, independently of strict Developer/P0 physical qualification and macOS/Linux research.
 
-Current checkpoint verification: `bun run check:all` passed **142 frontend tests, 142 Rust tests**, plus tooling/static checks after task 5 core. Matching/effects/settings and migration tests demonstrated failing-then-passing behavior. Native app lifecycle acceptance used an isolated identifier and no typed input; all owned connections/processes ended afterward. No claim that all rows are complete.
+Current checkpoint verification: `bun run check:all` passed **144 frontend tests, 149 Rust tests**, plus tooling/static checks after task 6 core. Matching/effects/settings and migration tests demonstrated failing-then-passing behavior. Native app lifecycle acceptance used an isolated identifier and no typed input; all owned connections/processes ended afterward. No claim that all rows are complete.
