@@ -3,10 +3,13 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { LibraryView } from './LibraryView'
+import { createKeyboardDispatcher } from '@/hooks/use-keyboard-shortcuts'
 
 const native = vi.hoisted(() => ({
   load: vi.fn(),
   save: vi.fn(),
+  metadata: vi.fn(),
+  favorite: vi.fn(),
   preview: vi.fn(),
   import: vi.fn(),
   export: vi.fn(),
@@ -26,6 +29,8 @@ vi.mock('@tauri-apps/api/event', () => ({ listen: native.listen }))
 vi.mock('@/lib/bindings', () => ({
   commands: {
     libraryLoad: native.load,
+    libraryMetadata: native.metadata,
+    librarySetFavorite: native.favorite,
     attachmentList: async () => ({ status: 'ok', data: [] }),
     attachmentSettings: async () => ({
       status: 'ok',
@@ -99,6 +104,18 @@ beforeEach(() => {
     },
   )
   native.load.mockResolvedValue({ status: 'ok', data: structuredClone(initial) })
+  native.metadata.mockResolvedValue({
+    status: 'ok',
+    data: initial.snippets.map((snippet, index) => ({
+      snippetId: snippet.id,
+      favorite: index === 1,
+      usageCount: index + 1,
+      createdAt: 1,
+      updatedAt: 2,
+      lastUsedAt: 3,
+    })),
+  })
+  native.favorite.mockResolvedValue({ status: 'ok', data: null })
   native.status.mockResolvedValue({ status: 'ok', data: stopped })
   native.stop.mockResolvedValue({ status: 'ok', data: stopped })
   native.quit.mockResolvedValue({ status: 'ok', data: null })
@@ -125,6 +142,61 @@ function show() {
     client,
   }
 }
+it('filters favorites and keeps an edited body when usage metadata refreshes', async () => {
+  const { client } = show()
+  await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
+  await userEvent.type(screen.getByLabelText('Body'), ' draft')
+  await userEvent.click(screen.getByRole('button', { name: 'Add to favorites' }))
+  await waitFor(() => expect(native.favorite).toHaveBeenCalledWith(initial.snippets[0].id, 4, true))
+  act(() =>
+    client.setQueryData(
+      ['library-metadata'],
+      initial.snippets.map((snippet) => ({
+        snippetId: snippet.id,
+        favorite: snippet.id === initial.snippets[1].id,
+        usageCount: 99,
+        createdAt: 1,
+        updatedAt: 2,
+        lastUsedAt: 4,
+      })),
+    ),
+  )
+  expect(screen.getByLabelText('Body')).toHaveValue('Hello, नमस्ते 👋 draft')
+  await userEvent.click(screen.getByRole('radio', { name: 'Favorites' }))
+  expect(screen.queryByRole('button', { name: /Greeting/ })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /Address/ })).toBeInTheDocument()
+  expect(screen.getByLabelText('Body')).toHaveValue('Hello, नमस्ते 👋 draft')
+})
+it('navigates the list without deleting text drafts and dispatches find/save from the editor', async () => {
+  const dispatch = createKeyboardDispatcher({
+    platform: 'windows',
+    openPreferences: vi.fn(),
+    showToast: vi.fn(),
+    windowAction: vi.fn().mockResolvedValue({ success: true }),
+  })
+  document.addEventListener('keydown', dispatch)
+  try {
+    show()
+    const greeting = await screen.findByRole('button', { name: /Greeting/ })
+    await userEvent.click(greeting)
+    const body = screen.getByLabelText('Body')
+    await userEvent.type(body, ' draft')
+    await userEvent.keyboard('{Delete}')
+    expect(native.save).not.toHaveBeenCalled()
+    greeting.focus()
+    await userEvent.keyboard('{ArrowDown}')
+    expect(screen.getByRole('button', { name: /Address/ })).toHaveFocus()
+    expect(body).toHaveValue('Hello, नमस्ते 👋 draft')
+    await userEvent.click(body)
+    await userEvent.keyboard('{Control>}f{/Control}')
+    expect(screen.getByLabelText('Find in body')).toBeInTheDocument()
+    await userEvent.click(body)
+    await userEvent.keyboard('{Control>}s{/Control}')
+    await waitFor(() => expect(native.save).toHaveBeenCalledOnce())
+  } finally {
+    document.removeEventListener('keydown', dispatch)
+  }
+})
 it('keeps an unsaved snippet when native Quit is cancelled and exits only after discard', async () => {
   show()
   await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
@@ -167,7 +239,7 @@ it('saves a new Unicode snippet only through explicit Save and retains the ackno
   await userEvent.type(screen.getByLabelText('Body'), 'धन्यवाद 👋')
   expect(native.save).not.toHaveBeenCalled()
   await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
-  await screen.findByText('Saved. Start expansion again to use your changes.')
+  await screen.findByText('Saved.')
   expect(native.save).toHaveBeenCalledWith(
     expect.objectContaining({
       expectedRevision: 4,
@@ -289,7 +361,7 @@ it('duplicates as disabled, then trashes and restores without losing literal tex
   expect(screen.getByLabelText('Title')).toHaveValue('Greeting (copy)')
   expect(screen.getByRole('switch')).not.toBeChecked()
   await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
-  await screen.findByText('Saved. Start expansion again to use your changes.')
+  await screen.findByText('Saved.')
   await userEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
   await waitFor(() => expect(native.save).toHaveBeenCalledTimes(2))
   await userEvent.click(screen.getByRole('radio', { name: 'Trash' }))
@@ -322,7 +394,7 @@ it('creates folders and removes them while preserving their snippets as unfiled'
   await userEvent.type(screen.getByLabelText('Trigger'), ';work')
   await userEvent.type(screen.getByLabelText('Body'), 'Keep this text')
   await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
-  await screen.findByText('Saved. Start expansion again to use your changes.')
+  await screen.findByText('Saved.')
   await userEvent.click(screen.getByRole('button', { name: 'Manage folder' }))
   await userEvent.click(screen.getByRole('button', { name: 'Remove folder' }))
   await waitFor(() => expect(native.save).toHaveBeenCalledTimes(3))

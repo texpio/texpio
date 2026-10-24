@@ -4,7 +4,7 @@ import { listen } from '@tauri-apps/api/event'
 import { quitApp } from '@/lib/app-exit'
 import { approveExit, registerExitGuard } from '@/lib/exit-guard'
 import { useTranslation } from 'react-i18next'
-import { Copy, Download, FolderPlus, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { Copy, Download, FolderPlus, Plus, RefreshCw, Star, Trash2, Upload } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   AlertDialog,
@@ -51,6 +51,10 @@ import {
 import { EngineControls } from './EngineControls'
 import { AttachmentEditor } from './AttachmentEditor'
 import { LibraryBackups } from './LibraryBackups'
+import { EditorFind } from './EditorFind'
+import { LibraryDashboard } from './LibraryDashboard'
+import { useLibraryMetadata, useSetFavorite } from '@/services/library-metadata'
+import { bindLibraryActions } from '@/lib/commands/library-commands'
 import { searchSnippets, validateSnippet, type SnippetValidation } from './model'
 
 type Draft = { snippet: Snippet; original: Snippet | null; base: Library }
@@ -71,6 +75,14 @@ export function LibraryView() {
   const library = useLibrary()
   const save = useSaveLibrary()
   const importer = useImportLibrary()
+  const metadata = useLibraryMetadata()
+  const favorite = useSetFavorite()
+  const favoriteIds = new Set(
+    metadata.data?.filter((info) => info.favorite).map((info) => info.snippetId),
+  )
+  const bodyInput = useRef<HTMLTextAreaElement>(null)
+  const list = useRef<HTMLElement>(null)
+  const [findMode, setFindMode] = useState<'find' | 'replace' | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [query, setQuery] = useState('')
   const [folder, setFolder] = useState('all')
@@ -91,6 +103,16 @@ export function LibraryView() {
   const busyRef = useRef(false)
   const dirty = !!draft && (!draft.original || !same(draft.snippet, draft.original))
   const stale = !!draft && !!library.data && draft.base.revision !== library.data.revision
+  useEffect(() =>
+    bindLibraryActions((action) => {
+      if (busyRef.current) return
+      if (action === 'new') guarded(() => newSnippet())
+      else if (action === 'save') {
+        if (draft && !draft.snippet.deleted) void saveDraft()
+      } else if (action === 'search' || !draft) document.getElementById('library-search')?.focus()
+      else if (!draft.snippet.deleted) setFindMode(action === 'replace' ? 'replace' : 'find')
+    }),
+  )
   useEffect(() => {
     const unregister = registerExitGuard(
       () =>
@@ -158,6 +180,7 @@ export function LibraryView() {
     setDraft({ snippet: { ...snippet }, original: snippet, base: library.data })
     setValidation(null)
     setNotice(null)
+    setFindMode(null)
   }
   function edit(patch: Partial<Snippet>) {
     setDraft((current) =>
@@ -325,6 +348,7 @@ export function LibraryView() {
         data.snippets.filter(
           (item) =>
             item.deleted === (tab === 'trash') &&
+            (tab !== 'favorites' || favoriteIds.has(item.id)) &&
             (folder === 'all' ||
               (folder === 'unfiled' ? item.folderId === null : item.folderId === folder)),
         ),
@@ -372,6 +396,14 @@ export function LibraryView() {
           data?.snippets.filter((snippet) => snippet.enabled && !snippet.deleted).length ?? 0
         }
       />
+      {data && metadata.data && (
+        <LibraryDashboard snippets={data.snippets} metadata={metadata.data} />
+      )}
+      {(metadata.isError || favorite.isError) && (
+        <Alert variant="destructive">
+          <AlertTitle>{t('library.metadataError')}</AlertTitle>
+        </Alert>
+      )}
       {notice && (
         <Alert
           variant={notice.kind === 'error' ? 'destructive' : 'default'}
@@ -469,10 +501,51 @@ export function LibraryView() {
               aria-label={t('library.collection')}
             >
               <ToggleGroupItem value="active">{t('library.active')}</ToggleGroupItem>
+              <ToggleGroupItem value="favorites">{t('library.favorites')}</ToggleGroupItem>
               <ToggleGroupItem value="trash">{t('library.trash')}</ToggleGroupItem>
             </ToggleGroup>
             <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(12rem,0.8fr)_minmax(18rem,1.5fr)]">
-              <section aria-label={t('library.snippets')} className="flex min-w-0 flex-col gap-2">
+              <section
+                ref={list}
+                aria-label={t('library.snippets')}
+                className="flex min-w-0 flex-col gap-2"
+                onKeyDown={(event) => {
+                  if (
+                    busy ||
+                    event.altKey ||
+                    event.ctrlKey ||
+                    event.metaKey ||
+                    event.nativeEvent.isComposing
+                  )
+                    return
+                  const button =
+                    event.target instanceof Element
+                      ? event.target.closest<HTMLElement>('button[data-snippet-id]')
+                      : null
+                  if (!button) return
+                  const index = visible.findIndex(
+                    (snippet) => snippet.id === button.dataset.snippetId,
+                  )
+                  if (index < 0) return
+                  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    event.preventDefault()
+                    const next =
+                      visible[
+                        (index + (event.key === 'ArrowDown' ? 1 : -1) + visible.length) %
+                          visible.length
+                      ]
+                    list.current
+                      ?.querySelector<HTMLElement>(`button[data-snippet-id="${next.id}"]`)
+                      ?.focus()
+                  } else if (event.key === 'Delete' && !visible[index].deleted) {
+                    event.preventDefault()
+                    changeDeleted(visible[index], true)
+                  } else if (event.key === 'Escape') {
+                    event.preventDefault()
+                    guarded(() => setDraft(null))
+                  }
+                }}
+              >
                 <p className="text-xs text-muted-foreground">
                   {t('library.count', { count: visible.length })}
                 </p>
@@ -480,6 +553,7 @@ export function LibraryView() {
                   visible.map((snippet) => (
                     <Button
                       key={snippet.id}
+                      data-snippet-id={snippet.id}
                       variant={draft?.snippet.id === snippet.id ? 'secondary' : 'outline'}
                       className="h-auto min-h-16 w-full justify-start whitespace-normal py-3 text-start"
                       disabled={busy}
@@ -492,6 +566,9 @@ export function LibraryView() {
                         </span>
                       </span>
                       {!snippet.enabled && <Badge variant="outline">{t('common.disabled')}</Badge>}
+                      {favoriteIds.has(snippet.id) && (
+                        <Star className="size-4 fill-current" aria-hidden="true" />
+                      )}
                     </Button>
                   ))
                 ) : (
@@ -578,6 +655,13 @@ export function LibraryView() {
                         <FieldLabel htmlFor="snippet-body">{t('library.field.body')}</FieldLabel>
                         <Textarea
                           id="snippet-body"
+                          ref={bodyInput}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Escape' && findMode) {
+                              event.preventDefault()
+                              setFindMode(null)
+                            }
+                          }}
                           value={draft.snippet.body}
                           rows={8}
                           className="resize-y"
@@ -600,6 +684,56 @@ export function LibraryView() {
                         />
                       </Field>
                     </FieldGroup>
+                    {findMode && (
+                      <EditorFind
+                        key={draft.snippet.id}
+                        mode={findMode}
+                        value={draft.snippet.body}
+                        onChange={(body) => edit({ body })}
+                        textarea={bodyInput}
+                        onClose={() => setFindMode(null)}
+                      />
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={busy || draft.snippet.deleted}
+                        onClick={() => setFindMode('find')}
+                      >
+                        {t('editor.find')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={busy || draft.snippet.deleted}
+                        onClick={() => setFindMode('replace')}
+                      >
+                        {t('editor.findReplace')}
+                      </Button>
+                      {draft.original && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={busy || stale || favorite.isPending || draft.snippet.deleted}
+                          aria-pressed={favoriteIds.has(draft.snippet.id)}
+                          onClick={() =>
+                            favorite.mutate({
+                              id: draft.snippet.id,
+                              revision: draft.base.revision,
+                              favorite: !favoriteIds.has(draft.snippet.id),
+                            })
+                          }
+                        >
+                          <Star data-icon="inline-start" />
+                          {t(
+                            favoriteIds.has(draft.snippet.id)
+                              ? 'library.unfavorite'
+                              : 'library.favorite',
+                          )}
+                        </Button>
+                      )}
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       <Button type="submit" disabled={busy || !dirty || draft.snippet.deleted}>
                         {t(busy ? 'library.saving' : 'library.save')}

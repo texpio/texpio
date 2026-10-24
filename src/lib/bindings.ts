@@ -169,9 +169,9 @@ async libraryMetadata() : Promise<Result<SnippetInfo[], LibraryError>> {
     else return { status: "error", error: e  as any };
 }
 },
-async librarySetFavorite(id: string, favorite: boolean) : Promise<Result<null, LibraryError>> {
+async librarySetFavorite(id: string, revision: number, favorite: boolean) : Promise<Result<null, LibraryError>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("library_set_favorite", { id, favorite }) };
+    return { status: "ok", data: await TAURI_INVOKE("library_set_favorite", { id, revision, favorite }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

@@ -147,10 +147,16 @@ pub async fn library_set_favorite(
     app: AppHandle,
     service: State<'_, Arc<LibraryService>>,
     id: String,
+    revision: u32,
     favorite: bool,
 ) -> Result<(), LibraryError> {
     let service = service.inner().clone();
-    blocking(move || service.store.set_favorite(&id, favorite)).await?;
+    blocking(move || {
+        service
+            .store
+            .with_revision(revision, |store| store.set_favorite(&id, favorite))
+    })
+    .await?;
     let _ = app.emit("library-metadata-changed", ());
     Ok(())
 }

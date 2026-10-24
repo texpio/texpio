@@ -10,8 +10,8 @@ Reference: [design](../superpowers/specs/2026-10-24-windows-v1-design.md), Ampel
 | Clipboard shortcut and restoration | Partial | Sequence-aware native restoration implemented; explicit Copy and synthetic Paste pass. Shortcut and clipboard-race acceptance pending |
 | Attachments/order/delay | Implemented, acceptance pending | Native content-addressed store, selected/drop/pasted-file intake, ordered CF_HDROP delivery and editor controls; storage/payload tests pass. Native target delivery still needs acceptance |
 | Create/edit/search/folders/disable/trash | Implemented | Existing offline MVP tests and actual-app evidence |
-| Favorites/usage/dashboard | Partial | DB1→2 migration and native metadata/favorite APIs; usage keeps editor revision stable. UI dashboard/filter pending |
-| Editor keyboard navigation/find/replace | Partial | Existing accessible editor and Save; richer shortcuts pending |
+| Favorites/usage/dashboard | Implemented, acceptance pending | Favorite filter and editor toggle, active/recent/most-used summaries; metadata updates preserve drafts and favorite writes are revision-fenced |
+| Editor keyboard navigation/find/replace | Implemented, acceptance pending | Registered Ctrl+N/S/F/H, existing Ctrl+K palette, list navigation/Delete/Escape, literal Unicode find/replace and undo button; focused UI tests pass |
 | JSON backup/import | Implemented | Transaction/round-trip tests; selected-file native checks pending |
 | YAML/archive/import replace/recovery | Implemented, acceptance pending | JSON/YAML text+metadata, ZIP attachment bytes, one-shot preview tokens and explicit merge/replace. Corrupt DB/WAL/SHM preservation tests pass; actual-app dialogs still need acceptance |
 | Shared/personal switch/external refresh | Implemented, acceptance pending | Local-drive selection, atomic persisted routing, stale-save/attachment fencing and SQLite data-version watch tested; actual-app switch check pending |
@@ -24,4 +24,4 @@ Reference: [design](../superpowers/specs/2026-10-24-windows-v1-design.md), Ampel
 
 This tracker records v1 delivery, independently of strict Developer/P0 physical qualification and macOS/Linux research.
 
-Current checkpoint verification: `bun run check:all` passed **144 frontend tests, 149 Rust tests**, plus tooling/static checks after task 6 core. Matching/effects/settings and migration tests demonstrated failing-then-passing behavior. Native app lifecycle acceptance used an isolated identifier and no typed input; all owned connections/processes ended afterward. No claim that all rows are complete.
+Current checkpoint verification: `bun run check:all` passed **148 frontend tests, 149 Rust tests**, plus tooling/static checks after task 7. Matching/effects/settings and migration tests demonstrated failing-then-passing behavior. Native app lifecycle acceptance used an isolated identifier and no typed input; all owned connections/processes ended afterward. No claim that all rows are complete.

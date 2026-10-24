@@ -30,7 +30,14 @@ export function createKeyboardDispatcher(context: CommandContext) {
     if (
       !command ||
       (editable(event.target) &&
-        !['open-preferences', 'toggle-command-palette'].includes(command.id))
+        ![
+          'open-preferences',
+          'toggle-command-palette',
+          'library-new',
+          'library-save',
+          'library-find',
+          'library-replace',
+        ].includes(command.id))
     )
       return
     event.preventDefault()
