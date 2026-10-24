@@ -6,6 +6,13 @@ import { test } from 'node:test'
 import { completeTask, renameDoneTasks } from './complete-task.js'
 import { prepareRelease } from './prepare-release.js'
 
+test('Windows main window starts hidden until the startup policy shows it', async () => {
+  const config = JSON.parse(
+    await readFile(new URL('../src-tauri/tauri.windows.conf.json', import.meta.url), 'utf8'),
+  )
+  assert.equal(config.app.windows.find((window) => window.label === 'main').visible, false)
+})
+
 async function fixture(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'texpio-tooling-'))
   t.after(() => rm(root, { recursive: true, force: true }))

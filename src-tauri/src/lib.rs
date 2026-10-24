@@ -1,5 +1,7 @@
 pub mod bindings;
 mod commands;
+#[cfg(test)]
+mod coordination_tests;
 #[cfg(desktop)]
 mod desktop;
 pub mod engine;

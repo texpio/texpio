@@ -222,6 +222,10 @@ impl NativeEdit {
         Ok(())
     }
     pub fn deliver(&mut self, expansion: &Expansion) -> Result<(), ProductError> {
+        effects::wait_for_modifier_release(
+            || self.check(),
+            || thread::sleep(Duration::from_millis(10)),
+        )?;
         let settings = self.settings.clone();
         let result = effects::perform(self, expansion, &settings);
         let restored = self.finish_clipboard();

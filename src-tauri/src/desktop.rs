@@ -6,6 +6,14 @@ use crate::{
     },
 };
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+static TRAY_ACTION_PENDING: AtomicBool = AtomicBool::new(false);
+struct TrayPending;
+impl Drop for TrayPending {
+    fn drop(&mut self) {
+        TRAY_ACTION_PENDING.store(false, Ordering::Release);
+    }
+}
 use tauri::{
     AppHandle, Emitter, Manager,
     menu::{Menu, MenuItem},
@@ -93,19 +101,20 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
                 }
             }
             "probe-pause" => {
+                if TRAY_ACTION_PENDING.swap(true, Ordering::AcqRel) {
+                    return;
+                }
+                let engine = app.state::<Arc<ProductEngine>>().inner().clone();
+                let request = crate::product::tray_action::ToggleRequest::capture(&engine);
                 let app = app.clone();
                 tauri::async_runtime::spawn_blocking(move || {
-                    let engine = app.state::<Arc<ProductEngine>>();
-                    if engine.status().phase == ProbePhase::Running {
-                        engine.pause();
-                    } else {
+                    let _pending = TrayPending;
+                    let _ = request.run(&engine, |ticket| {
                         let probe = app.state::<Arc<ProbeHandle>>();
-                        probe.stop();
                         let service = app.state::<Arc<crate::library_commands::LibraryService>>();
-                        if let Ok(settings) = app.state::<Arc<SettingsStore>>().load() {
-                            let _ = service.start_product(&engine, settings);
-                        }
-                    }
+                        let settings = app.state::<Arc<SettingsStore>>();
+                        service.start_product_admitted(&engine, &probe, &settings, ticket)
+                    });
                     refresh_probe_tray(&app);
                 });
             }

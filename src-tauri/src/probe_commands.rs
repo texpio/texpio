@@ -64,17 +64,14 @@ pub async fn probe_start(
     app: AppHandle,
     handle: State<'_, Arc<ProbeHandle>>,
     product: State<'_, Arc<crate::product::service::ProductEngine>>,
+    service: State<'_, Arc<crate::library_commands::LibraryService>>,
     options: StartOptions,
 ) -> Result<ProbeStatus, ProbeError> {
     let product = product.inner().clone();
-    let stopped = tauri::async_runtime::spawn_blocking(move || product.stop())
-        .await
-        .map_err(|_| ProbeError::from(RefusalReason::Busy))?;
-    if stopped.phase != crate::product::service::ProductPhase::Stopped {
-        return Err(RefusalReason::Busy.into());
-    }
+    let service = service.inner().clone();
+    let admission = product.admission();
     control(app, handle.inner().clone(), move |handle| {
-        handle.start(options)
+        service.start_probe_admitted(&product, handle, admission, |handle| handle.start(options))
     })
     .await
 }
@@ -83,7 +80,9 @@ pub async fn probe_start(
 pub async fn probe_stop(
     app: AppHandle,
     handle: State<'_, Arc<ProbeHandle>>,
+    product: State<'_, Arc<crate::product::service::ProductEngine>>,
 ) -> Result<ProbeStatus, ProbeError> {
+    product.stop();
     control(app, handle.inner().clone(), |handle| Ok(handle.stop())).await
 }
 #[tauri::command]
@@ -91,10 +90,21 @@ pub async fn probe_stop(
 pub async fn probe_pause(
     app: AppHandle,
     handle: State<'_, Arc<ProbeHandle>>,
+    product: State<'_, Arc<crate::product::service::ProductEngine>>,
+    service: State<'_, Arc<crate::library_commands::LibraryService>>,
     paused: bool,
 ) -> Result<ProbeStatus, ProbeError> {
+    let product = product.inner().clone();
+    let service = service.inner().clone();
+    let admission = product.admission();
     control(app, handle.inner().clone(), move |handle| {
-        handle.set_paused(paused)
+        if paused {
+            handle.set_paused(true)
+        } else {
+            service.start_probe_admitted(&product, handle, admission, |handle| {
+                handle.set_paused(false)
+            })
+        }
     })
     .await
 }

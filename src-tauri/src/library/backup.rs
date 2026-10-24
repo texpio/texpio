@@ -483,6 +483,29 @@ fn parse_manifest(data: &[u8], format: BackupFormat) -> Result<Manifest, Library
 fn yaml_value(data: &[u8], maximum: usize) -> Result<serde_json::Value, LibraryError> {
     yaml_budget::decode(data, maximum).map_err(|_| LibraryError::invalid_data())
 }
+fn read_archive_entry(
+    reader: &mut impl Read,
+    declared: u64,
+    limit: usize,
+    remaining: &mut usize,
+) -> Result<Vec<u8>, LibraryError> {
+    if declared > limit as u64 || declared > *remaining as u64 {
+        return Err(LibraryError::too_large());
+    }
+    // A false small declaration is rejected after at most one extra byte, rather
+    // than allowing that stream to consume the whole per-entry allocation.
+    let read_limit = limit.min(*remaining).min(declared as usize);
+    let mut bytes = Vec::new();
+    reader
+        .take(read_limit as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| LibraryError::invalid_data())?;
+    if bytes.len() as u64 != declared {
+        return Err(LibraryError::invalid_data());
+    }
+    *remaining -= bytes.len();
+    Ok(bytes)
+}
 fn decode_archive(data: &[u8]) -> Result<(Manifest, BTreeMap<String, Vec<u8>>), LibraryError> {
     validate_directory(data)?;
     let mut archive =
@@ -492,7 +515,7 @@ fn decode_archive(data: &[u8]) -> Result<(Manifest, BTreeMap<String, Vec<u8>>), 
     }
     let mut manifest = None;
     let mut blobs = BTreeMap::new();
-    let mut total = 0usize;
+    let mut remaining = MAX_BLOBS + MAX_MANIFEST;
     for index in 0..archive.len() {
         let mut file = archive
             .by_index(index)
@@ -511,20 +534,8 @@ fn decode_archive(data: &[u8]) -> Result<(Manifest, BTreeMap<String, Vec<u8>>), 
         {
             return Err(LibraryError::invalid_data());
         }
-        total = total
-            .checked_add(file.size() as usize)
-            .ok_or_else(LibraryError::too_large)?;
-        if total > MAX_BLOBS + MAX_MANIFEST {
-            return Err(LibraryError::too_large());
-        }
-        let mut bytes = Vec::new();
-        file.by_ref()
-            .take(limit as u64 + 1)
-            .read_to_end(&mut bytes)
-            .map_err(|_| LibraryError::invalid_data())?;
-        if bytes.len() > limit {
-            return Err(LibraryError::too_large());
-        }
+        let declared = file.size();
+        let bytes = read_archive_entry(&mut file, declared, limit, &mut remaining)?;
         if name == "manifest.json" {
             manifest = Some(parse_manifest(&bytes, BackupFormat::Json)?);
         } else {
@@ -655,6 +666,59 @@ mod tests {
             .unwrap();
         large[central + 24..central + 28].copy_from_slice(&u32::MAX.to_le_bytes());
         assert!(PreparedImport::decode(&large, BackupFormat::Archive).is_err());
+    }
+    #[test]
+    fn zip_rejects_false_uncompressed_sizes_even_with_valid_deflate_and_crc() {
+        let root = tempfile::tempdir().unwrap();
+        let store = LibraryStore::new(root.path().into());
+        let manifest = store.export_backup(BackupFormat::Json).unwrap();
+        let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        writer
+            .start_file(
+                "manifest.json",
+                zip::write::SimpleFileOptions::default()
+                    .compression_method(zip::CompressionMethod::Deflated),
+            )
+            .unwrap();
+        writer.write_all(&manifest).unwrap();
+        let original = writer.finish().unwrap().into_inner();
+        for declared in [1, manifest.len() as u32 + 1] {
+            let mut malformed = original.clone();
+            let central = malformed
+                .windows(4)
+                .position(|bytes| bytes == b"PK\x01\x02")
+                .unwrap();
+            malformed[22..26].copy_from_slice(&declared.to_le_bytes());
+            malformed[central + 24..central + 28].copy_from_slice(&declared.to_le_bytes());
+            // The dependency accepts this complete stream and its original CRC.
+            // Size declarations therefore cannot stand in for actual output bounds.
+            let mut archive = zip::ZipArchive::new(Cursor::new(&malformed)).unwrap();
+            let mut file = archive.by_index(0).unwrap();
+            assert_eq!(file.size(), u64::from(declared));
+            let mut actual = Vec::new();
+            file.read_to_end(&mut actual).unwrap();
+            assert_eq!(actual, manifest);
+            assert!(decode_archive(&malformed).is_err());
+        }
+    }
+    #[test]
+    fn archive_reader_limits_streaming_and_debits_actual_remaining_bytes() {
+        let mut remaining = 5;
+        let mut dishonest = Cursor::new(b"12345678");
+        assert!(read_archive_entry(&mut dishonest, 4, 128, &mut remaining).is_err());
+        assert_eq!(dishonest.position(), 5);
+        assert_eq!(remaining, 5);
+
+        let mut first = Cursor::new(b"1234");
+        assert_eq!(
+            read_archive_entry(&mut first, 4, 128, &mut remaining).unwrap(),
+            b"1234"
+        );
+        assert_eq!(remaining, 1);
+        let mut next = Cursor::new(b"12");
+        assert!(read_archive_entry(&mut next, 2, 128, &mut remaining).is_err());
+        assert_eq!(next.position(), 0);
+        assert_eq!(remaining, 1);
     }
     #[test]
     fn json_yaml_and_archive_round_trip_text_metadata_and_archive_file_bytes() {

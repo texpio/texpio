@@ -27,9 +27,108 @@ use windows::Win32::{
 };
 
 static HOOK_OWNED: AtomicBool = AtomicBool::new(false);
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum InputOrigin {
+    Own,
+    Hardware,
+    Software,
+    LowerIntegrity,
+}
+fn input_origin(event: &KBDLLHOOKSTRUCT) -> InputOrigin {
+    if event.dwExtraInfo == PRODUCT_MARKER {
+        InputOrigin::Own
+    } else if event.flags.contains(LLKHF_LOWER_IL_INJECTED) {
+        InputOrigin::LowerIntegrity
+    } else if event.flags.contains(LLKHF_INJECTED) {
+        InputOrigin::Software
+    } else {
+        InputOrigin::Hardware
+    }
+}
+fn accepts_origin(origin: InputOrigin, allow_software: bool) -> bool {
+    origin == InputOrigin::Hardware || (origin == InputOrigin::Software && allow_software)
+}
+// Explicit debug-only capture diagnostics contain counters, never keys or text.
+#[cfg(debug_assertions)]
+#[derive(Debug, Default)]
+struct CaptureFacts {
+    callbacks: u32,
+    own_events: u32,
+    injected_events: u32,
+    lower_integrity_events: u32,
+    software_accepted: u32,
+    key_down: u32,
+    generic_modifiers: u32,
+    sided_modifiers: u32,
+    stamp_refused: u32,
+    context_resets: u32,
+    own_target: u32,
+    shortcut_refused: u32,
+    translation_failed: u32,
+    translated_scalars: u32,
+    spaces: u32,
+    matches: u32,
+    accepted: u32,
+    callback_max_us: u64,
+}
+macro_rules! fact {
+    ($context:expr, $name:ident) => {
+        #[cfg(debug_assertions)]
+        if let Some(facts) = $context.facts.as_mut() {
+            facts.$name = facts.$name.saturating_add(1);
+        }
+    };
+}
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn software_compatibility_is_explicit_and_never_accepts_own_or_lower_integrity_input() {
+        assert!(accepts_origin(InputOrigin::Hardware, false));
+        assert!(accepts_origin(InputOrigin::Hardware, true));
+        assert!(!accepts_origin(InputOrigin::Software, false));
+        assert!(accepts_origin(InputOrigin::Software, true));
+        for allowed in [false, true] {
+            assert!(!accepts_origin(InputOrigin::Own, allowed));
+            assert!(!accepts_origin(InputOrigin::LowerIntegrity, allowed));
+        }
+        let event = KBDLLHOOKSTRUCT {
+            flags: LLKHF_INJECTED,
+            ..Default::default()
+        };
+        assert_eq!(input_origin(&event), InputOrigin::Software);
+        assert_eq!(
+            input_origin(&KBDLLHOOKSTRUCT {
+                flags: LLKHF_INJECTED | LLKHF_LOWER_IL_INJECTED,
+                ..event
+            }),
+            InputOrigin::LowerIntegrity
+        );
+        assert_eq!(
+            input_origin(&KBDLLHOOKSTRUCT {
+                dwExtraInfo: PRODUCT_MARKER,
+                ..event
+            }),
+            InputOrigin::Own
+        );
+    }
+    #[test]
+    fn initial_modifier_seed_reconciles_generic_bits_with_observed_sides() {
+        let mut keys = [0; 256];
+        for generic in [0x10, 0x11, 0x12] {
+            keys[generic] = 0x80;
+        }
+        keys[0x14] = 1;
+        seed_modifiers(&mut keys, |_| false);
+        for generic in [0x10, 0x11, 0x12] {
+            assert_eq!(keys[generic], 0);
+        }
+        seed_modifiers(&mut keys, |key| matches!(key, 0xA0 | 0xA3));
+        assert_eq!(keys[0x10], 0x80);
+        assert_eq!(keys[0x11], 0x80);
+        assert_eq!(keys[0x12], 0);
+        assert_eq!(keys[0x14], 1);
+    }
     #[test]
     fn lock_keys_keep_initial_toggle_and_do_not_toggle_on_repeat() {
         let mut keys = [0; 256];
@@ -41,6 +140,73 @@ mod tests {
         update_keyboard(&mut keys, VK_CAPITAL.0 as usize, false);
         update_keyboard(&mut keys, VK_CAPITAL.0 as usize, true);
         assert_eq!(keys[VK_CAPITAL.0 as usize] & 1, 1);
+    }
+    #[test]
+    fn generic_shift_stays_held_through_printable_keys_until_release() {
+        let mut keys = [0; 256];
+        update_keyboard(&mut keys, VK_SHIFT.0 as usize, true);
+        assert_eq!(keys[VK_SHIFT.0 as usize] & 0x80, 0x80);
+        update_keyboard(&mut keys, 0xBA, true);
+        assert_eq!(keys[VK_SHIFT.0 as usize] & 0x80, 0x80);
+        update_keyboard(&mut keys, 0xBA, false);
+        assert_eq!(keys[VK_SHIFT.0 as usize] & 0x80, 0x80);
+        update_keyboard(&mut keys, VK_SHIFT.0 as usize, false);
+        assert_eq!(keys[VK_SHIFT.0 as usize] & 0x80, 0);
+    }
+    #[test]
+    fn sided_shift_stays_held_until_both_sides_are_released() {
+        let mut keys = [0; 256];
+        update_keyboard(&mut keys, VK_LSHIFT.0 as usize, true);
+        update_keyboard(&mut keys, VK_RSHIFT.0 as usize, true);
+        update_keyboard(&mut keys, VK_LSHIFT.0 as usize, false);
+        assert_eq!(keys[VK_SHIFT.0 as usize] & 0x80, 0x80);
+        update_keyboard(&mut keys, 0xBA, true);
+        assert_eq!(keys[VK_SHIFT.0 as usize] & 0x80, 0x80);
+        update_keyboard(&mut keys, VK_RSHIFT.0 as usize, false);
+        assert_eq!(keys[VK_SHIFT.0 as usize] & 0x80, 0);
+    }
+    #[test]
+    fn injected_modifier_release_clears_cached_state_without_recognition() {
+        let engine = super::super::service::ProductEngine::new();
+        engine.shared.active.store(true, Ordering::SeqCst);
+        let (sender, receiver) = mpsc::sync_channel(1);
+        let mut history = TypedHistory::new(
+            vec![ProductRule {
+                id: "owned-state-regression".into(),
+                trigger: ":probe".into(),
+                body: "unused".into(),
+            }],
+            super::super::matcher::Boundary::Word,
+        );
+        for ch in ":probe".chars() {
+            assert!(history.push(ch).is_none());
+        }
+        let mut keys = [0; 256];
+        keys[VK_LCONTROL.0 as usize] = 0x80;
+        keys[VK_CONTROL.0 as usize] = 0x80;
+        let mut context = HookContext {
+            shared: engine.shared.clone(),
+            jobs: sender,
+            history,
+            settings: ProductSettings::default(),
+            keys,
+            last_target: None,
+            generation: 0,
+            swallowed_cancel: None,
+            #[cfg(debug_assertions)]
+            facts: None,
+        };
+        let event = KBDLLHOOKSTRUCT {
+            vkCode: u32::from(VK_LCONTROL.0),
+            flags: LLKHF_INJECTED | LLKHF_UP,
+            ..Default::default()
+        };
+        assert!(!on_key(&mut context, event, WM_KEYUP));
+        assert_eq!(engine.shared.generation.load(Ordering::SeqCst), 1);
+        assert!(context.history.push(' ').is_none());
+        assert!(receiver.try_recv().is_err());
+        assert_eq!(context.keys[VK_LCONTROL.0 as usize] & 0x80, 0);
+        assert_eq!(context.keys[VK_CONTROL.0 as usize] & 0x80, 0);
     }
     #[test]
     fn swallowed_cancel_keyup_is_consumed_even_after_effect_finishes() {
@@ -57,6 +223,8 @@ mod tests {
             last_target: None,
             generation: 0,
             swallowed_cancel: None,
+            #[cfg(debug_assertions)]
+            facts: None,
         };
         let event = KBDLLHOOKSTRUCT {
             vkCode: u32::from(VK_ESCAPE.0),
@@ -81,6 +249,8 @@ struct HookContext {
     last_target: Option<TargetStamp>,
     generation: u64,
     swallowed_cancel: Option<u16>,
+    #[cfg(debug_assertions)]
+    facts: Option<CaptureFacts>,
 }
 thread_local! { static CONTEXT: RefCell<Option<HookContext>> = const { RefCell::new(None) }; }
 
@@ -193,6 +363,10 @@ impl HookRuntime {
                         last_target: None,
                         generation,
                         swallowed_cancel: None,
+                        #[cfg(debug_assertions)]
+                        facts: (std::env::var_os("TEXPIO_OWNED_CAPTURE_DIAGNOSTICS").as_deref()
+                            == Some(std::ffi::OsStr::new("1")))
+                        .then(CaptureFacts::default),
                     })
                 });
                 // SAFETY: callbacks/TLS stay alive on this thread until both hooks are removed.
@@ -227,7 +401,17 @@ impl HookRuntime {
                         }
                     }
                 }
-                CONTEXT.with(|slot| *slot.borrow_mut() = None);
+                CONTEXT.with(|slot| {
+                    #[cfg(debug_assertions)]
+                    if let Some(facts) = slot
+                        .borrow()
+                        .as_ref()
+                        .and_then(|context| context.facts.as_ref())
+                    {
+                        eprintln!("Texpio owned capture facts: {facts:?}");
+                    }
+                    *slot.borrow_mut() = None;
+                });
                 HOOK_OWNED.store(false, Ordering::SeqCst);
                 let _ = hook_done_tx.send(());
             }) {
@@ -288,9 +472,22 @@ impl Drop for HookRuntime {
 }
 
 unsafe extern "system" fn keyboard_callback(code: i32, message: WPARAM, data: LPARAM) -> LRESULT {
+    #[cfg(debug_assertions)]
+    let callback_started = std::time::Instant::now();
     if code == HC_ACTION as i32 && data.0 != 0 {
         // SAFETY: hook owns the borrowed event for this callback only.
         let event = unsafe { *(data.0 as *const KBDLLHOOKSTRUCT) };
+        #[cfg(debug_assertions)]
+        CONTEXT.with(|slot| {
+            if let Ok(mut slot) = slot.try_borrow_mut()
+                && let Some(context) = slot.as_mut()
+            {
+                fact!(context, callbacks);
+                if event.dwExtraInfo == PRODUCT_MARKER {
+                    fact!(context, own_events);
+                }
+            }
+        });
         if event.dwExtraInfo != PRODUCT_MARKER {
             let suppress = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 CONTEXT.with(|slot| {
@@ -302,6 +499,20 @@ unsafe extern "system" fn keyboard_callback(code: i32, message: WPARAM, data: LP
                 })
             }))
             .unwrap_or(false);
+            #[cfg(debug_assertions)]
+            CONTEXT.with(|slot| {
+                if let Ok(mut slot) = slot.try_borrow_mut()
+                    && let Some(context) = slot.as_mut()
+                    && let Some(facts) = context.facts.as_mut()
+                {
+                    facts.callback_max_us = facts.callback_max_us.max(
+                        callback_started
+                            .elapsed()
+                            .as_micros()
+                            .min(u128::from(u64::MAX)) as u64,
+                    );
+                }
+            });
             if suppress {
                 return LRESULT(1);
             }
@@ -335,25 +546,14 @@ fn initial_keyboard() -> [u8; 256] {
                 keys[key.0 as usize] = (GetKeyState(i32::from(key.0)) & 1) as u8;
             }
         }
-        for key in [
-            VK_LSHIFT,
-            VK_RSHIFT,
-            VK_LCONTROL,
-            VK_RCONTROL,
-            VK_LMENU,
-            VK_RMENU,
-            VK_LWIN,
-            VK_RWIN,
-        ] {
-            keys[key.0 as usize] = (keys[key.0 as usize] & 1)
-                | if GetAsyncKeyState(i32::from(key.0)) < 0 {
-                    0x80
-                } else {
-                    0
-                };
-        }
+        seed_modifiers(&mut keys, |key| GetAsyncKeyState(key as i32) < 0);
     }
     keys
+}
+fn seed_modifiers(keys: &mut [u8; 256], mut down: impl FnMut(usize) -> bool) {
+    for key in [0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0x5B, 0x5C] {
+        update_keyboard(keys, key, down(key));
+    }
 }
 fn update_keyboard(keys: &mut [u8; 256], vk: usize, down: bool) {
     if matches!(vk, 0x14 | 0x90 | 0x91) && down && keys[vk] & 0x80 == 0 {
@@ -361,29 +561,53 @@ fn update_keyboard(keys: &mut [u8; 256], vk: usize, down: bool) {
     }
     keys[vk] = (keys[vk] & 1) | if down { 0x80 } else { 0 };
     for (generic, left, right) in [(0x10, 0xA0, 0xA1), (0x11, 0xA2, 0xA3), (0x12, 0xA4, 0xA5)] {
-        keys[generic] = (keys[left] | keys[right]) & 0x80;
+        if vk == left || vk == right {
+            keys[generic] = (keys[left] | keys[right]) & 0x80;
+        }
     }
 }
 fn on_key(context: &mut HookContext, event: KBDLLHOOKSTRUCT, message: u32) -> bool {
     if !context.shared.active.load(Ordering::SeqCst) {
         return false;
     }
-    if event.flags.contains(LLKHF_INJECTED) || event.flags.contains(LLKHF_LOWER_IL_INJECTED) {
+    let down = matches!(message, WM_KEYDOWN | WM_SYSKEYDOWN);
+    let up = matches!(message, WM_KEYUP | WM_SYSKEYUP);
+    // Rejected input still changes the keyboard state seen by later physical keys.
+    if event.vkCode <= 255 && (down || up) {
+        update_keyboard(&mut context.keys, event.vkCode as usize, down);
+    }
+    let origin = input_origin(&event);
+    if matches!(origin, InputOrigin::Software | InputOrigin::LowerIntegrity) {
+        fact!(context, injected_events);
+        if origin == InputOrigin::LowerIntegrity {
+            fact!(context, lower_integrity_events);
+        }
+    }
+    if !accepts_origin(origin, context.settings.allow_software_input) {
         context.history.reset();
         context.shared.generation.fetch_add(1, Ordering::SeqCst);
         return false;
+    }
+    if origin == InputOrigin::Software {
+        fact!(context, software_accepted);
     }
     if event.vkCode > 255 {
         context.history.reset();
         return false;
     }
-    let down = matches!(message, WM_KEYDOWN | WM_SYSKEYDOWN);
-    let up = matches!(message, WM_KEYUP | WM_SYSKEYUP);
     if !down && !up {
         return false;
     }
     let vk = event.vkCode as usize;
-    update_keyboard(&mut context.keys, vk, down);
+    if down {
+        fact!(context, key_down);
+        if matches!(vk, 0x10..=0x12) {
+            fact!(context, generic_modifiers);
+        }
+        if matches!(vk, 0xA0..=0xA5) {
+            fact!(context, sided_modifiers);
+        }
+    }
     if up && context.swallowed_cancel == Some(vk as u16) {
         context.swallowed_cancel = None;
         return true;
@@ -404,15 +628,18 @@ fn on_key(context: &mut HookContext, event: KBDLLHOOKSTRUCT, message: u32) -> bo
     }
     let generation = context.shared.generation.load(Ordering::SeqCst);
     let Ok(target) = current_stamp() else {
+        fact!(context, stamp_refused);
         context.history.reset();
         return false;
     };
     if generation != context.generation || context.last_target != Some(target) {
+        fact!(context, context_resets);
         context.history.reset();
         context.generation = generation;
         context.last_target = Some(target);
     }
     if target.process_id == unsafe { GetCurrentProcessId() } {
+        fact!(context, own_target);
         context.history.reset();
         return false;
     }
@@ -431,6 +658,7 @@ fn on_key(context: &mut HookContext, event: KBDLLHOOKSTRUCT, message: u32) -> bo
         .iter()
         .any(|index| context.keys[*index] & 0x80 != 0)
     {
+        fact!(context, shortcut_refused);
         context.history.reset();
         return false;
     }
@@ -446,6 +674,7 @@ fn on_key(context: &mut HookContext, event: KBDLLHOOKSTRUCT, message: u32) -> bo
         )
     };
     if produced <= 0 {
+        fact!(context, translation_failed);
         context.history.reset();
         return false;
     }
@@ -454,10 +683,15 @@ fn on_key(context: &mut HookContext, event: KBDLLHOOKSTRUCT, message: u32) -> bo
         return false;
     };
     for mut ch in text.chars() {
+        fact!(context, translated_scalars);
+        if ch == ' ' {
+            fact!(context, spaces);
+        }
         if ch == '\r' {
             ch = '\n';
         }
         if let Some(expansion) = context.history.push(ch) {
+            fact!(context, matches);
             if context
                 .shared
                 .busy
@@ -476,6 +710,9 @@ fn on_key(context: &mut HookContext, event: KBDLLHOOKSTRUCT, message: u32) -> bo
                 .is_ok();
             if !accepted {
                 context.shared.busy.store(false, Ordering::SeqCst);
+            }
+            if accepted {
+                fact!(context, accepted);
             }
             return accepted;
         }

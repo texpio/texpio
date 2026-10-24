@@ -41,6 +41,7 @@ pub struct ProductSettings {
     pub clipboard_enabled: bool,
     pub clipboard_shortcut: String,
     pub clipboard_mode: InsertionMode,
+    pub allow_software_input: bool,
     pub toggle_shortcut: String,
     pub autostart: bool,
     pub close_to_tray: bool,
@@ -59,6 +60,7 @@ impl Default for ProductSettings {
             clipboard_enabled: true,
             clipboard_shortcut: "CmdOrCtrl+Shift+V".into(),
             clipboard_mode: InsertionMode::Paste,
+            allow_software_input: false,
             toggle_shortcut: "CmdOrCtrl+Alt+Shift+Space".into(),
             autostart: false,
             close_to_tray: true,
@@ -102,6 +104,7 @@ mod tests {
         let settings = ProductSettings::default();
         assert!(!settings.enabled);
         assert!(!settings.autostart);
+        assert!(!settings.allow_software_input);
         assert_eq!(settings.insertion, InsertionMode::Paste);
         assert_eq!(settings.clipboard_mode, InsertionMode::Paste);
         assert_eq!(settings.cancel_vk(), Some(0x1B));

@@ -2,6 +2,7 @@
 
 ## Keep the user's computer available
 
+- If the user has not replied to a question, assume they are offline. Do not infer readiness or approval from silence, and do not start a check requiring their participation until they reply. For a manual typing check, announce when the window is actually visible and allow enough time for the user to focus it and type; do not end it after a short countdown while they are participating.
 - Prefer code, CLI, build, and test tools for development. Use Computer Use only when a native visual or interaction check is necessary.
 - Keep each Computer Use session brief and focused on one small verification. Explain what will be checked before starting. Do not leave a session active while writing code, running builds/tests, waiting, or doing unrelated work.
 - Use supported timeouts for UI actions. Treat an action that has not completed within about 15 seconds as stalled; do not wait indefinitely, loop on closing an app, or queue more input behind a stalled request.

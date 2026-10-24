@@ -56,7 +56,7 @@ mod trial {
                 let next = ticks.get() + 1;
                 ticks.set(next);
                 next >= if PHYSICAL.with(|mode| mode.get()) {
-                    300
+                    1800
                 } else {
                     50
                 }
@@ -179,9 +179,7 @@ mod trial {
                 )?;
             }
             let label = if physical {
-                w!(
-                    "Type :v1probe then Space once. This disposable window closes within 30 seconds."
-                )
+                w!("Type :v1probe then Space once. You have 3 minutes. Escape closes this window.")
             } else {
                 w!(
                     "Checking two owned files through Windows clipboard paste. No other window is targeted."

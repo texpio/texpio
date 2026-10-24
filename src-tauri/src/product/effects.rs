@@ -35,6 +35,19 @@ pub trait EffectBackend {
     fn terminator(&mut self, character: char) -> Result<(), ProductError>;
 }
 
+pub(crate) fn wait_for_modifier_release(
+    mut check: impl FnMut() -> Result<(), ProductError>,
+    mut wait: impl FnMut(),
+) -> Result<(), ProductError> {
+    for attempt in 0..=50 {
+        match check() {
+            Err(ProductError::ModifiersHeld) if attempt < 50 => wait(),
+            result => return result,
+        }
+    }
+    Err(ProductError::ModifiersHeld)
+}
+
 pub fn perform(
     backend: &mut impl EffectBackend,
     expansion: &Expansion,
@@ -61,6 +74,45 @@ pub fn perform(
 mod tests {
     use super::*;
     use crate::product::matcher::ProductRule;
+    #[test]
+    fn shifted_terminator_waits_for_release_before_any_effect_and_remains_cancellable() {
+        let mut checks = 0;
+        let mut waits = 0;
+        wait_for_modifier_release(
+            || {
+                checks += 1;
+                if checks < 3 {
+                    Err(ProductError::ModifiersHeld)
+                } else {
+                    Ok(())
+                }
+            },
+            || waits += 1,
+        )
+        .unwrap();
+        assert_eq!((checks, waits), (3, 2));
+        for stopped in [ProductError::Cancelled, ProductError::TargetChanged] {
+            let mut checks = 0;
+            let result = wait_for_modifier_release(
+                || {
+                    checks += 1;
+                    Err(if checks == 1 {
+                        ProductError::ModifiersHeld
+                    } else {
+                        stopped
+                    })
+                },
+                || {},
+            );
+            assert_eq!(result, Err(stopped));
+        }
+        let mut waits = 0;
+        assert_eq!(
+            wait_for_modifier_release(|| Err(ProductError::ModifiersHeld), || waits += 1),
+            Err(ProductError::ModifiersHeld)
+        );
+        assert_eq!(waits, 50);
+    }
     #[derive(Default)]
     struct Receiver {
         calls: Vec<String>,

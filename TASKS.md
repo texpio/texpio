@@ -176,17 +176,21 @@ The user installed Ampello successfully on Windows and requested its complete fe
 
 - [x] Implement independent product matching: boundaries, longest trigger, punctuation/Tab/Enter, Unicode, Backspace and reset behavior.
 - [x] Implement Windows Paste/Type effects, cancellation/target generations and bounded hook/worker lifecycle; keep strict Developer probe separate.
-- [x] Observe exact synthetic Notepad output through Paste and verify actual-app Start/Pause/Resume/Stop/settings lifecycle. Type still fails exact Notepad output.
+- [x] Observe exact synthetic Notepad Paste/Type fixtures and verify actual-app Start/Pause/Resume/Stop/settings lifecycle. Modern Notepad Type uses a conservative 100 ms interval; strict observer timeouts remain uncertain where recorded.
 - [x] Connect product controls/tray, refreshed snapshots after saves, generated typed commands and main-only capabilities.
 - [x] Add expansion preferences, empty/large bodies and Unicode triggers; migrate favorites/usage metadata without staling editor revisions.
-- [ ] Complete attachments, ordering/delay and selected-file delivery.
-- [ ] Complete personal/shared data location, external refresh and failure rollback.
-- [ ] Complete YAML/archive interchange, replace mode and preserved-database recovery.
-- [ ] Complete favorites/dashboard and editor keyboard/find/replace workflows.
-- [ ] Complete clipboard/toggle hotkeys, opt-in hidden autostart and configurable close behavior.
-- [ ] Complete current-build app/native acceptance, whole-change review, full checks/builds and commit/push.
+- [x] Implement attachments, ordering/delay and selected-file intake; ordered native file-only delivery passed. Selected-file and mixed-payload acceptance remains below.
+- [x] Implement personal/shared data location, external refresh and failure rollback, with stale-write and real-storage regressions.
+- [x] Implement YAML/archive interchange, replace mode and preserved-database recovery, including decompression bounds and shared-library corruption recovery.
+- [x] Implement favorites/dashboard and editor keyboard/find/replace workflows; actual-app favorites, draft refresh, literal replacement and undo checks passed.
+- [x] Implement clipboard/toggle hotkeys, opt-in hidden autostart and configurable close behavior; hidden launch, owned startup entry, second-instance restore and close/draft checks passed.
+- [x] Verify manual software-compatible trigger expansion with exact output, submission and usage evidence; add default-off compatibility preference for remote keyboards/remappers.
+- [x] Complete one independent whole-change review/fix pass, full quality checks and optimized executable/MSI/NSIS builds.
+- [ ] Qualify remaining native selected-file/import/export/location dialogs, clipboard/toggle hotkey delivery, mixed text/files and broader target behavior. Do not infer these from unit tests or the successful trigger fixture.
 
-Latest full checks: 140 frontend/130 Rust tests plus tooling/static gates. These are implementation checkpoints, not a completed parity or physical-input campaign. No backend/sync or other OS delivery is in this scope.
+Latest complete quality run: 152 frontend/174 Rust tests plus tooling/static gates. One fresh whole-change review found seven substantive issues; the regression-tested fix pass is recorded in the [review record](docs/research/windows-v1-review.md). Optimized executable, MSI and NSIS builds passed. These are prototype delivery checkpoints, not completed universal parity or strict physical qualification.
+
+The trigger blocker was traced to Windows marking all user keystrokes as software-injected. With the explicit compatibility option enabled, the manual owned fixture passed: exact text plus terminator, one match, one submission and one usage record; Texpio's own injected output was ignored. The normal optimized preview is open with compatibility enabled for this PC and automatic expansion stopped at launch. See the [current acceptance record](docs/research/windows-v1-acceptance.md). No backend/sync or other OS delivery is in this scope.
 
 ## Future decisions and execution work
 

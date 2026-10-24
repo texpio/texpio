@@ -2,7 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { loadProductSettings, saveProductSettings } from '@/services/product'
 import type { ProductSettings } from '@/lib/bindings'
-import { Field, FieldGroup, FieldLabel, FieldSet, FieldLegend } from '@/components/ui/field'
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldSet,
+  FieldLegend,
+} from '@/components/ui/field'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
@@ -107,6 +115,23 @@ export function ExpansionSettings() {
             />
           </Field>
         ))}
+        <Field orientation="horizontal" data-disabled={disabled}>
+          <FieldContent>
+            <FieldLabel htmlFor="expansion-allowSoftwareInput">
+              {t('product.field.allowSoftwareInput')}
+            </FieldLabel>
+            <FieldDescription id="expansion-software-input-help">
+              {t('product.softwareInputHelp')}
+            </FieldDescription>
+          </FieldContent>
+          <Switch
+            id="expansion-allowSoftwareInput"
+            aria-describedby="expansion-software-input-help"
+            checked={query.data?.allowSoftwareInput ?? false}
+            disabled={disabled}
+            onCheckedChange={(value) => update({ allowSoftwareInput: value })}
+          />
+        </Field>
         {(['toggleShortcut', 'clipboardShortcut'] as const).map((name) => (
           <Field key={name}>
             <FieldLabel htmlFor={`expansion-${name}`}>{t(`product.field.${name}`)}</FieldLabel>

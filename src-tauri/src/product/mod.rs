@@ -15,5 +15,6 @@ pub mod settings;
 #[cfg(target_os = "windows")]
 mod startup;
 pub mod store;
+pub(crate) mod tray_action;
 #[cfg(target_os = "windows")]
 pub mod windows;

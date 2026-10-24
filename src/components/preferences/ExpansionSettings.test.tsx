@@ -10,6 +10,7 @@ vi.mock('@/services/product', () => ({
 }))
 const settings = {
   enabled: false,
+  allowSoftwareInput: false,
   boundary: 'word',
   preserveTerminator: true,
   insertion: 'paste',
@@ -47,6 +48,19 @@ it('persists insertion choice while retaining other native settings', async () =
   await userEvent.selectOptions(await screen.findByLabelText('Insertion method'), 'type')
   await waitFor(() => expect(native.save).toHaveBeenCalledWith({ ...settings, insertion: 'type' }))
   expect(screen.getByLabelText('Insertion method')).toHaveValue('type')
+})
+it('requires opting in to remote keyboard compatibility and retains other native settings', async () => {
+  show()
+  const compatibility = await screen.findByRole('switch', {
+    name: 'Remote keyboard and key remapper compatibility',
+  })
+  await waitFor(() => expect(compatibility).toBeEnabled())
+  expect(compatibility).not.toBeChecked()
+  await userEvent.click(compatibility)
+  await waitFor(() =>
+    expect(native.save).toHaveBeenLastCalledWith({ ...settings, allowSoftwareInput: true }),
+  )
+  expect(compatibility).toBeChecked()
 })
 it('keeps acknowledged settings and shows an error when a save fails', async () => {
   native.save.mockRejectedValue(new Error('unavailable'))

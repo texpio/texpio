@@ -42,18 +42,18 @@ pub async fn library_switch(
     let probe = probe.inner().clone();
     let settings = settings.inner().clone();
     let result = blocking(move || {
-        let (result, resume) = {
-            let _control = service.control.lock().map_err(|_| storage_error())?;
-            let resume = engine.suspend_for_update().map_err(|_| storage_error())?;
-            stopped(&probe)?;
-            (service.store.switch(root), resume)
-        };
-        if let Some(ticket) = resume {
-            let _ = settings
-                .load()
-                .and_then(|settings| service.start_product_admitted(&engine, settings, ticket));
-        }
-        result
+        service
+            .update_product(
+                || engine.suspend_for_update(),
+                || {
+                    stopped(&probe)?;
+                    service.store.switch(root)
+                },
+                |ticket| {
+                    let _ = service.resume_product_locked(&engine, &settings, ticket);
+                },
+            )
+            .map_err(|_| storage_error())?
     })
     .await;
     if result.is_ok() {
@@ -113,19 +113,16 @@ pub fn start_watch(app: &AppHandle, service: &Arc<LibraryService>) {
                         app.try_state::<Arc<ProductEngine>>(),
                         app.try_state::<Arc<SettingsStore>>(),
                     ) {
-                        let resume = service.control.lock().ok().and_then(|_guard| {
+                        let _ = service.coordinated(|| {
                             if service.published_revision.load(Ordering::Acquire)
                                 == library.revision
                             {
-                                return None;
+                                return;
                             }
-                            engine.suspend_for_update().ok().flatten()
+                            if let Ok(Some(ticket)) = engine.suspend_for_update() {
+                                let _ = service.resume_product_locked(&engine, &settings, ticket);
+                            }
                         });
-                        if let Some(ticket) = resume {
-                            let _ = settings.load().and_then(|settings| {
-                                service.start_product_admitted(&engine, settings, ticket)
-                            });
-                        }
                     }
                 }
                 changed(&app);

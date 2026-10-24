@@ -179,7 +179,9 @@ impl DesktopSettingsActor {
                     if settings.enabled {
                         let engine = app.state::<Arc<ProductEngine>>();
                         let service = app.state::<Arc<crate::library_commands::LibraryService>>();
-                        let _ = service.start_product_admitted(&engine, settings, 0);
+                        let probe = app.state::<Arc<crate::engine::runtime::ProbeHandle>>();
+                        let store = app.state::<Arc<SettingsStore>>();
+                        let _ = service.start_product_admitted(&engine, &probe, &store, 0);
                     }
                 }
                 while let Ok(request) = receiver.recv() {
@@ -266,11 +268,9 @@ fn dispatch(app: AppHandle, published: Arc<Published>, action: DesktopAction, ep
                         Ok(())
                     } else {
                         let probe = app.state::<Arc<crate::engine::runtime::ProbeHandle>>();
-                        if probe.stop().phase != crate::engine::types::ProbePhase::Stopped {
-                            return Err(ProductError::Busy);
-                        }
+                        let store = app.state::<Arc<SettingsStore>>();
                         service
-                            .start_product_admitted(&engine, settings, admission)
+                            .start_product_admitted(&engine, &probe, &store, admission)
                             .map(|_| ())
                     }
                 }
@@ -331,69 +331,76 @@ fn clipboard(
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    let probe = app.state::<Arc<crate::engine::runtime::ProbeHandle>>();
-    if probe.stop().phase != crate::engine::types::ProbePhase::Stopped {
-        return Err(ProductError::Busy);
-    }
-    let (resume, input) = engine.suspend_admitted(admission)?;
-    let result = (|| {
-        engine
-            .shared
-            .busy
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-            .map_err(|_| ProductError::Busy)?;
-        struct Busy<'a>(&'a AtomicBool);
-        impl Drop for Busy<'_> {
-            fn drop(&mut self) {
-                self.0.store(false, Ordering::Release);
+    service.coordinated(|| {
+        if published.epoch.load(Ordering::Acquire) != epoch || engine.admission() != admission {
+            return Err(ProductError::Cancelled);
+        }
+        let store = app.state::<Arc<SettingsStore>>();
+        let settings = store.load()?;
+        let probe = app.state::<Arc<crate::engine::runtime::ProbeHandle>>();
+        if probe.stop().phase != crate::engine::types::ProbePhase::Stopped {
+            return Err(ProductError::Busy);
+        }
+        let (resume, input) = engine.suspend_admitted(admission)?;
+        let result = (|| {
+            engine
+                .shared
+                .busy
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                .map_err(|_| ProductError::Busy)?;
+            struct Busy<'a>(&'a AtomicBool);
+            impl Drop for Busy<'_> {
+                fn drop(&mut self) {
+                    self.0.store(false, Ordering::Release);
+                }
             }
+            let _busy = Busy(&engine.shared.busy);
+            let _effects = engine
+                .shared
+                .effects
+                .try_lock()
+                .map_err(|_| ProductError::Busy)?;
+            let board = super::clipboard::PasteBoard::new()?;
+            let text = board.text()?.ok_or(ProductError::Clipboard)?;
+            if text.chars().take(1_000_001).count() > 1_000_000
+                || text
+                    .chars()
+                    .any(|ch| ch.is_control() && !matches!(ch, '\r' | '\n' | '\t'))
+            {
+                return Err(ProductError::Clipboard);
+            }
+            let mut clipboard_settings = settings.clone();
+            clipboard_settings.insertion = settings.clipboard_mode;
+            clipboard_settings.preserve_terminator = false;
+            let mut edit = super::windows::NativeEdit::new(
+                target,
+                engine.shared.generation.clone(),
+                input,
+                clipboard_settings,
+            )?;
+            let expansion = super::matcher::Expansion {
+                rule: super::matcher::ProductRule {
+                    id: "clipboard".into(),
+                    trigger: String::new(),
+                    body: text.into(),
+                },
+                terminator: ' ',
+            };
+            let result = edit.deliver(&expansion);
+            let mut status = engine
+                .shared
+                .status
+                .lock()
+                .unwrap_or_else(|p| p.into_inner());
+            status.submitted = status
+                .submitted
+                .saturating_add(u32::from(edit.submitted_events > 0));
+            status.clipboard_incomplete = edit.clipboard_incomplete;
+            result
+        })();
+        if let Some(ticket) = resume {
+            let _ = service.resume_product_locked(engine, &store, ticket);
         }
-        let _busy = Busy(&engine.shared.busy);
-        let _effects = engine
-            .shared
-            .effects
-            .try_lock()
-            .map_err(|_| ProductError::Busy)?;
-        let board = super::clipboard::PasteBoard::new()?;
-        let text = board.text()?.ok_or(ProductError::Clipboard)?;
-        if text.chars().take(1_000_001).count() > 1_000_000
-            || text
-                .chars()
-                .any(|ch| ch.is_control() && !matches!(ch, '\r' | '\n' | '\t'))
-        {
-            return Err(ProductError::Clipboard);
-        }
-        let mut clipboard_settings = settings.clone();
-        clipboard_settings.insertion = settings.clipboard_mode;
-        clipboard_settings.preserve_terminator = false;
-        let mut edit = super::windows::NativeEdit::new(
-            target,
-            engine.shared.generation.clone(),
-            input,
-            clipboard_settings,
-        )?;
-        let expansion = super::matcher::Expansion {
-            rule: super::matcher::ProductRule {
-                id: "clipboard".into(),
-                trigger: String::new(),
-                body: text.into(),
-            },
-            terminator: ' ',
-        };
-        let result = edit.deliver(&expansion);
-        let mut status = engine
-            .shared
-            .status
-            .lock()
-            .unwrap_or_else(|p| p.into_inner());
-        status.submitted = status
-            .submitted
-            .saturating_add(u32::from(edit.submitted_events > 0));
-        status.clipboard_incomplete = edit.clipboard_incomplete;
         result
-    })();
-    if let Some(ticket) = resume {
-        let _ = service.start_product_admitted(engine, settings, ticket);
-    }
-    result
+    })?
 }

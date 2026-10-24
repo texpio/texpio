@@ -28,10 +28,7 @@ pub async fn product_start(
     let settings = settings.inner().clone();
     let admission = engine.admission();
     tauri::async_runtime::spawn_blocking(move || {
-        if probe.stop().phase != crate::engine::types::ProbePhase::Stopped {
-            return Err(ProductError::Busy);
-        }
-        service.start_product_admitted(&engine, settings.load()?, admission)
+        service.start_product_admitted(&engine, &probe, &settings, admission)
     })
     .await
     .map_err(|_| ProductError::Unavailable)?
@@ -40,11 +37,17 @@ pub async fn product_start(
 #[specta::specta]
 pub async fn product_stop(
     engine: State<'_, Arc<ProductEngine>>,
+    probe: State<'_, Arc<ProbeHandle>>,
 ) -> Result<ProductStatus, ProductError> {
     let engine = engine.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || engine.stop())
-        .await
-        .map_err(|_| ProductError::Unavailable)
+    let probe = probe.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let result = engine.stop();
+        probe.stop();
+        result
+    })
+    .await
+    .map_err(|_| ProductError::Unavailable)
 }
 #[tauri::command]
 #[specta::specta]
@@ -87,30 +90,28 @@ pub async fn product_save_settings(
         if !input.validate() {
             return Err(ProductError::InvalidSettings);
         }
-        let previous = settings.load()?;
-        let resume = engine.suspend_for_update()?;
-        #[cfg(target_os = "windows")]
-        let applied = desktop.apply(input.clone()).map(|_| ());
-        #[cfg(not(target_os = "windows"))]
-        let applied = settings.save(&input);
-        if let Err(error) = applied {
-            if let Some(ticket) = resume {
-                let _ = service.start_product_admitted(&engine, previous, ticket);
-            }
-            return Err(error);
-        }
-        if let Some(ticket) = resume
-            && let Err(error) = service.start_product_admitted(&engine, input.clone(), ticket)
-            && error != ProductError::Cancelled
-        {
-            engine
-                .shared
-                .status
-                .lock()
-                .unwrap_or_else(|p| p.into_inner())
-                .last_error = Some(error);
-        }
-        Ok(input)
+        service.update_product(
+            || engine.suspend_for_update(),
+            || {
+                #[cfg(target_os = "windows")]
+                desktop.apply(input.clone())?;
+                #[cfg(not(target_os = "windows"))]
+                settings.save(&input)?;
+                Ok(input)
+            },
+            |ticket| {
+                if let Err(error) = service.resume_product_locked(&engine, &settings, ticket)
+                    && error != ProductError::Cancelled
+                {
+                    engine
+                        .shared
+                        .status
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner())
+                        .last_error = Some(error);
+                }
+            },
+        )?
     })
     .await
     .map_err(|_| ProductError::Unavailable)??;

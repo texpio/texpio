@@ -154,26 +154,25 @@ pub async fn backup_import(
             }
             staged.take().ok_or_else(storage_error)?
         };
-        let (result, resume) = {
-            let _guard = service.control.lock().map_err(|_| storage_error())?;
-            let resume = engine.suspend_for_update().map_err(|_| storage_error())?;
-            stopped(&probe)?;
-            let result = service.store.with_revision(stage.revision, |store| {
-                if store.root() != stage.root {
-                    return Err(LibraryError {
-                        code: "conflict".into(),
-                    });
-                }
-                stage.prepared.apply(store, stage.revision, stage.mode)
-            });
-            (result, resume)
-        };
-        if let Some(ticket) = resume {
-            let _ = settings
-                .load()
-                .and_then(|settings| service.start_product_admitted(&engine, settings, ticket));
-        }
-        result
+        service
+            .update_product(
+                || engine.suspend_for_update(),
+                || {
+                    stopped(&probe)?;
+                    service.store.with_revision(stage.revision, |store| {
+                        if store.root() != stage.root {
+                            return Err(LibraryError {
+                                code: "conflict".into(),
+                            });
+                        }
+                        stage.prepared.apply(store, stage.revision, stage.mode)
+                    })
+                },
+                |ticket| {
+                    let _ = service.resume_product_locked(&engine, &settings, ticket);
+                },
+            )
+            .map_err(|_| storage_error())?
     })
     .await;
     if result.is_ok() {
@@ -187,7 +186,7 @@ pub async fn library_recovery_status(
     service: State<'_, Arc<LibraryService>>,
 ) -> Result<RecoveryStatus, LibraryError> {
     let service = service.inner().clone();
-    blocking(move || service.store.snapshot()?.recovery_status()).await
+    blocking(move || service.store.recovery_status()).await
 }
 #[tauri::command]
 #[specta::specta]
@@ -207,7 +206,7 @@ pub async fn library_recover(
             return Err(storage_error());
         }
         stopped(&probe)?;
-        service.store.snapshot()?.recover_corrupt(confirmed)
+        service.store.recover_corrupt(confirmed)
     })
     .await;
     if result.is_ok() {

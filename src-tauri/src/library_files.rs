@@ -53,17 +53,15 @@ async fn mutate<T: Send + 'static>(
     operation: impl FnOnce(&LibraryStore) -> Result<T, LibraryError> + Send + 'static,
 ) -> Result<T, LibraryError> {
     let result = tauri::async_runtime::spawn_blocking(move || {
-        let (result, resume) = {
-            let _control = service.control.lock().map_err(|_| storage_error())?;
-            let resume = engine.suspend_for_update().map_err(|_| storage_error())?;
-            (service.store.with_revision(revision, operation), resume)
-        };
-        if let Some(ticket) = resume {
-            let _ = settings
-                .load()
-                .and_then(|settings| service.start_product_admitted(&engine, settings, ticket));
-        }
-        result
+        service
+            .update_product(
+                || engine.suspend_for_update(),
+                || service.store.with_revision(revision, operation),
+                |ticket| {
+                    let _ = service.resume_product_locked(&engine, &settings, ticket);
+                },
+            )
+            .map_err(|_| storage_error())?
     })
     .await
     .map_err(|_| storage_error())?;

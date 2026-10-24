@@ -29,23 +29,56 @@ pub struct LibraryService {
 }
 
 impl LibraryService {
-    pub(crate) fn start_product(
+    pub(crate) fn coordinated<T>(
         &self,
-        engine: &crate::product::service::ProductEngine,
-        settings: crate::product::settings::ProductSettings,
-    ) -> Result<crate::product::service::ProductStatus, crate::product::effects::ProductError> {
-        self.start_product_admitted(engine, settings, engine.admission())
-    }
-    pub(crate) fn start_product_admitted(
-        &self,
-        engine: &crate::product::service::ProductEngine,
-        settings: crate::product::settings::ProductSettings,
-        ticket: u64,
-    ) -> Result<crate::product::service::ProductStatus, crate::product::effects::ProductError> {
+        operation: impl FnOnce() -> T,
+    ) -> Result<T, crate::product::effects::ProductError> {
         let _control = self
             .control
             .lock()
             .map_err(|_| crate::product::effects::ProductError::Busy)?;
+        Ok(operation())
+    }
+    pub(crate) fn update_product<T>(
+        &self,
+        suspend: impl FnOnce() -> Result<Option<u64>, crate::product::effects::ProductError>,
+        operation: impl FnOnce() -> T,
+        resume: impl FnOnce(u64),
+    ) -> Result<T, crate::product::effects::ProductError> {
+        self.coordinated(|| {
+            let ticket = suspend()?;
+            let result = operation();
+            if let Some(ticket) = ticket {
+                resume(ticket);
+            }
+            Ok(result)
+        })?
+    }
+    pub(crate) fn start_product_admitted(
+        &self,
+        engine: &crate::product::service::ProductEngine,
+        probe: &ProbeHandle,
+        settings: &crate::product::store::SettingsStore,
+        ticket: u64,
+    ) -> Result<crate::product::service::ProductStatus, crate::product::effects::ProductError> {
+        self.coordinated(|| {
+            if engine.admission() != ticket {
+                return Err(crate::product::effects::ProductError::Cancelled);
+            }
+            if probe.stop().phase != ProbePhase::Stopped {
+                return Err(crate::product::effects::ProductError::Busy);
+            }
+            self.resume_product_locked(engine, settings, ticket)
+        })?
+    }
+    // The caller holds the coordinator through suspension, mutation and publication.
+    pub(crate) fn resume_product_locked(
+        &self,
+        engine: &crate::product::service::ProductEngine,
+        settings: &crate::product::store::SettingsStore,
+        ticket: u64,
+    ) -> Result<crate::product::service::ProductStatus, crate::product::effects::ProductError> {
+        let settings = settings.load()?;
         let library = self
             .store
             .load()
@@ -93,6 +126,33 @@ impl LibraryService {
             .store(library.revision, std::sync::atomic::Ordering::Release);
         Ok(result)
     }
+    pub(crate) fn start_probe_admitted(
+        &self,
+        product: &crate::product::service::ProductEngine,
+        probe: &ProbeHandle,
+        admission: u64,
+        operation: impl FnOnce(&ProbeHandle) -> Result<ProbeStatus, RefusalReason>,
+    ) -> Result<ProbeStatus, RefusalReason> {
+        self.coordinated(|| {
+            if product.admission() != admission {
+                return Err(RefusalReason::StaleContext);
+            }
+            if product.stop().phase != crate::product::service::ProductPhase::Stopped {
+                return Err(RefusalReason::Busy);
+            }
+            let ticket = admission.wrapping_add(1);
+            if product.admission() != ticket {
+                return Err(RefusalReason::Stopped);
+            }
+            let result = operation(probe);
+            if product.admission() != ticket {
+                probe.stop();
+                return Err(RefusalReason::Stopped);
+            }
+            result
+        })
+        .map_err(|_| RefusalReason::Busy)?
+    }
     pub fn new(root: PathBuf) -> Self {
         Self {
             store: crate::library::location::LibraryRouter::new(root),
@@ -103,12 +163,14 @@ impl LibraryService {
         }
     }
 
+    #[cfg(test)]
     fn save(&self, handle: &ProbeHandle, input: SaveLibrary) -> Result<Library, LibraryError> {
         let _control = self.control.lock().map_err(|_| storage_error())?;
         stopped(handle)?;
         self.store.save(input)
     }
 
+    #[cfg(test)]
     fn import(
         &self,
         handle: &ProbeHandle,
@@ -120,11 +182,7 @@ impl LibraryService {
         self.store.import_json(json, revision)
     }
 
-    fn start(&self, handle: &ProbeHandle) -> Result<ProbeStatus, RefusalReason> {
-        let _control = self
-            .control
-            .lock()
-            .map_err(|_| RefusalReason::ContextUnavailable)?;
+    fn start_locked(&self, handle: &ProbeHandle) -> Result<ProbeStatus, RefusalReason> {
         let library = self
             .store
             .load()
@@ -223,14 +281,18 @@ pub async fn library_save(
     let product = product.inner().clone();
     let settings = settings.inner().clone();
     let result = blocking(move || {
-        let resume = product.suspend_for_update().map_err(|_| storage_error())?;
-        let result = service.save(&handle, input);
-        if let Some(ticket) = resume {
-            let _ = settings
-                .load()
-                .and_then(|settings| service.start_product_admitted(&product, settings, ticket));
-        }
-        result
+        service
+            .update_product(
+                || product.suspend_for_update(),
+                || {
+                    stopped(&handle)?;
+                    service.store.save(input)
+                },
+                |ticket| {
+                    let _ = service.resume_product_locked(&product, &settings, ticket);
+                },
+            )
+            .map_err(|_| storage_error())?
     })
     .await;
     #[cfg(desktop)]
@@ -276,14 +338,18 @@ pub async fn library_import(
     let product = product.inner().clone();
     let settings = settings.inner().clone();
     let result = blocking(move || {
-        let resume = product.suspend_for_update().map_err(|_| storage_error())?;
-        let result = service.import(&handle, &json, expected_revision);
-        if let Some(ticket) = resume {
-            let _ = settings
-                .load()
-                .and_then(|settings| service.start_product_admitted(&product, settings, ticket));
-        }
-        result
+        service
+            .update_product(
+                || product.suspend_for_update(),
+                || {
+                    stopped(&handle)?;
+                    service.store.import_json(&json, expected_revision)
+                },
+                |ticket| {
+                    let _ = service.resume_product_locked(&product, &settings, ticket);
+                },
+            )
+            .map_err(|_| storage_error())?
     })
     .await;
     #[cfg(desktop)]
@@ -305,11 +371,11 @@ pub async fn library_start(
     let service = service.inner().clone();
     let handle = handle.inner().clone();
     let product = product.inner().clone();
+    let admission = product.admission();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        if product.stop().phase != crate::product::service::ProductPhase::Stopped {
-            return Err(RefusalReason::Busy);
-        }
-        service.start(&handle)
+        service.start_probe_admitted(&product, &handle, admission, |handle| {
+            service.start_locked(handle)
+        })
     })
     .await
     .map_err(|_| ProbeError::from(RefusalReason::OutcomeUncertain))?;

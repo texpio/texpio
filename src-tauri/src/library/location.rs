@@ -1,4 +1,6 @@
-use super::{ImportPreview, Library, LibraryError, LibraryStore, SaveLibrary, SnippetInfo};
+use super::{
+    ImportPreview, Library, LibraryError, LibraryStore, RecoveryStatus, SaveLibrary, SnippetInfo,
+};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::{
@@ -22,6 +24,7 @@ struct Active {
     store: Arc<LibraryStore>,
     shared: bool,
     problem: bool,
+    selection_valid: bool,
 }
 pub struct LibraryRouter {
     personal: PathBuf,
@@ -45,19 +48,26 @@ impl LibraryRouter {
             &personal.join("library-location.json"),
             65536,
         );
-        let (root, shared, mut problem) = match selection {
+        let (root, shared, mut problem, selection_valid) = match selection {
             Ok(Selection {
                 directory: Some(root),
-            }) => (root, true, false),
-            Ok(_) | Err(crate::types::ServiceError::NotFound) => (personal.clone(), false, false),
-            Err(_) => (personal.clone(), false, true),
+            }) => (root, true, false, true),
+            Ok(_) | Err(crate::types::ServiceError::NotFound) => {
+                (personal.clone(), false, false, true)
+            }
+            Err(_) => (personal.clone(), false, true, false),
         };
         if shared && !local_directory(&root) {
             problem = true;
         }
         let store = Arc::new(LibraryStore::new(root));
-        if shared && !problem && store.load().is_err() {
-            problem = true;
+        if shared && !problem {
+            // Do not open a verified corrupt database for normal initialization:
+            // SQLite may otherwise remove its WAL/SHM before explicit recovery.
+            problem = match store.recovery_status() {
+                Ok(status) if !status.can_recover => store.load().is_err(),
+                _ => true,
+            };
         }
         Self {
             personal,
@@ -65,6 +75,7 @@ impl LibraryRouter {
                 store,
                 shared,
                 problem,
+                selection_valid,
             }),
         }
     }
@@ -84,6 +95,27 @@ impl LibraryRouter {
             return Err(LibraryError::storage());
         }
         Ok(active.store.clone())
+    }
+    fn recovery_store(active: &Active) -> Result<&LibraryStore, LibraryError> {
+        let root = active.store.root();
+        if !active.selection_valid || !local_directory(root) {
+            return Err(LibraryError::storage());
+        }
+        let resolved = root.canonicalize().map_err(|_| LibraryError::storage())?;
+        if !local_directory(&resolved) {
+            return Err(LibraryError::storage());
+        }
+        Ok(&active.store)
+    }
+    pub fn recovery_status(&self) -> Result<RecoveryStatus, LibraryError> {
+        let active = self.active.read().map_err(|_| LibraryError::storage())?;
+        Self::recovery_store(&active)?.recovery_status()
+    }
+    pub fn recover_corrupt(&self, confirmed: bool) -> Result<Library, LibraryError> {
+        let mut active = self.active.write().map_err(|_| LibraryError::storage())?;
+        let recovered = Self::recovery_store(&active)?.recover_corrupt(confirmed)?;
+        active.problem = false;
+        Ok(recovered)
     }
     pub fn location(&self) -> Result<LibraryLocation, LibraryError> {
         let active = self.active.read().map_err(|_| LibraryError::storage())?;
@@ -121,6 +153,7 @@ impl LibraryRouter {
             store,
             shared,
             problem: false,
+            selection_valid: true,
         };
         Ok(LibraryLocation {
             shared,
@@ -152,7 +185,7 @@ impl LibraryRouter {
 }
 
 fn local_directory(path: &Path) -> bool {
-    if !path.is_absolute() || !path.is_dir() {
+    if !path.is_absolute() {
         return false;
     }
     #[cfg(target_os = "windows")]
@@ -178,7 +211,7 @@ fn local_directory(path: &Path) -> bool {
             return false;
         }
     }
-    true
+    path.is_dir()
 }
 
 #[cfg(test)]
@@ -236,5 +269,141 @@ mod tests {
         });
         assert_eq!(result.unwrap_err().code, "conflict");
         assert!(!ran);
+    }
+    #[test]
+    fn selected_corrupt_library_can_be_recovered_after_restart_without_bypassing_confirmation() {
+        let personal = tempfile::tempdir().unwrap();
+        let shared = tempfile::tempdir().unwrap();
+        let router = LibraryRouter::new(personal.path().into());
+        let personal_before = router.load().unwrap();
+        router.switch(Some(shared.path().into())).unwrap();
+        drop(router);
+        let selected_before = std::fs::read(personal.path().join("library-location.json")).unwrap();
+        let originals = [
+            (
+                "library.sqlite3",
+                b"owned corrupt selected database".as_slice(),
+            ),
+            ("library.sqlite3-wal", b"owned selected wal"),
+            ("library.sqlite3-shm", b"owned selected shm"),
+        ];
+        for (name, bytes) in originals {
+            std::fs::write(shared.path().join(name), bytes).unwrap();
+        }
+        let reopened = LibraryRouter::new(personal.path().into());
+        assert!(reopened.location().unwrap().problem);
+        assert!(reopened.load().is_err());
+        assert!(reopened.snapshot().is_err());
+        assert!(
+            reopened
+                .recovery_status()
+                .expect("selected corruption must remain visible to recovery")
+                .can_recover
+        );
+        assert!(reopened.recover_corrupt(false).is_err());
+        assert!(reopened.location().unwrap().problem);
+        assert!(!shared.path().join("recovery").exists());
+        for (name, bytes) in originals {
+            assert_eq!(std::fs::read(shared.path().join(name)).unwrap(), bytes);
+        }
+        let recovered = reopened
+            .recover_corrupt(true)
+            .expect("confirmed corruption should recover the selected library");
+        assert!(!reopened.location().unwrap().problem);
+        assert_eq!(reopened.load().unwrap(), recovered);
+        assert!(reopened.snapshot().is_ok());
+        assert!(reopened.location().unwrap().shared);
+        assert_eq!(
+            std::fs::read(personal.path().join("library-location.json")).unwrap(),
+            selected_before
+        );
+        let preserved = std::fs::read_dir(shared.path().join("recovery"))
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect::<Vec<_>>();
+        assert_eq!(preserved.len(), 1);
+        for (name, bytes) in originals {
+            assert_eq!(std::fs::read(preserved[0].join(name)).unwrap(), bytes);
+        }
+        assert_eq!(
+            LibraryStore::new(personal.path().into()).load().unwrap(),
+            personal_before
+        );
+    }
+    #[test]
+    fn recovery_refuses_invalid_or_missing_selected_roots_without_creating_them() {
+        let personal = tempfile::tempdir().unwrap();
+        let missing = personal.path().join("missing-selected-library");
+        let not_directory = tempfile::NamedTempFile::new().unwrap();
+        let mut roots = vec![
+            missing.clone(),
+            not_directory.path().into(),
+            PathBuf::from("relative-library"),
+        ];
+        #[cfg(target_os = "windows")]
+        roots.push(PathBuf::from(r"\\server\share\library"));
+        for root in roots {
+            std::fs::write(
+                personal.path().join("library-location.json"),
+                serde_json::to_vec(&Selection {
+                    directory: Some(root),
+                })
+                .unwrap(),
+            )
+            .unwrap();
+            let router = LibraryRouter::new(personal.path().into());
+            assert!(router.location().unwrap().problem);
+            assert!(router.recovery_status().is_err());
+            assert!(router.recover_corrupt(true).is_err());
+            assert!(router.location().unwrap().problem);
+            assert!(router.snapshot().is_err());
+        }
+        assert!(!missing.exists());
+        assert!(!personal.path().join("recovery").exists());
+    }
+    #[test]
+    fn invalid_selection_cannot_recover_an_unselected_corrupt_personal_database() {
+        let personal = tempfile::tempdir().unwrap();
+        std::fs::write(personal.path().join("library-location.json"), b"{").unwrap();
+        let database = personal.path().join("library.sqlite3");
+        std::fs::write(&database, b"owned corrupt personal database").unwrap();
+        let router = LibraryRouter::new(personal.path().into());
+        assert!(router.location().unwrap().problem);
+        assert!(!router.location().unwrap().shared);
+        assert!(router.recovery_status().is_err());
+        assert!(router.recover_corrupt(true).is_err());
+        assert!(router.location().unwrap().problem);
+        assert_eq!(
+            std::fs::read(database).unwrap(),
+            b"owned corrupt personal database"
+        );
+        assert!(!personal.path().join("recovery").exists());
+    }
+    #[test]
+    fn selected_schema_and_io_failures_do_not_become_recovery_candidates() {
+        let personal = tempfile::tempdir().unwrap();
+        let shared = tempfile::tempdir().unwrap();
+        let router = LibraryRouter::new(personal.path().into());
+        router.switch(Some(shared.path().into())).unwrap();
+        drop(router);
+        let database = shared.path().join("library.sqlite3");
+        let connection = rusqlite::Connection::open(&database).unwrap();
+        connection.execute_batch("PRAGMA user_version=999").unwrap();
+        drop(connection);
+        let reopened = LibraryRouter::new(personal.path().into());
+        assert!(reopened.location().unwrap().problem);
+        assert!(!reopened.recovery_status().unwrap().can_recover);
+        assert!(reopened.recover_corrupt(true).is_err());
+        assert!(reopened.location().unwrap().problem);
+        assert!(!shared.path().join("recovery").exists());
+        drop(reopened);
+        std::fs::remove_file(database).unwrap();
+        std::fs::create_dir(shared.path().join("library.sqlite3")).unwrap();
+        let reopened = LibraryRouter::new(personal.path().into());
+        assert!(reopened.location().unwrap().problem);
+        assert!(reopened.recovery_status().is_err());
+        assert!(reopened.recover_corrupt(true).is_err());
+        assert!(reopened.location().unwrap().problem);
+        assert!(!shared.path().join("recovery").exists());
     }
 }
