@@ -112,8 +112,10 @@ mod tests {
     }
     #[test]
     fn invalid_shortcuts_delays_and_cancel_keys_are_refused() {
-        let mut settings = ProductSettings::default();
-        settings.attachment_delay_ms = 0;
+        let mut settings = ProductSettings {
+            attachment_delay_ms: 0,
+            ..Default::default()
+        };
         assert!(!settings.validate());
         settings.attachment_delay_ms = 500;
         settings.cancel_key = "F13".into();

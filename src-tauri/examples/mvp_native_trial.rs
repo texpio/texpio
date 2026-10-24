@@ -207,6 +207,7 @@ fn main() -> std::process::ExitCode {
         context: WindowsContext,
         target: TargetToken,
         body: String,
+        product_mode: Option<texpio_lib::product::settings::InsertionMode>,
     }
     impl Backend for Trial {
         type Origin = TargetStamp;
@@ -228,6 +229,23 @@ fn main() -> std::process::ExitCode {
             self.context.revalidate(&edit.prepared)
         }
         fn dispatch(&mut self, edit: &Edit) -> Result<DispatchCounts, RefusalReason> {
+            if let Some(mode) = self.product_mode {
+                let (expected, submitted) = texpio_lib::product::windows::diagnostic_dispatch(
+                    edit.prepared.stamp(),
+                    edit.prepared.delete_count(),
+                    edit.prepared.output(),
+                    mode,
+                )
+                .map_err(|reason| {
+                    println!("Product diagnostic stopped: {reason:?}");
+                    RefusalReason::OutcomeUncertain
+                })?;
+                println!("Product submission: expected={expected}, submitted={submitted}");
+                return Ok(DispatchCounts {
+                    expected,
+                    submitted,
+                });
+            }
             let counts = unicode::dispatch(&edit.prepared, &edit.plan)?;
             println!(
                 "Native submission: expected={}, submitted={}",
@@ -259,9 +277,14 @@ fn main() -> std::process::ExitCode {
     let mode = std::env::args().nth(2);
     if !matches!(
         mode.as_deref(),
-        None | Some("--inspect-only" | "--prepare-fixture")
+        None | Some(
+            "--inspect-only"
+                | "--prepare-fixture"
+                | "--product-paste-fixture"
+                | "--product-type-fixture"
+        )
     ) {
-        eprintln!("Optional mode must be --inspect-only or --prepare-fixture.");
+        eprintln!("Optional mode must be an explicit inspection or fixture strategy.");
         return std::process::ExitCode::FAILURE;
     }
     let inspect_only = mode.as_deref() == Some("--inspect-only");
@@ -333,7 +356,10 @@ fn main() -> std::process::ExitCode {
             report_profile_facts(origin, &expected_input, &expected_output);
             return Ok(None);
         }
-        if mode.as_deref() == Some("--prepare-fixture") {
+        if matches!(
+            mode.as_deref(),
+            Some("--prepare-fixture" | "--product-paste-fixture" | "--product-type-fixture")
+        ) {
             origin = prepare_fixture(origin, &expected_input)?;
         }
         let target = context
@@ -348,6 +374,15 @@ fn main() -> std::process::ExitCode {
                 context,
                 target,
                 body: rule.body,
+                product_mode: match mode.as_deref() {
+                    Some("--product-paste-fixture") => {
+                        Some(texpio_lib::product::settings::InsertionMode::Paste)
+                    }
+                    Some("--product-type-fixture") => {
+                        Some(texpio_lib::product::settings::InsertionMode::Type)
+                    }
+                    _ => None,
+                },
             },
         );
         let request = ObservedCandidate {

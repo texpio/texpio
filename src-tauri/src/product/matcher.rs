@@ -2,7 +2,7 @@
 pub struct ProductRule {
     pub id: String,
     pub trigger: String,
-    pub body: String,
+    pub body: std::sync::Arc<str>,
 }
 
 #[derive(
@@ -137,7 +137,7 @@ mod tests {
     #[test]
     fn unicode_trigger_and_empty_replacement_are_supported() {
         let mut empty = rule(":réponse");
-        empty.body.clear();
+        empty.body = "".into();
         let mut history = TypedHistory::new(vec![empty.clone()], Boundary::Word);
         assert_eq!(type_text(&mut history, ":réponse.")[0].rule, empty);
     }
