@@ -31,6 +31,7 @@ impl TypingSpeed {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(default, rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProductSettings {
+    // Legacy file/IPC preference. Fresh process startup always attempts expansion.
     pub enabled: bool,
     pub boundary: Boundary,
     pub activation: Activation,
@@ -51,7 +52,7 @@ pub struct ProductSettings {
 impl Default for ProductSettings {
     fn default() -> Self {
         Self {
-            enabled: false,
+            enabled: true,
             boundary: Boundary::Word,
             activation: Activation::Immediate,
             preserve_terminator: true,
@@ -102,9 +103,9 @@ impl ProductSettings {
 mod tests {
     use super::*;
     #[test]
-    fn defaults_start_stopped_with_explicit_paste_and_safe_cancel() {
+    fn defaults_request_startup_with_explicit_paste_and_safe_cancel() {
         let settings = ProductSettings::default();
-        assert!(!settings.enabled);
+        assert!(settings.enabled);
         assert!(!settings.autostart);
         assert!(!settings.allow_software_input);
         assert_eq!(settings.activation, Activation::Immediate);

@@ -117,6 +117,9 @@ it('keeps acknowledged settings and shows an error when a save fails', async () 
 })
 it('persists desktop options and shortcuts without overwriting other settings', async () => {
   show()
+  expect(
+    screen.queryByRole('switch', { name: 'Start expansion when Texpio launches' }),
+  ).not.toBeInTheDocument()
   await waitFor(() =>
     expect(screen.getByRole('switch', { name: 'Launch at Windows sign-in' })).toBeEnabled(),
   )

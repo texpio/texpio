@@ -1,5 +1,18 @@
 # Texpio offline MVP handoff
 
+**26 October startup update:** the user now explicitly requires automatic product
+expansion on every fresh Windows launch/restart, even after a previous Stop/Pause.
+The old enable-on-launch switch is removed; legacy enabled=false no longer gates
+startup. The main window now uses centered, screen-proportional startup bounds;
+Unfiled/Search commands are renamed Uncategorized/Search. Read the
+[startup acceptance record](../research/startup-defaults-acceptance.md) before
+following older preview or diagnostic instructions. Ordinary tests must remain
+hook-free; a native app launch can now arm expansion automatically. The final
+normal preview is visibly open with expansion Running; read-only native geometry
+checks passed after correcting first-show frame initialization. Full checks pass
+163 frontend and 197 Rust tests. Earlier stopped-on-launch preview records are
+historical and must not be treated as the current policy.
+
 **25 October layout update:** the app now uses a folder/list/editor workspace and
 a dedicated, categorized Preferences page. The right sidebar/toggle and Developer
 route are removed. Read the [workspace acceptance record](../research/library-workspace-acceptance.md)

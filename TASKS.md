@@ -239,6 +239,19 @@ unverified. See the
 
 See the [settings layout acceptance record](docs/research/settings-layout-acceptance.md).
 
+## 16. Screen-aware launch and expansion startup defaults
+
+- [x] Follow the screen's aspect ratio at startup and ignore old main-window bounds.
+- [x] Start expansion on each fresh Windows launch/restart; keep session Stop/Pause
+  and cancellation/validation guards, and remove the conflicting launch switch.
+- [x] Rename Unfiled to Uncategorized and the sidebar command-search entry to Search.
+- [x] Complete read-only review/fix, 163 frontend/197 Rust tests, static/tooling gates
+  and headless UI checks without native input.
+- [x] Rebuild/reopen after save/Quit acknowledgement and verify actual startup:
+  screen-proportional centered bounds within the work area and expansion Running.
+
+See the [startup acceptance record](docs/research/startup-defaults-acceptance.md).
+
 ## Future decisions and execution work
 
 - [ ] Check desired domains/app-store names and brand clearance before publishing.

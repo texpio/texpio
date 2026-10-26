@@ -49,6 +49,7 @@ mod lifecycle_tests {
 #[cfg(test)]
 mod shortcut_tests;
 mod utils;
+mod window_layout;
 
 use tauri::Manager;
 
@@ -63,7 +64,7 @@ pub fn run() {
             .get("updater")
             .is_some_and(commands::lifecycle::valid_update_configuration),
     };
-    let builder = tauri::Builder::default();
+    let builder = tauri::Builder::default().manage(window_layout::InitialWindowLayout::default());
 
     #[cfg(desktop)]
     let builder = builder
@@ -104,6 +105,7 @@ pub fn run() {
     let builder = builder
         .plugin(
             tauri_plugin_window_state::Builder::new()
+                .skip_initial_state("main")
                 .with_state_flags(
                     tauri_plugin_window_state::StateFlags::SIZE
                         | tauri_plugin_window_state::StateFlags::POSITION

@@ -56,8 +56,47 @@ pub fn show_main_window(app: &AppHandle) -> tauri::Result<()> {
         .get_webview_window("main")
         .ok_or(tauri::Error::WindowNotFound)?;
     window.unminimize()?;
-    window.show()?;
+    app.state::<crate::window_layout::InitialWindowLayout>()
+        .show_then_fit_once(
+            || window.show(),
+            || {
+                let _ = size_main_window(app);
+            },
+        )?;
     window.set_focus()?;
+    Ok(())
+}
+pub fn size_main_window(app: &AppHandle) -> tauri::Result<()> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or(tauri::Error::WindowNotFound)?;
+    let monitor = window
+        .current_monitor()?
+        .or_else(|| app.primary_monitor().ok().flatten());
+    if let Some(monitor) = monitor {
+        let work = monitor.work_area();
+        let outer = window.outer_size()?;
+        let inner = window.inner_size()?;
+        let frame_width = outer.width.saturating_sub(inner.width);
+        let frame_height = outer.height.saturating_sub(inner.height);
+        if let Some(bounds) = crate::window_layout::startup_bounds(
+            (monitor.size().width, monitor.size().height),
+            (
+                work.position.x,
+                work.position.y,
+                work.size.width.saturating_sub(frame_width),
+                work.size.height.saturating_sub(frame_height),
+            ),
+            monitor.scale_factor(),
+        ) {
+            window.set_min_size(Some(tauri::PhysicalSize::new(
+                bounds.min_width,
+                bounds.min_height,
+            )))?;
+            window.set_size(tauri::PhysicalSize::new(bounds.width, bounds.height))?;
+            window.set_position(tauri::PhysicalPosition::new(bounds.x, bounds.y))?;
+        }
+    }
     Ok(())
 }
 pub fn request_quit(app: &AppHandle) {

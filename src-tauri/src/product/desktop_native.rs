@@ -171,18 +171,23 @@ impl DesktopSettingsActor {
                 let initial = backend.settings.load();
                 let app = backend.app.clone();
                 let mut controller = DesktopController::new(backend);
-                if let Ok(settings) = initial {
-                    let initialized = controller.initialize(settings.clone());
-                    if let Err(error) = initialized {
-                        report(&app, Err(error));
+                match initial {
+                    Ok(settings) => {
+                        let result = controller.initialize_session(settings, || {
+                            let engine = app.state::<Arc<ProductEngine>>();
+                            let service =
+                                app.state::<Arc<crate::library_commands::LibraryService>>();
+                            let probe = app.state::<Arc<crate::engine::runtime::ProbeHandle>>();
+                            let store = app.state::<Arc<SettingsStore>>();
+                            service
+                                .start_product_on_launch(&engine, &probe, &store)
+                                .map(|_| ())
+                        });
+                        if result != Err(ProductError::Cancelled) {
+                            report(&app, result);
+                        }
                     }
-                    if settings.enabled {
-                        let engine = app.state::<Arc<ProductEngine>>();
-                        let service = app.state::<Arc<crate::library_commands::LibraryService>>();
-                        let probe = app.state::<Arc<crate::engine::runtime::ProbeHandle>>();
-                        let store = app.state::<Arc<SettingsStore>>();
-                        let _ = service.start_product_admitted(&engine, &probe, &store, 0);
-                    }
+                    Err(error) => report(&app, Err(error)),
                 }
                 while let Ok(request) = receiver.recv() {
                     match request {

@@ -24,7 +24,6 @@ const sections = [
       'preferences.appearance.title',
       'preferences.appearance.theme',
       'preferences.appearance.language',
-      'product.field.enabled',
       'product.field.autostart',
       'product.field.closeToTray',
     ],

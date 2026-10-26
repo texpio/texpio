@@ -54,6 +54,25 @@ impl LibraryService {
             Ok(result)
         })?
     }
+    pub(crate) fn start_product_on_launch(
+        &self,
+        engine: &crate::product::service::ProductEngine,
+        probe: &ProbeHandle,
+        settings: &crate::product::store::SettingsStore,
+    ) -> Result<crate::product::service::ProductStatus, crate::product::effects::ProductError> {
+        self.coordinated(|| {
+            // Startup is a single initial intent, never a retry after a user action.
+            if engine.admission() != 0
+                || engine.status().phase != crate::product::service::ProductPhase::Stopped
+            {
+                return Ok(engine.status());
+            }
+            if probe.stop().phase != ProbePhase::Stopped {
+                return Err(crate::product::effects::ProductError::Busy);
+            }
+            self.resume_product_locked(engine, settings, 0)
+        })?
+    }
     pub(crate) fn start_product_admitted(
         &self,
         engine: &crate::product::service::ProductEngine,
@@ -387,6 +406,52 @@ pub async fn library_start(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn launch_never_replaces_a_running_session_or_rearms_after_pause_or_stop() {
+        use crate::product::{
+            service::{ProductEngine, ProductPhase},
+            store::SettingsStore,
+        };
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("expansion-settings.json");
+        std::fs::write(&path, "{invalid").unwrap();
+        let service = LibraryService::new(root.path().into());
+        let settings = SettingsStore::new(root.path().into());
+        let probe = ProbeHandle::new();
+        let engine = ProductEngine::new();
+        engine.shared.status.lock().unwrap().phase = ProductPhase::Running;
+        assert_eq!(
+            service
+                .start_product_on_launch(&engine, &probe, &settings)
+                .unwrap()
+                .phase,
+            ProductPhase::Running
+        );
+        engine.pause();
+        assert_eq!(
+            service
+                .start_product_on_launch(&engine, &probe, &settings)
+                .unwrap()
+                .phase,
+            ProductPhase::Paused
+        );
+        engine.stop();
+        assert_eq!(
+            service
+                .start_product_on_launch(&engine, &probe, &settings)
+                .unwrap()
+                .phase,
+            ProductPhase::Stopped
+        );
+        // A fresh process does attempt to read settings and fails closed before hooks.
+        let fresh = ProductEngine::new();
+        assert!(matches!(
+            service.start_product_on_launch(&fresh, &probe, &settings),
+            Err(crate::product::effects::ProductError::Unavailable)
+        ));
+        assert_eq!(std::fs::read_to_string(path).unwrap(), "{invalid");
+    }
 
     #[test]
     fn snapshot_excludes_disabled_and_trashed_records() {

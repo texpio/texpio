@@ -66,7 +66,6 @@ export function ExpansionSettings({
       'preserveTerminator',
       'restoreClipboard',
       'clipboardEnabled',
-      'enabled',
       'autostart',
       'closeToTray',
     ] as const
@@ -74,7 +73,7 @@ export function ExpansionSettings({
     (name) =>
       section === 'all' ||
       (section === 'general'
-        ? ['enabled', 'autostart', 'closeToTray'].includes(name)
+        ? ['autostart', 'closeToTray'].includes(name)
         : section === 'shortcuts'
           ? name === 'clipboardEnabled'
           : section === 'expansion' && ['preserveTerminator', 'restoreClipboard'].includes(name)),
