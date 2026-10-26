@@ -260,7 +260,8 @@ See the [startup acceptance record](docs/research/startup-defaults-acceptance.md
 - [x] Share pending/error ownership and preserve draft, eligibility and fault guards.
 - [x] Complete independent review/fixes, 171 frontend/197 Rust tests, static/tooling
   checks and production light/dark/compact/RTL rendering checks.
-- [ ] Rebuild/reopen the native preview after a fresh save-and-Quit acknowledgement.
+- [x] Rebuild/reopen after save-and-Quit acknowledgement; confirm visible Settings,
+  removal of the library expansion bar and correct native window bounds.
 
 See the [expansion controls acceptance record](docs/research/expansion-controls-acceptance.md).
 

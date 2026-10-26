@@ -51,8 +51,22 @@ These are UI checks with synthetic replies, not native input qualification.
 ## Native preview
 
 The previous normal preview (observed PID 10328) was preserved while coding and
-testing. A fresh save-and-Quit acknowledgement was requested before replacing its
-locked executable. Native rebuild/reopen is pending that acknowledgement.
+testing. The user saved/Quit and acknowledged closure, and process absence was
+verified before replacing the executable. The locked optimized no-bundle build
+passed, including a fresh frontend build and native compilation (4m 33s).
+
+The normal preview reopened from `src-tauri/target/release/texpio.exe` without
+debugging arguments, observed PID 25500. A bounded read-only native inspector
+confirmed the visible Settings button, absence of the old Preferences label and
+the library's Automatic expansion region, and centered screen-proportional bounds:
+client 1948×1096 on a 2560×1440 screen at 120 DPI, inside the usable work area and
+not maximized. The inspector ended; the normal app remains open. It performed
+no clicks, typing, clipboard operations or library/settings writes. Actual native
+Pause/Turn on interaction was not exercised; state transitions were verified with
+the synthetic production-frontend fixture and unit tests above.
+
+Executable SHA-256:
+`D9A4AC7EEEE6F0E1660664BEEE04A6F24DF70262098AEE2BA51A7537AD7B6DBB`.
 
 Fresh native launches still start expansion automatically under the previously
 approved startup policy. Strict P0 and other physical input qualification remain
