@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import { usePlatform, type AppPlatform } from '@/hooks/use-platform'
 import { MacOSWindowControls } from './MacOSWindowControls'
 import { WindowsWindowControls } from './WindowsWindowControls'
-import { TitleBarLeftActions, TitleBarTitle } from './TitleBarContent'
+import { TitleBarLeftActions } from './TitleBarContent'
 import { LinuxTitleBar } from './LinuxTitleBar'
 
 interface TitleBarProps {
@@ -44,19 +44,16 @@ export function TitleBar({ className, title, forcePlatform }: TitleBarProps) {
     return (
       <div
         dir="ltr"
-        data-tauri-drag-region
+        data-tauri-drag-region="deep"
         className={cn(
           'relative flex h-8 w-full shrink-0 items-center justify-between border-b bg-background',
           className,
         )}
       >
         {/* Left side - Actions */}
-        <div dir="ltr" className="flex items-center pl-2">
-          <TitleBarLeftActions />
+        <div dir="ltr" className="flex items-center gap-2 pl-2">
+          <TitleBarLeftActions title={displayTitle} />
         </div>
-
-        {/* Center - Title */}
-        <TitleBarTitle title={displayTitle} />
 
         {/* Right side - Actions + Window Controls */}
         <div dir="ltr" className="flex items-center">
@@ -70,20 +67,17 @@ export function TitleBar({ className, title, forcePlatform }: TitleBarProps) {
   return (
     <div
       dir="ltr"
-      data-tauri-drag-region
+      data-tauri-drag-region="deep"
       className={cn(
         'relative flex h-8 w-full shrink-0 items-center justify-between border-b bg-background',
         className,
       )}
     >
       {/* Left side - Window Controls + Actions */}
-      <div dir="ltr" className="flex items-center">
+      <div dir="ltr" className="flex items-center gap-2">
         <MacOSWindowControls />
-        <TitleBarLeftActions />
+        <TitleBarLeftActions title={displayTitle} />
       </div>
-
-      {/* Center - Title */}
-      <TitleBarTitle title={displayTitle} />
 
       {/* Right side - Actions */}
       <div dir="ltr" className="flex items-center pr-2"></div>

@@ -221,6 +221,13 @@ and Developer page. See the [workspace acceptance record](docs/research/library-
 - [x] Pass 162 frontend/188 Rust tests plus static/tooling checks and isolated light/dark/compact/RTL rendered checks.
 - [x] Finish optimized Windows packages and reopen the updated preview.
 
+26 October follow-up: title-bar/sidebar wordmarks are removed, a small title-bar
+icon replaces them, and the missing native double-click permission is corrected.
+Full checks, rendered fixtures and the optimized native build pass; the updated
+preview is visibly open. Actual native mouse double-click acceptance remains
+unverified. See the
+[title-bar acceptance record](docs/research/titlebar-polish-acceptance.md).
+
 ## Future decisions and execution work
 
 - [ ] Check desired domains/app-store names and brand clearance before publishing.

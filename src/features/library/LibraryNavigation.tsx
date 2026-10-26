@@ -12,7 +12,6 @@ import {
   Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { BrandLogo } from '@/components/brand/BrandLogo'
 import { useUIStore, type LibraryCollection } from '@/store/ui-store'
 import { useLibrary } from '@/services/library'
 import { useLibraryMetadata } from '@/services/library-metadata'
@@ -60,9 +59,6 @@ export function LibraryNavigation() {
   }
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <BrandLogo className="h-14 max-w-full" />
-      </div>
       <nav
         aria-label={t('workspace.navigation')}
         className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-3"
