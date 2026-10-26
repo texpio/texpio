@@ -2,15 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { loadProductSettings, saveProductSettings } from '@/services/product'
 import type { ProductSettings } from '@/lib/bindings'
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-  FieldSet,
-  FieldLegend,
-} from '@/components/ui/field'
+import { FieldDescription, FieldSet, FieldLegend } from '@/components/ui/field'
+import { SettingsFields, SettingsRow } from './SettingsLayout'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
@@ -108,12 +101,16 @@ export function ExpansionSettings({
           </AlertTitle>
         </Alert>
       )}
-      <FieldGroup>
+      <SettingsFields>
         {shownChoices.map((field) => (
-          <Field key={field.name}>
-            <FieldLabel htmlFor={`expansion-${field.name}`}>
-              {t(`product.field.${field.name}`)}
-            </FieldLabel>
+          <SettingsRow
+            key={field.name}
+            id={`expansion-${field.name}`}
+            label={t(`product.field.${field.name}`)}
+            disabled={disabled}
+            description={field.name === 'activation' ? t('product.activationHelp') : undefined}
+            descriptionId={field.name === 'activation' ? 'expansion-activation-help' : undefined}
+          >
             <NativeSelect
               id={`expansion-${field.name}`}
               aria-describedby={
@@ -131,20 +128,16 @@ export function ExpansionSettings({
                 </NativeSelectOption>
               ))}
             </NativeSelect>
-            {field.name === 'activation' && (
-              <FieldDescription id="expansion-activation-help">
-                {t('product.activationHelp')}
-              </FieldDescription>
-            )}
-          </Field>
+          </SettingsRow>
         ))}
         {shownSwitches.map((name) => (
-          <Field
+          <SettingsRow
             key={name}
-            orientation="horizontal"
-            data-disabled={name === 'preserveTerminator' ? terminatorDisabled : disabled}
+            id={`expansion-${name}`}
+            label={t(`product.field.${name}`)}
+            compact
+            disabled={name === 'preserveTerminator' ? terminatorDisabled : disabled}
           >
-            <FieldLabel htmlFor={`expansion-${name}`}>{t(`product.field.${name}`)}</FieldLabel>
             <Switch
               id={`expansion-${name}`}
               checked={
@@ -157,18 +150,17 @@ export function ExpansionSettings({
               disabled={name === 'preserveTerminator' ? terminatorDisabled : disabled}
               onCheckedChange={(value) => update({ [name]: value })}
             />
-          </Field>
+          </SettingsRow>
         ))}
         {(section === 'all' || section === 'expansion') && (
-          <Field orientation="horizontal" data-disabled={disabled}>
-            <FieldContent>
-              <FieldLabel htmlFor="expansion-allowSoftwareInput">
-                {t('product.field.allowSoftwareInput')}
-              </FieldLabel>
-              <FieldDescription id="expansion-software-input-help">
-                {t('product.softwareInputHelp')}
-              </FieldDescription>
-            </FieldContent>
+          <SettingsRow
+            id="expansion-allowSoftwareInput"
+            label={t('product.field.allowSoftwareInput')}
+            description={t('product.softwareInputHelp')}
+            descriptionId="expansion-software-input-help"
+            compact
+            disabled={disabled}
+          >
             <Switch
               id="expansion-allowSoftwareInput"
               aria-describedby="expansion-software-input-help"
@@ -176,12 +168,16 @@ export function ExpansionSettings({
               disabled={disabled}
               onCheckedChange={(value) => update({ allowSoftwareInput: value })}
             />
-          </Field>
+          </SettingsRow>
         )}
         {(section === 'all' || section === 'shortcuts') &&
           (['toggleShortcut', 'clipboardShortcut'] as const).map((name) => (
-            <Field key={name}>
-              <FieldLabel htmlFor={`expansion-${name}`}>{t(`product.field.${name}`)}</FieldLabel>
+            <SettingsRow
+              key={name}
+              id={`expansion-${name}`}
+              label={t(`product.field.${name}`)}
+              disabled={disabled}
+            >
               <Input
                 id={`expansion-${name}`}
                 disabled={disabled}
@@ -194,16 +190,14 @@ export function ExpansionSettings({
                   else event.currentTarget.value = query.data?.[name] ?? ''
                 }}
               />
-            </Field>
+            </SettingsRow>
           ))}
-        {(section === 'all' || section === 'general') && (
-          <p className="text-xs text-muted-foreground">{t('product.desktopHelp')}</p>
-        )}
         {(section === 'all' || section === 'expansion') && (
-          <Field>
-            <FieldLabel htmlFor="expansion-delay">
-              {t('product.field.attachmentDelayMs')}
-            </FieldLabel>
+          <SettingsRow
+            id="expansion-delay"
+            label={t('product.field.attachmentDelayMs')}
+            disabled={disabled}
+          >
             <Input
               id="expansion-delay"
               type="number"
@@ -220,9 +214,12 @@ export function ExpansionSettings({
                 else event.currentTarget.value = String(query.data?.attachmentDelayMs ?? 500)
               }}
             />
-          </Field>
+          </SettingsRow>
         )}
-      </FieldGroup>
+      </SettingsFields>
+      {(section === 'all' || section === 'general') && (
+        <FieldDescription>{t('product.desktopHelp')}</FieldDescription>
+      )}
       {section !== 'general' &&
         (query.data?.insertion === 'type' || query.data?.clipboardMode === 'type') && (
           <Alert>

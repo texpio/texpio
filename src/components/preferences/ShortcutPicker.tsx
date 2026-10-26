@@ -23,10 +23,11 @@ export function ShortcutPicker({
     setCapturing(false)
   }
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <Button
         type="button"
         variant="outline"
+        className="h-auto min-h-8 max-w-full whitespace-normal py-1.5 text-start"
         disabled={disabled}
         aria-pressed={capturing}
         aria-label={`${t('preferences.general.quickPaneShortcut')}: ${formatShortcut(value.replace('CommandOrControl', 'CmdOrCtrl'), platform)}`}

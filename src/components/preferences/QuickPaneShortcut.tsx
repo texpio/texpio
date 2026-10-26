@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { emit } from '@tauri-apps/api/event'
 import { getDefaultQuickPaneShortcut, updateQuickPaneShortcut } from '@/services/quick-pane'
 import { preferencesQueryKeys } from '@/services/preferences'
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { SettingsFields, SettingsRow } from './SettingsLayout'
 import { ShortcutPicker } from './ShortcutPicker'
 export function QuickPaneShortcut({
   value,
@@ -31,22 +31,26 @@ export function QuickPaneShortcut({
     },
   })
   return (
-    <Field>
-      <FieldLabel>{t('preferences.general.quickPaneShortcut')}</FieldLabel>
-      <FieldDescription>{t('preferences.general.quickPaneShortcutDescription')}</FieldDescription>
-      {defaults.data && (
-        <ShortcutPicker
-          value={value ?? defaults.data}
-          defaultValue={defaults.data}
-          disabled={disabled || update.isPending}
-          onChange={(chord) => update.mutate(chord)}
-        />
-      )}
+    <SettingsFields>
+      <SettingsRow
+        label={t('preferences.general.quickPaneShortcut')}
+        description={t('preferences.general.quickPaneShortcutDescription')}
+        disabled={disabled || update.isPending}
+      >
+        {defaults.data && (
+          <ShortcutPicker
+            value={value ?? defaults.data}
+            defaultValue={defaults.data}
+            disabled={disabled || update.isPending}
+            onChange={(chord) => update.mutate(chord)}
+          />
+        )}
+      </SettingsRow>
       {(defaults.isError || update.isError) && (
         <p role="alert" className="text-sm text-destructive">
           {t('shortcut.unavailable')}
         </p>
       )}
-    </Field>
+    </SettingsFields>
   )
 }

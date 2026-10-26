@@ -433,5 +433,11 @@
   "preferences.dataHelp": "Export a backup, import snippets, or recover a damaged library.",
   "preferences.desktopOnly": "Open the Texpio desktop app to manage these settings.",
   "editor.command.new-folder": "New folder",
-  "editor.command.manage-folder": "Manage folder"
+  "editor.command.manage-folder": "Manage folder",
+  "preferences.search": "Search settings",
+  "preferences.noMatches": "No matching settings",
+  "preferences.description.general": "Make Texpio feel at home on your desktop.",
+  "preferences.description.expansion": "Choose how abbreviations expand and text is inserted.",
+  "preferences.description.shortcuts": "Manage keyboard shortcuts for your everyday actions.",
+  "preferences.description.data": "Manage your library location, backups and recovery."
 }

@@ -228,6 +228,17 @@ preview is visibly open. Actual native mouse double-click acceptance remains
 unverified. See the
 [title-bar acceptance record](docs/research/titlebar-polish-acceptance.md).
 
+## 15. Settings layout based on the Multica reference
+
+- [x] Add a dedicated settings sidebar, translated search and section headings.
+- [x] Group existing controls into bordered, responsive label/control rows.
+- [x] Preserve settings-save serialization, errors, shortcuts and unsaved snippets.
+- [x] Complete read-only review, reproduce/fix translated action clipping and pass
+  163 frontend/188 Rust tests plus static/tooling and rendered checks.
+- [x] Rebuild/reopen the native preview after save-and-Quit acknowledgement.
+
+See the [settings layout acceptance record](docs/research/settings-layout-acceptance.md).
+
 ## Future decisions and execution work
 
 - [ ] Check desired domains/app-store names and brand clearance before publishing.

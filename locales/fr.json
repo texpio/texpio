@@ -433,5 +433,11 @@
   "preferences.dataHelp": "Exportez une sauvegarde, importez des extraits ou récupérez une bibliothèque endommagée.",
   "preferences.desktopOnly": "Ouvrez l’application Texpio pour gérer ces paramètres.",
   "editor.command.new-folder": "Nouveau dossier",
-  "editor.command.manage-folder": "Gérer le dossier"
+  "editor.command.manage-folder": "Gérer le dossier",
+  "preferences.search": "Rechercher un réglage",
+  "preferences.noMatches": "Aucun réglage correspondant",
+  "preferences.description.general": "Adaptez Texpio à votre environnement de travail.",
+  "preferences.description.expansion": "Choisissez comment les abréviations sont développées et le texte inséré.",
+  "preferences.description.shortcuts": "Gérez les raccourcis clavier de vos actions quotidiennes.",
+  "preferences.description.data": "Gérez l’emplacement de votre bibliothèque, les sauvegardes et la récupération."
 }

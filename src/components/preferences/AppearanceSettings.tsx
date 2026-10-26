@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { isTauri } from '@tauri-apps/api/core'
-import { Field, FieldGroup, FieldLabel, FieldSet, FieldLegend } from '@/components/ui/field'
+import { FieldSet, FieldLegend } from '@/components/ui/field'
+import { SettingsFields, SettingsRow } from './SettingsLayout'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -29,9 +30,12 @@ export function AppearanceSettings() {
           </Button>
         </Alert>
       )}
-      <FieldGroup>
-        <Field>
-          <FieldLabel htmlFor="preference-theme">{t('preferences.appearance.theme')}</FieldLabel>
+      <SettingsFields>
+        <SettingsRow
+          id="preference-theme"
+          label={t('preferences.appearance.theme')}
+          disabled={disabled}
+        >
           <NativeSelect
             id="preference-theme"
             value={query.data?.theme ?? 'system'}
@@ -46,11 +50,12 @@ export function AppearanceSettings() {
               </NativeSelectOption>
             ))}
           </NativeSelect>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="preference-language">
-            {t('preferences.appearance.language')}
-          </FieldLabel>
+        </SettingsRow>
+        <SettingsRow
+          id="preference-language"
+          label={t('preferences.appearance.language')}
+          disabled={disabled || !isTauri()}
+        >
           <NativeSelect
             id="preference-language"
             value={query.data?.language ?? 'system'}
@@ -71,8 +76,8 @@ export function AppearanceSettings() {
             <NativeSelectOption value="fr">Français</NativeSelectOption>
             <NativeSelectOption value="ar">العربية</NativeSelectOption>
           </NativeSelect>
-        </Field>
-      </FieldGroup>
+        </SettingsRow>
+      </SettingsFields>
     </FieldSet>
   )
 }

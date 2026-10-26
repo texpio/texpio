@@ -8,6 +8,7 @@ import { FieldDescription, FieldLegend, FieldSet } from '@/components/ui/field'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { libraryKeys } from '@/services/library'
 import { attachmentKeys } from '@/services/attachments'
+import { SettingsFields, SettingsRow } from './SettingsLayout'
 
 const key = ['library-location'] as const
 export function LibraryLocation() {
@@ -45,28 +46,34 @@ export function LibraryLocation() {
           <AlertTitle>{t('location.error')}</AlertTitle>
         </Alert>
       )}
-      <p className="text-sm font-medium">
-        {t(query.data?.shared ? 'location.shared' : 'location.personal')}
-      </p>
-      <p className="break-all text-xs text-muted-foreground">{query.data?.directory}</p>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
+      <SettingsFields>
+        <SettingsRow
+          label={t(query.data?.shared ? 'location.shared' : 'location.personal')}
+          description={<span className="break-all">{query.data?.directory}</span>}
           disabled={disabled}
-          onClick={() => change.mutate(true)}
         >
-          {t('location.select')}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={disabled || (!query.data?.shared && !query.data?.problem)}
-          onClick={() => change.mutate(false)}
-        >
-          {t('location.usePersonal')}
-        </Button>
-      </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto min-h-8 max-w-full whitespace-normal py-1.5 text-start"
+              disabled={disabled}
+              onClick={() => change.mutate(true)}
+            >
+              {t('location.select')}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto min-h-8 max-w-full whitespace-normal py-1.5 text-start"
+              disabled={disabled || (!query.data?.shared && !query.data?.problem)}
+              onClick={() => change.mutate(false)}
+            >
+              {t('location.usePersonal')}
+            </Button>
+          </div>
+        </SettingsRow>
+      </SettingsFields>
     </FieldSet>
   )
 }

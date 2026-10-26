@@ -51,6 +51,26 @@ function open() {
     </QueryClientProvider>,
   )
 }
+it('finds settings sections by option labels without saving and restores navigation when cleared', async () => {
+  vi.mocked(invoke).mockResolvedValue(preferences)
+  open()
+  const search = screen.getByRole('searchbox', { name: 'Search settings' })
+  await userEvent.type(search, 'clipboard')
+  expect(screen.queryByRole('radio', { name: 'General' })).not.toBeInTheDocument()
+  expect(screen.getByRole('radio', { name: 'Expansion' })).toBeChecked()
+  expect(screen.getByRole('radio', { name: 'Shortcuts' })).toBeInTheDocument()
+  expect(await screen.findByLabelText('Insertion method')).toBeVisible()
+  await userEvent.clear(search)
+  expect(screen.getByRole('radio', { name: 'General' })).toBeInTheDocument()
+  expect(screen.getByRole('radio', { name: 'Expansion' })).toBeChecked()
+  await userEvent.type(search, 'no matching setting')
+  expect(screen.getByRole('status')).toHaveTextContent('No matching settings')
+  await userEvent.clear(search)
+  await userEvent.click(screen.getByRole('radio', { name: 'General' }))
+  expect(await screen.findByRole('combobox', { name: 'Theme' })).toBeVisible()
+  expect(product.save).not.toHaveBeenCalled()
+  expect(invoke).not.toHaveBeenCalledWith('save_preferences', expect.anything())
+})
 it('keeps corrupt preferences out of saves and recovers through Retry', async () => {
   vi.mocked(invoke)
     .mockRejectedValueOnce({ path: 'C:/private/secret' })

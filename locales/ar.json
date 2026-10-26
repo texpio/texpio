@@ -433,5 +433,11 @@
   "preferences.dataHelp": "صدّر نسخة احتياطية أو استورد مقتطفات أو استعد مكتبة تالفة.",
   "preferences.desktopOnly": "افتح تطبيق Texpio لإدارة هذه الإعدادات.",
   "editor.command.new-folder": "مجلد جديد",
-  "editor.command.manage-folder": "إدارة المجلد"
+  "editor.command.manage-folder": "إدارة المجلد",
+  "preferences.search": "البحث في الإعدادات",
+  "preferences.noMatches": "لا توجد إعدادات مطابقة",
+  "preferences.description.general": "خصّص Texpio ليناسب بيئة عملك.",
+  "preferences.description.expansion": "اختر كيفية توسيع الاختصارات وإدراج النص.",
+  "preferences.description.shortcuts": "أدر اختصارات لوحة المفاتيح للمهام اليومية.",
+  "preferences.description.data": "أدر موقع المكتبة والنسخ الاحتياطية والاسترداد."
 }
