@@ -252,6 +252,18 @@ See the [settings layout acceptance record](docs/research/settings-layout-accept
 
 See the [startup acceptance record](docs/research/startup-defaults-acceptance.md).
 
+## 17. Settings name and contextual expansion controls
+
+- [x] Move full runtime expansion controls into Settings → Expansion.
+- [x] Rename visible Preferences labels to Settings in all three locales.
+- [x] Show a persistent paused/stopped warning with Turn on expansion across pages.
+- [x] Share pending/error ownership and preserve draft, eligibility and fault guards.
+- [x] Complete independent review/fixes, 171 frontend/197 Rust tests, static/tooling
+  checks and production light/dark/compact/RTL rendering checks.
+- [ ] Rebuild/reopen the native preview after a fresh save-and-Quit acknowledgement.
+
+See the [expansion controls acceptance record](docs/research/expansion-controls-acceptance.md).
+
 ## Future decisions and execution work
 
 - [ ] Check desired domains/app-store names and brand clearance before publishing.

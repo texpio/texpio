@@ -1,5 +1,14 @@
 # Texpio offline MVP handoff
 
+**26 October Settings update:** visible Preferences labels are now Settings.
+Runtime expansion controls live in Settings → Expansion. Healthy running expansion
+has no workspace bar; paused/stopped expansion shows a persistent top warning with
+Turn on expansion. One controller retains pending actions/errors across navigation
+and preserves draft, saved-snippet and fault-cleanup guards. Full checks pass
+171 frontend/197 Rust tests; headless production light/dark/compact/RTL checks pass.
+Native preview replacement awaits a fresh save-and-Quit acknowledgement. Read the
+[expansion controls record](../research/expansion-controls-acceptance.md).
+
 **26 October startup update:** the user now explicitly requires automatic product
 expansion on every fresh Windows launch/restart, even after a previous Stop/Pause.
 The old enable-on-launch switch is removed; legacy enabled=false no longer gates

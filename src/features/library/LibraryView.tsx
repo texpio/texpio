@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isTauri } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { quitApp } from '@/lib/app-exit'
@@ -42,7 +42,6 @@ import {
   type Library,
   type Snippet,
 } from '@/services/library'
-import { EngineControls } from './EngineControls'
 import { SnippetEditor } from './SnippetEditor'
 import { SnippetList } from './SnippetList'
 import { useUIStore } from '@/store/ui-store'
@@ -116,6 +115,10 @@ export function LibraryView() {
   const [busy, setBusy] = useState(false)
   const busyRef = useRef(false)
   const dirty = !!draft && (!draft.original || !same(draft.snippet, draft.original))
+  useLayoutEffect(() => {
+    useUIStore.getState().setExpansionStartBlocked(dirty || busy)
+    return () => useUIStore.getState().setExpansionStartBlocked(true)
+  }, [dirty, busy])
   const stale = !!draft && !!library.data && draft.base.revision !== library.data.revision
   useEffect(() =>
     bindLibraryActions((action) => {
@@ -446,12 +449,6 @@ export function LibraryView() {
           </DropdownMenu>
         </div>
       </header>
-      <EngineControls
-        dirty={dirty || busy}
-        eligibleCount={
-          data?.snippets.filter((snippet) => snippet.enabled && !snippet.deleted).length ?? 0
-        }
-      />
       {(metadata.isError || favorite.isError) && (
         <Alert variant="destructive">
           <AlertTitle>{t('library.metadataError')}</AlertTitle>

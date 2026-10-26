@@ -157,7 +157,7 @@ it('explains a native shortcut conflict without discarding acknowledged settings
   await userEvent.selectOptions(screen.getByLabelText('Insertion method'), 'type')
   expect(
     await screen.findByText(
-      'A keyboard shortcut is unavailable. Choose another shortcut in Preferences.',
+      'A keyboard shortcut is unavailable. Choose another shortcut in Settings.',
     ),
   ).toBeVisible()
   expect(screen.getByLabelText('Insertion method')).toHaveValue('paste')

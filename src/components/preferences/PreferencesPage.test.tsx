@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { invoke, isTauri } from '@tauri-apps/api/core'
 import { beforeEach, expect, it, vi } from 'vitest'
+import { ExpansionProvider } from '@/features/expansion/ExpansionProvider'
 import { PreferencesPage } from './PreferencesPage'
 import { useUIStore } from '@/store/ui-store'
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn(), isTauri: vi.fn() }))
@@ -13,7 +14,15 @@ vi.mock('@/services/quick-pane', () => ({
   updateQuickPaneShortcut: vi.fn(),
 }))
 const product = vi.hoisted(() => ({ load: vi.fn(), save: vi.fn() }))
-vi.mock('@/services/product', () => ({
+vi.mock('@/services/product', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/product')>()),
+  getProductStatus: vi.fn().mockResolvedValue({
+    phase: 'running',
+    submitted: 0,
+    cancelled: 0,
+    lastError: null,
+    clipboardIncomplete: false,
+  }),
   loadProductSettings: product.load,
   saveProductSettings: product.save,
 }))
@@ -47,7 +56,9 @@ function open() {
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <PreferencesPage />
+      <ExpansionProvider>
+        <PreferencesPage />
+      </ExpansionProvider>
     </QueryClientProvider>,
   )
 }
@@ -64,7 +75,7 @@ it('finds settings sections by option labels without saving and restores navigat
   expect(screen.getByRole('radio', { name: 'General' })).toBeInTheDocument()
   expect(screen.getByRole('radio', { name: 'Expansion' })).toBeChecked()
   await userEvent.type(search, 'no matching setting')
-  expect(screen.getByRole('status')).toHaveTextContent('No matching settings')
+  expect(screen.getByText('No matching settings')).toHaveTextContent('No matching settings')
   await userEvent.clear(search)
   await userEvent.click(screen.getByRole('radio', { name: 'General' }))
   expect(await screen.findByRole('combobox', { name: 'Theme' })).toBeVisible()
@@ -76,7 +87,7 @@ it('keeps corrupt preferences out of saves and recovers through Retry', async ()
     .mockRejectedValueOnce({ path: 'C:/private/secret' })
     .mockResolvedValue(preferences)
   open()
-  expect(await screen.findByRole('alert')).toHaveTextContent('Preferences are unavailable.')
+  expect(await screen.findByRole('alert')).toHaveTextContent('Settings are unavailable.')
   expect(screen.queryByText(/private/)).not.toBeInTheDocument()
   expect(screen.getByRole('combobox', { name: 'Theme' })).toBeDisabled()
   expect(invoke).not.toHaveBeenCalledWith('save_preferences', expect.anything())
@@ -99,7 +110,7 @@ it('persists theme while retaining language and shortcut', async () => {
 it('groups Preferences into page sections instead of stacking them in a dialog', async () => {
   vi.mocked(invoke).mockResolvedValue(preferences)
   open()
-  expect(screen.getByRole('heading', { name: 'Preferences' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(await screen.findByRole('combobox', { name: 'Theme' })).toBeVisible()
   expect(screen.queryByLabelText('Insertion method')).not.toBeInTheDocument()

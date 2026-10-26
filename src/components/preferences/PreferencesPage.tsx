@@ -10,6 +10,7 @@ import { usePreferences } from '@/services/preferences'
 import { useCommandContext } from '@/hooks/use-command-context'
 import { runCommand } from '@/lib/commands'
 import { LibraryBackups } from '@/features/library/LibraryBackups'
+import { EngineControls } from '@/features/library/EngineControls'
 import { AppearanceSettings } from './AppearanceSettings'
 import { ExpansionSettings } from './ExpansionSettings'
 import { QuickPaneShortcut } from './QuickPaneShortcut'
@@ -32,6 +33,9 @@ const sections = [
     value: 'expansion',
     icon: Zap,
     labels: [
+      'library.engine',
+      'library.pause',
+      'library.stop',
       'product.field.insertion',
       'product.field.activation',
       'product.field.boundary',
@@ -173,6 +177,7 @@ export function PreferencesPage() {
             aria-label={t(`preferences.section.${section}`)}
           >
             {section === 'general' && <AppearanceSettings />}
+            {section === 'expansion' && isTauri() && <EngineControls />}
             {section === 'shortcuts' && isTauri() && (
               <QuickPaneShortcut
                 value={preferences.data?.quick_pane_shortcut ?? null}

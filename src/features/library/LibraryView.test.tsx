@@ -148,6 +148,36 @@ function show() {
     client,
   }
 }
+it('blocks expansion starts for drafts and saves, then fails closed when the editor unmounts', async () => {
+  const view = show()
+  await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
+  expect(useUIStore.getState().expansionStartBlocked).toBe(false)
+  await userEvent.type(screen.getByLabelText('Body'), ' draft')
+  expect(useUIStore.getState().expansionStartBlocked).toBe(true)
+  let finish!: (value: unknown) => void
+  native.save.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve
+    }),
+  )
+  await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
+  expect(useUIStore.getState().expansionStartBlocked).toBe(true)
+  await act(async () =>
+    finish({
+      status: 'ok',
+      data: {
+        ...initial,
+        revision: 5,
+        snippets: initial.snippets.map((snippet, index) =>
+          index === 0 ? { ...snippet, body: snippet.body + ' draft' } : snippet,
+        ),
+      },
+    }),
+  )
+  await waitFor(() => expect(useUIStore.getState().expansionStartBlocked).toBe(false))
+  view.unmount()
+  expect(useUIStore.getState().expansionStartBlocked).toBe(true)
+})
 it('filters favorites and keeps an edited body when usage metadata refreshes', async () => {
   const { client } = show()
   await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))

@@ -15,8 +15,17 @@ import { Toaster } from '@/components/ui/sonner'
 import { UpdateDialog } from '@/components/updates/UpdateDialog'
 import { useMainWindowEventListeners } from '@/hooks/useMainWindowEventListeners'
 import { LeftSideBar } from './LeftSideBar'
+import { ExpansionProvider } from '@/features/expansion/ExpansionProvider'
+import { ExpansionNotice } from '@/features/expansion/ExpansionNotice'
 
 export function MainWindow() {
+  return (
+    <ExpansionProvider>
+      <MainWindowLayout />
+    </ExpansionProvider>
+  )
+}
+function MainWindowLayout() {
   const { t } = useTranslation()
   const layout = useUIStore((state) => state.layout)
   const view = useUIStore((state) => state.activeView)
@@ -37,6 +46,7 @@ export function MainWindow() {
   return (
     <div className="flex h-svh min-h-0 flex-col overflow-hidden rounded-[var(--app-corner-radius)] bg-background text-foreground">
       <TitleBar />
+      <ExpansionNotice />
       {error && (
         <Alert variant="destructive">
           <AlertTitle>{t('shell.preferencesError')}</AlertTitle>

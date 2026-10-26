@@ -1,124 +1,65 @@
-import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  getProductStatus,
-  pauseProduct,
-  ProductCommandError,
-  stopProduct,
-  startProduct,
-} from '@/services/product'
-import { libraryKeys } from '@/services/library'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { useExpansion } from '@/features/expansion/use-expansion'
 
-export function EngineControls({
-  dirty,
-  eligibleCount,
-}: {
-  dirty: boolean
-  eligibleCount: number
-}) {
+export function EngineControls() {
   const { t } = useTranslation()
-  const client = useQueryClient()
-  const [error, setError] = useState<string | null>(null)
-  const status = useQuery({
-    queryKey: libraryKeys.engine,
-    queryFn: getProductStatus,
-    retry: false,
-    refetchInterval: 1000,
-  })
-  const mutation = useMutation({
-    onMutate: () => client.cancelQueries({ queryKey: libraryKeys.engine }),
-    mutationFn: (action: 'start' | 'stop' | 'pause') =>
-      action === 'start'
-        ? startProduct()
-        : action === 'stop'
-          ? stopProduct()
-          : status.data?.phase === 'paused'
-            ? startProduct()
-            : pauseProduct(),
-    onSuccess: (next) => {
-      client.setQueryData(libraryKeys.engine, next)
-      setError(null)
-    },
-    onError: (reason) =>
-      setError(
-        reason instanceof ProductCommandError
-          ? t(`product.error.${reason.code}`)
-          : t('library.error.unavailable'),
-      ),
-  })
-  const active = status.data?.phase === 'running' || status.data?.phase === 'paused'
-  const stoppable = active || status.data?.phase === 'fault'
+  const engine = useExpansion()
+  const phase = engine.status.data?.phase
+  const active = phase === 'running' || phase === 'paused'
   return (
-    <section
-      aria-label={t('library.engine')}
-      className="flex shrink-0 flex-col gap-2 border-b px-5 py-2"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold">{t('library.engine')}</h2>
-          <Badge variant="secondary" role="status">
-            {status.isError
-              ? t('library.unavailable')
-              : status.data
-                ? t(`probe.phase.${status.data.phase}`)
-                : t('library.loading')}
-          </Badge>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {!active && (
-            <Button
-              size="sm"
-              disabled={
-                status.data?.phase !== 'stopped' ||
-                !!status.error ||
-                mutation.isPending ||
-                dirty ||
-                eligibleCount === 0
-              }
-              onClick={() => mutation.mutate('start')}
-            >
-              {t('library.start')}
-            </Button>
+    <section aria-label={t('library.engine')}>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle>{t('library.engine')}</CardTitle>
+            <Badge variant="secondary" role="status">
+              {t(
+                engine.status.isError
+                  ? 'library.unavailable'
+                  : phase
+                    ? `probe.phase.${phase}`
+                    : 'library.loading',
+              )}
+            </Badge>
+          </div>
+          <CardDescription>{t('expansion.settingsHelp')}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <div className="flex flex-wrap gap-2">
+            {!active && (
+              <Button size="sm" disabled={!engine.can('start')} onClick={() => engine.act('start')}>
+                {t('library.start')}
+              </Button>
+            )}
+            {active && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!engine.can(phase === 'paused' ? 'start' : 'pause')}
+                onClick={() => engine.act(phase === 'paused' ? 'start' : 'pause')}
+              >
+                {t(phase === 'paused' ? 'library.resume' : 'library.pause')}
+              </Button>
+            )}
+            {(active || phase === 'fault') && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!engine.can('stop')}
+                onClick={() => engine.act('stop')}
+              >
+                {t('library.stop')}
+              </Button>
+            )}
+          </div>
+          {(phase === 'stopped' || phase === 'paused') && engine.startHint && (
+            <p className="text-sm text-muted-foreground">{t(engine.startHint)}</p>
           )}
-          {active && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!active || mutation.isPending}
-              onClick={() => mutation.mutate('pause')}
-            >
-              {t(status.data?.phase === 'paused' ? 'library.resume' : 'library.pause')}
-            </Button>
-          )}
-          {stoppable && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!stoppable || mutation.isPending}
-              onClick={() => mutation.mutate('stop')}
-            >
-              {t('library.stop')}
-            </Button>
-          )}
-        </div>
-      </div>
-      {status.data?.clipboardIncomplete && (
-        <Alert>
-          <AlertDescription>{t('product.clipboardIncomplete')}</AlertDescription>
-        </Alert>
-      )}
-      {(error || status.data?.lastError) && (
-        <Alert variant="destructive">
-          <AlertTitle>{t('library.engineNotice')}</AlertTitle>
-          <AlertDescription>
-            {error ?? t(`product.error.${status.data!.lastError!}`)}
-          </AlertDescription>
-        </Alert>
-      )}
+        </CardContent>
+      </Card>
     </section>
   )
 }

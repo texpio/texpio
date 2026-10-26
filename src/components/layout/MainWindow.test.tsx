@@ -47,9 +47,9 @@ it('opens Preferences as a page and preserves the library editor across navigati
   )
   const draft = screen.getByLabelText('Test draft')
   await userEvent.type(draft, 'Unfinished snippet')
-  await userEvent.click(screen.getByRole('button', { name: 'Preferences' }))
-  expect(screen.getByRole('heading', { name: 'Preferences' })).toBeVisible()
-  expect(screen.queryByRole('dialog', { name: 'Preferences' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Settings' }))
+  expect(screen.getByRole('heading', { name: 'Settings' })).toBeVisible()
+  expect(screen.queryByRole('dialog', { name: 'Settings' })).not.toBeInTheDocument()
   expect(draft).not.toBeVisible()
   await userEvent.click(
     within(screen.getByRole('navigation', { name: 'Library navigation' })).getByRole('button', {

@@ -26,6 +26,8 @@ interface UIState {
   layout: LayoutState
   activeView: 'home' | 'preferences'
   preferencesSection: PreferencesSection
+  expansionStartBlocked: boolean
+  setExpansionStartBlocked: (blocked: boolean) => void
   libraryCollection: LibraryCollection
   libraryFolder: string
   commandPaletteOpen: boolean
@@ -50,6 +52,8 @@ export function createUIStore(storage?: StoragePort) {
     layout,
     activeView: 'home',
     preferencesSection: 'general',
+    expansionStartBlocked: true,
+    setExpansionStartBlocked: (expansionStartBlocked) => set({ expansionStartBlocked }),
     libraryCollection: 'active',
     libraryFolder: 'all',
     commandPaletteOpen: false,

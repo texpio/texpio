@@ -2,7 +2,13 @@ import { registerCommands } from './registry'
 import { navigationCommands } from './navigation-commands'
 import { windowCommands } from './window-commands'
 import { libraryCommands } from './library-commands'
-registerCommands([...navigationCommands, ...windowCommands, ...libraryCommands])
+import { expansionCommands } from './expansion-commands'
+registerCommands([
+  ...navigationCommands,
+  ...windowCommands,
+  ...libraryCommands,
+  ...expansionCommands,
+])
 export {
   registerCommands,
   executeCommand,
