@@ -1,4 +1,6 @@
 fn main() {
+    // Recompile native icon resources when branding changes in an incremental build.
+    println!("cargo::rerun-if-changed=icons");
     let msvc = std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc");
     let attributes = if msvc {
         tauri_build::Attributes::new()
