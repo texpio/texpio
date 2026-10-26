@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
-import { CheckCircle2, LoaderCircle, Monitor, SquareTerminal } from 'lucide-react'
+import { CheckCircle2, LoaderCircle, Monitor } from 'lucide-react'
+import appIcon from '../../../assets/brand/icon-with-bg.svg'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -48,9 +49,7 @@ export function FoundationScreen() {
     <section className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-9 sm:px-10">
       <header className="flex flex-wrap items-center justify-between gap-5">
         <div className="flex items-center gap-3">
-          <div className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <SquareTerminal className="size-6" aria-hidden="true" />
-          </div>
+          <img src={appIcon} alt="" className="size-11" />
           <div>
             <h1 className="text-xl font-semibold tracking-tight">Texpio</h1>
             <p className="text-sm text-muted-foreground">

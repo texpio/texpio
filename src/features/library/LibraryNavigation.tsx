@@ -5,7 +5,6 @@ import {
   FolderOpen,
   FolderPlus,
   Inbox,
-  Keyboard,
   Pencil,
   Search,
   Settings,
@@ -13,6 +12,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { BrandLogo } from '@/components/brand/BrandLogo'
 import { useUIStore, type LibraryCollection } from '@/store/ui-store'
 import { useLibrary } from '@/services/library'
 import { useLibraryMetadata } from '@/services/library-metadata'
@@ -61,8 +61,7 @@ export function LibraryNavigation() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <Keyboard className="size-5" aria-hidden="true" />
-        <span className="truncate font-semibold tracking-tight">Texpio</span>
+        <BrandLogo className="h-14 max-w-full" />
       </div>
       <nav
         aria-label={t('workspace.navigation')}
