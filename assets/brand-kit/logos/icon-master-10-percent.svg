@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g fill="#111010">
+    <path d="M486 334 H427 A64 64 0 0 0 363 398 V626 A64 64 0 0 0 427 690 H486" fill="none" stroke="#111010" stroke-width="58" />
+    <g transform="translate(512 512) scale(0.90) translate(-512 -512)">
+      <g stroke="#111010" stroke-width="34" fill="none">
+        <path d="M512 512 L662 355 M512 512 H694 M512 512 L662 669" />
+      </g>
+      <circle cx="512" cy="512" r="69" />
+      <circle cx="662" cy="355" r="50" />
+      <circle cx="694" cy="512" r="36" />
+      <circle cx="662" cy="669" r="50" />
+    </g>
+  </g>
+</svg>

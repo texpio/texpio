@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Texpio favicon">
+<style>svg { color: #172B32; } @media (prefers-color-scheme: dark) { svg { color: #67DDB4; } }</style>
+<g transform="translate(-30.934782608695652 -29.83574879227053) scale(0.12077294685990338)">
+  <g fill="currentColor">
+    <path d="M486 334 H427 A64 64 0 0 0 363 398 V626 A64 64 0 0 0 427 690 H486" fill="none" stroke="currentColor" stroke-width="58" />
+    <g transform="translate(512 512) scale(0.90) translate(-512 -512)">
+      <g stroke="currentColor" stroke-width="34" fill="none">
+        <path d="M512 512 L662 355 M512 512 H694 M512 512 L662 669" />
+      </g>
+      <circle cx="512" cy="512" r="69" />
+      <circle cx="662" cy="355" r="50" />
+      <circle cx="694" cy="512" r="36" />
+      <circle cx="662" cy="669" r="50" />
+    </g>
+  </g>
+</g>
+</svg>

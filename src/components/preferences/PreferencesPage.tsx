@@ -6,6 +6,7 @@ import { useUIStore, type PreferencesSection } from '@/store/ui-store'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Button } from '@/components/ui/button'
+import { BrandLogo } from '@/components/brand/BrandLogo'
 import { usePreferences } from '@/services/preferences'
 import { useCommandContext } from '@/hooks/use-command-context'
 import { runCommand } from '@/lib/commands'
@@ -147,7 +148,8 @@ export function PreferencesPage() {
           </nav>
         </div>
         <footer className="flex shrink-0 flex-col gap-2 border-t p-4 text-xs text-muted-foreground">
-          <span>Texpio {__APP_VERSION__}</span>
+          <BrandLogo className="h-8 w-36" />
+          <span>{__APP_VERSION__}</span>
           {isTauri() && (
             <Button
               variant="ghost"

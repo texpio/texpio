@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Texpio icon">
+<g transform="translate(-197.13043478260866 -189.2173913043478) scale(0.8695652173913043)">
+  <g fill="#FFFFFF">
+    <path d="M486 334 H427 A64 64 0 0 0 363 398 V626 A64 64 0 0 0 427 690 H486" fill="none" stroke="#FFFFFF" stroke-width="58" />
+    <g transform="translate(512 512) scale(0.90) translate(-512 -512)">
+      <g stroke="#FFFFFF" stroke-width="34" fill="none">
+        <path d="M512 512 L662 355 M512 512 H694 M512 512 L662 669" />
+      </g>
+      <circle cx="512" cy="512" r="69" />
+      <circle cx="662" cy="355" r="50" />
+      <circle cx="694" cy="512" r="36" />
+      <circle cx="662" cy="669" r="50" />
+    </g>
+  </g>
+</g>
+</svg>
