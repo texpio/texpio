@@ -48,6 +48,19 @@ and Arabic RTL. Rendered images were inspected. Browser and loopback server ende
 Ignored evidence is under `.superpowers/sdd/2026-10-26-expansion-controls/`.
 These are UI checks with synthetic replies, not native input qualification.
 
+27 October visual follow-up: paused/stopped notices now use an amber warning
+surface, border, text and icon in both themes. A synthetic production-frontend
+check measured text contrast at 8.15:1 (light) and 13.45:1 (dark), and verified
+the stopped and paused notices plus responsive, RTL and existing action behavior.
+The headless browser and server ended. `bun run check:all` and `bun run build`
+passed; the Windows sandbox required an unsandboxed retry for tooling tests involving
+symlinks and file replacement, and for the local browser's loopback connection.
+The optimized Windows build passed and the normal preview reopened (observed PID
+26888). A bounded read-only window check confirmed it was visible, centered and
+inside the work area. The warning itself was verified in the synthetic rendered
+preview; native Pause/Stop was not exercised. Executable SHA-256:
+`40C3BE8FD70806526C5D5E5123A7677A89E3E8AB787304AB9DB29EB59F5466B2`.
+
 ## Native preview
 
 The previous normal preview (observed PID 10328) was preserved while coding and

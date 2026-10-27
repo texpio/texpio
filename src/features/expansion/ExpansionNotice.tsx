@@ -29,7 +29,7 @@ export function ExpansionNotice() {
           : 'library.engineNotice'
   return (
     <Alert
-      variant={unavailable || fault || reason ? 'destructive' : 'default'}
+      variant={unavailable || fault || reason ? 'destructive' : off ? 'warning' : 'default'}
       className="shrink-0 rounded-none border-x-0 border-t-0 px-5 py-3"
     >
       <TriangleAlert aria-hidden="true" />
