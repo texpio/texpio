@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { Editor } from '@tiptap/core'
 import { useTranslation } from 'react-i18next'
 import { Copy, Files, MoreHorizontal, Search, Star, Trash2 } from 'lucide-react'
 import type { Folder, Snippet } from '@/services/library'
@@ -9,6 +10,17 @@ import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import {
   DropdownMenu,
@@ -19,6 +31,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { AttachmentEditor } from './AttachmentEditor'
 import { EditorFind } from './EditorFind'
+import { RichBodyEditor } from './RichBodyEditor'
 import type { SnippetValidation } from './model'
 
 interface SnippetEditorProps {
@@ -64,6 +77,8 @@ export function SnippetEditor({
   const { t } = useTranslation()
   const title = useRef<HTMLInputElement>(null)
   const body = useRef<HTMLTextAreaElement>(null)
+  const [richEditor, setRichEditor] = useState<Editor | null>(null)
+  const richMode = !snippet.body.includes('\r')
   const [section, setSection] = useState('content')
   const selectedSection = findMode ? 'content' : section
   const isNew = !original
@@ -236,7 +251,7 @@ export function SnippetEditor({
           <FieldError>{t('library.validation.body')}</FieldError>
         )}
         {selectedSection === 'content' && (
-          <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <div className="flex flex-1 flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <FieldLabel htmlFor="snippet-body">{t('library.field.body')}</FieldLabel>
               <div className="flex gap-1">
@@ -254,42 +269,97 @@ export function SnippetEditor({
                   type="button"
                   size="sm"
                   variant="ghost"
-                  disabled={busy || snippet.deleted}
+                  disabled={busy || snippet.deleted || !richMode}
                   onClick={() => onFind('replace')}
                 >
                   {t('editor.findReplace')}
                 </Button>
               </div>
             </div>
-            {findMode && (
+            {findMode && (richMode || findMode === 'find') && (
               <EditorFind
                 key={snippet.id}
                 mode={findMode}
-                value={snippet.body}
-                onChange={(value) => onEdit({ body: value })}
+                value={richMode ? snippet.body : snippet.body.replace(/\r\n?/g, '\n')}
+                onChange={() => {}}
                 textarea={body}
+                richEditor={richEditor}
+                richMode={richMode}
                 onClose={() => onFind(null)}
               />
             )}
-            <Field data-invalid={validation === 'body'} className="min-h-0 flex-1">
-              <Textarea
-                id="snippet-body"
-                dir="auto"
-                ref={body}
-                value={snippet.body}
-                rows={10}
-                className="min-h-52 flex-1 resize-y font-mono"
-                disabled={busy || snippet.deleted}
-                aria-invalid={validation === 'body'}
-                onChange={(event) => onEdit({ body: event.target.value })}
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape' && findMode) {
-                    event.preventDefault()
-                    onFind(null)
-                  }
-                }}
-              />
+            <Field data-invalid={validation === 'body'} className="flex-1">
+              {!richMode ? (
+                <Textarea
+                  id="snippet-body"
+                  dir="auto"
+                  ref={body}
+                  value={snippet.body}
+                  rows={10}
+                  className="min-h-52 flex-1 resize-y font-mono"
+                  disabled={busy || snippet.deleted}
+                  readOnly
+                  aria-invalid={validation === 'body'}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape' && findMode) {
+                      event.preventDefault()
+                      onFind(null)
+                    }
+                  }}
+                />
+              ) : (
+                <RichBodyEditor
+                  key={snippet.id}
+                  id="snippet-body"
+                  label={t('library.field.body')}
+                  body={snippet.body}
+                  richBody={snippet.richBody ?? null}
+                  disabled={busy || snippet.deleted}
+                  invalid={validation === 'body'}
+                  onChange={(value, richBody) => onEdit({ body: value, richBody })}
+                  onEditorChange={setRichEditor}
+                />
+              )}
               <FieldDescription>{t('library.bodyHelp')}</FieldDescription>
+              {!richMode && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <FieldDescription>{t('editor.legacyLineEndings')}</FieldDescription>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={busy || snippet.deleted}
+                      >
+                        {t('editor.convertLineEndings')}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>{t('editor.convertLineEndingsTitle')}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {t('editor.convertLineEndingsHelp')}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel type="button">{t('common.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction
+                          type="button"
+                          onClick={() =>
+                            onEdit({ body: snippet.body.replace(/\r\n?/g, '\n'), richBody: null })
+                          }
+                        >
+                          {t('editor.convertLineEndingsConfirm')}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
+              {snippet.richBody && (
+                <FieldDescription>{t('editor.richPastePending')}</FieldDescription>
+              )}
               {validation === 'body' && <FieldError>{t('library.validation.body')}</FieldError>}
             </Field>
           </div>
@@ -299,12 +369,24 @@ export function SnippetEditor({
             aria-label={t('library.preview')}
             className="min-h-52 rounded-md border bg-muted/40 p-4"
           >
-            <pre
-              dir="auto"
-              className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed"
-            >
-              {snippet.body || t('library.previewEmpty')}
-            </pre>
+            {snippet.richBody && richMode ? (
+              <RichBodyEditor
+                key={`${snippet.id}-preview`}
+                id="snippet-preview-body"
+                label={t('library.preview')}
+                body={snippet.body}
+                richBody={snippet.richBody}
+                readOnlyPreview
+                onChange={() => {}}
+              />
+            ) : (
+              <pre
+                dir="auto"
+                className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed"
+              >
+                {snippet.body || t('library.previewEmpty')}
+              </pre>
+            )}
           </section>
         )}
         {selectedSection === 'attachments' &&

@@ -265,6 +265,19 @@ See the [startup acceptance record](docs/research/startup-defaults-acceptance.md
 
 See the [expansion controls acceptance record](docs/research/expansion-controls-acceptance.md).
 
+## 18. Tiptap rich snippets
+
+- [x] Add open-source Tiptap editor and bundled third-party license credits.
+- [x] Preserve legacy text and provide accessible formatting and find/replace.
+- [x] Version rich documents, imports, exports and database migration snapshots.
+- [x] Prepare and test bounded native HTML and plain clipboard formats.
+- [ ] Qualify rich native insertion on an owned rich-text target and only then
+  enable the production delivery gate; until then expansion stays plain text.
+- [x] Rebuild/open the editor preview after the user saves and quits; verify that
+  the main window and library load. Formatted expansion remains gated above.
+
+See the [Tiptap acceptance record](docs/research/tiptap-rich-snippets-acceptance.md).
+
 ## Future decisions and execution work
 
 - [ ] Check desired domains/app-store names and brand clearance before publishing.

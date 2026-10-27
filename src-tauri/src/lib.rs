@@ -12,6 +12,7 @@ mod lifecycle;
 mod lifecycle_service_tests;
 mod probe_commands;
 pub mod product;
+mod rich_text;
 #[cfg(test)]
 mod service_tests;
 mod shortcuts;

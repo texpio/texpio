@@ -44,6 +44,18 @@ pub(super) fn validate_records(
         if snippet.body.chars().take(MAX_BODY_SCALARS + 1).count() > MAX_BODY_SCALARS {
             return Err(LibraryError::too_large());
         }
+        if let Some(document) = &snippet.rich_body {
+            if document.len() > MAX_RICH_BODY_BYTES {
+                return Err(LibraryError::too_large());
+            }
+            super::json_strict::decode(document.as_bytes())
+                .map_err(|_| LibraryError::invalid_data())?;
+            let rendered =
+                crate::rich_text::render(document).map_err(|_| LibraryError::invalid_data())?;
+            if rendered.plain != snippet.body {
+                return Err(LibraryError::invalid_data());
+            }
+        }
         if snippet.enabled && !snippet.deleted && !active_triggers.insert(snippet.trigger.as_str())
         {
             return Err(LibraryError::conflict());
@@ -87,11 +99,11 @@ pub(super) fn parse_import(json: &str) -> Result<Library, LibraryError> {
     if json.len() > MAX_JSON_BYTES {
         return Err(LibraryError::too_large());
     }
+    let value =
+        super::json_strict::decode(json.as_bytes()).map_err(|_| LibraryError::invalid_data())?;
     let envelope: ImportEnvelope =
-        serde_json::from_str(json).map_err(|_| LibraryError::invalid_data())?;
-    if envelope.schema_version != SCHEMA_VERSION {
-        return Err(LibraryError::unsupported_version());
-    }
+        serde_json::from_value(value.clone()).map_err(|_| LibraryError::invalid_data())?;
+    validate_interchange_version(&value, envelope.schema_version)?;
     validate_records(&envelope.folders, &envelope.snippets, false)?;
     Ok(Library {
         schema_version: SCHEMA_VERSION,
@@ -99,6 +111,36 @@ pub(super) fn parse_import(json: &str) -> Result<Library, LibraryError> {
         folders: envelope.folders,
         snippets: envelope.snippets,
     })
+}
+
+pub(super) fn interchange_version(snippets: &[Snippet]) -> u32 {
+    if snippets.iter().any(|snippet| snippet.rich_body.is_some()) {
+        RICH_SCHEMA_VERSION
+    } else {
+        SCHEMA_VERSION
+    }
+}
+
+pub(super) fn validate_interchange_version(
+    value: &serde_json::Value,
+    version: u32,
+) -> Result<(), LibraryError> {
+    if !matches!(version, SCHEMA_VERSION | RICH_SCHEMA_VERSION) {
+        return Err(LibraryError::unsupported_version());
+    }
+    if version == SCHEMA_VERSION
+        && value
+            .get("snippets")
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|snippets| {
+                snippets
+                    .iter()
+                    .any(|snippet| snippet.get("richBody").is_some())
+            })
+    {
+        return Err(LibraryError::invalid_data());
+    }
+    Ok(())
 }
 
 /// A bounded writer keeps even a library of individually valid large records
@@ -124,11 +166,25 @@ impl Write for BoundedJson {
 }
 
 pub(super) fn encode_library(library: &Library) -> Result<String, LibraryError> {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ExportLibrary<'a> {
+        schema_version: u32,
+        revision: u32,
+        folders: &'a [Folder],
+        snippets: &'a [Snippet],
+    }
+    let export = ExportLibrary {
+        schema_version: interchange_version(&library.snippets),
+        revision: library.revision,
+        folders: &library.folders,
+        snippets: &library.snippets,
+    };
     let mut writer = BoundedJson {
         bytes: Vec::new(),
         overflow: false,
     };
-    if serde_json::to_writer(&mut writer, library).is_err() {
+    if serde_json::to_writer(&mut writer, &export).is_err() {
         return Err(if writer.overflow {
             LibraryError::too_large()
         } else {
@@ -136,4 +192,34 @@ pub(super) fn encode_library(library: &Library) -> Result<String, LibraryError> 
         });
     }
     String::from_utf8(writer.bytes).map_err(|_| LibraryError::storage())
+}
+
+#[cfg(test)]
+mod duplicate_key_tests {
+    use super::*;
+
+    #[test]
+    fn bare_import_rejects_duplicate_keys_at_root_and_nested_record() {
+        let root = r#"{"schemaVersion":1,"schemaVersion":1,"folders":[],"snippets":[]}"#;
+        let nested = r#"{"schemaVersion":1,"folders":[{"id":"10000000-0000-4000-8000-000000000000","name":"A","name":"B"}],"snippets":[]}"#;
+        for json in [root, nested] {
+            assert_eq!(parse_import(json).unwrap_err().code, "invalidData");
+        }
+    }
+
+    #[test]
+    fn embedded_rich_document_rejects_duplicate_attribute_keys() {
+        let rich = r#"{"version":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"x","marks":[{"type":"link","attrs":{"href":"https://one.example","href":"https://two.example"}}]}]}]}}"#;
+        let json = serde_json::json!({
+            "schemaVersion": RICH_SCHEMA_VERSION,
+            "folders": [],
+            "snippets": [{
+                "id": "20000000-0000-4000-8000-000000000000", "folderId": null,
+                "title": "Example", "trigger": ";x", "body": "x", "richBody": rich,
+                "enabled": true, "deleted": false
+            }]
+        })
+        .to_string();
+        assert_eq!(parse_import(&json).unwrap_err().code, "invalidData");
+    }
 }

@@ -127,6 +127,16 @@
   --app-corner-radius: 0px;
 }
 
+.find-and-replace-result {
+  background: var(--warning);
+  color: var(--warning-foreground);
+}
+
+.find-and-replace-result-current {
+  outline: 2px solid var(--warning-border);
+  outline-offset: 1px;
+}
+
 .dark {
   color-scheme: dark;
   --background: oklch(0.145 0 0);

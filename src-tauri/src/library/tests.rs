@@ -17,6 +17,7 @@ fn fixture(revision: u32) -> SaveLibrary {
             title: "Unicode greeting".into(),
             trigger: ";greet".into(),
             body: "Hello\t世界 🌍\r\nनमस्ते".into(),
+            rich_body: None,
             enabled: true,
             deleted: false,
         }],
@@ -228,7 +229,7 @@ fn version_unknown_fields_and_size_are_bounded_before_import() {
     let root = tempfile::tempdir().unwrap();
     let store = LibraryStore::new(root.path().into());
     let mut json: serde_json::Value = serde_json::from_str(&envelope(&fixture(0))).unwrap();
-    json["schemaVersion"] = 2.into();
+    json["schemaVersion"] = 3.into();
     error_code(
         store.preview_import(&json.to_string()),
         "unsupportedVersion",
@@ -240,6 +241,87 @@ fn version_unknown_fields_and_size_are_bounded_before_import() {
         store.preview_import(&" ".repeat(8 * 1024 * 1024 + 1)),
         "tooLarge",
     );
+}
+
+#[test]
+fn interchange_versions_preserve_plain_v1_and_validate_rich_v2() {
+    let root = tempfile::tempdir().unwrap();
+    let store = LibraryStore::new(root.path().into());
+    let mut input = fixture(0);
+    let saved = store.save(input.clone()).unwrap();
+    assert_eq!(
+        store.export_json().unwrap(),
+        serde_json::to_string(&saved).unwrap()
+    );
+
+    input.expected_revision = 1;
+    input.snippets[0].body = "Hello".into();
+    input.snippets[0].rich_body = Some(r#"{"version":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Hello","marks":[{"type":"bold"}]}]}]}}"#.into());
+    let saved = store.save(input).unwrap();
+    assert_eq!(saved.schema_version, 1);
+    let exported = store.export_json().unwrap();
+    let mut document: serde_json::Value = serde_json::from_str(&exported).unwrap();
+    assert_eq!(document["schemaVersion"], 2);
+    let target_root = tempfile::tempdir().unwrap();
+    let target = LibraryStore::new(target_root.path().into());
+    let restored = target.import_json(&exported, 0).unwrap();
+    assert_eq!(restored.schema_version, 1);
+    assert_eq!(
+        restored.snippets.last().unwrap().rich_body,
+        saved.snippets[0].rich_body
+    );
+
+    document["schemaVersion"] = 1.into();
+    error_code(target.preview_import(&document.to_string()), "invalidData");
+    document["snippets"][0]["richBody"] = serde_json::Value::Null;
+    error_code(target.preview_import(&document.to_string()), "invalidData");
+    document["schemaVersion"] = 2.into();
+    document["snippets"][0]["richBody"] = "invalid".into();
+    error_code(target.preview_import(&document.to_string()), "invalidData");
+}
+
+#[test]
+fn rich_backup_manifest_and_bare_library_v2_round_trip() {
+    let root = tempfile::tempdir().unwrap();
+    let store = LibraryStore::new(root.path().into());
+    let mut input = fixture(0);
+    input.snippets[0].body = "Hello".into();
+    input.snippets[0].rich_body = Some(r#"{"version":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Hello"}]}]}}"#.into());
+    store.save(input).unwrap();
+    let bare = store.export_json().unwrap();
+    PreparedImport::decode(bare.as_bytes(), BackupFormat::Json).unwrap();
+    let bare_value: serde_json::Value = serde_json::from_str(&bare).unwrap();
+    let bare_yaml = serde_yaml_ng::to_string(&bare_value).unwrap();
+    PreparedImport::decode(bare_yaml.as_bytes(), BackupFormat::Yaml).unwrap();
+    for format in [
+        BackupFormat::Json,
+        BackupFormat::Yaml,
+        BackupFormat::Archive,
+    ] {
+        let data = store.export_backup(format).unwrap();
+        let prepared = PreparedImport::decode(&data, format).unwrap();
+        let target_root = tempfile::tempdir().unwrap();
+        let target = LibraryStore::new(target_root.path().into());
+        let applied = prepared.apply(&target, 0, ImportMode::Replace).unwrap();
+        assert_eq!(applied.schema_version, 1);
+        assert_eq!(
+            applied.snippets[0].rich_body,
+            store.load().unwrap().snippets[0].rich_body
+        );
+    }
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&store.export_backup(BackupFormat::Json).unwrap()).unwrap();
+    assert_eq!(manifest["schemaVersion"], 2);
+    assert_eq!(manifest["library"]["schemaVersion"], 2);
+    manifest["library"]["schemaVersion"] = 1.into();
+    assert!(PreparedImport::decode(manifest.to_string().as_bytes(), BackupFormat::Json).is_err());
+    manifest["library"]["snippets"][0]["richBody"] = serde_json::Value::Null;
+    assert!(PreparedImport::decode(manifest.to_string().as_bytes(), BackupFormat::Json).is_err());
+    let invalid_yaml = serde_yaml_ng::to_string(&manifest).unwrap();
+    assert!(PreparedImport::decode(invalid_yaml.as_bytes(), BackupFormat::Yaml).is_err());
+    manifest["library"]["schemaVersion"] = 2.into();
+    manifest["library"]["snippets"][0]["richBody"] = "invalid".into();
+    assert!(PreparedImport::decode(manifest.to_string().as_bytes(), BackupFormat::Json).is_err());
 }
 
 #[test]
@@ -343,6 +425,7 @@ fn oversized_record_counts_and_total_json_refuse_without_changing_library() {
             title: "Snippet".into(),
             trigger: ";duplicate".into(),
             body: "Value".into(),
+            rich_body: None,
             enabled: false,
             deleted: false,
         })
@@ -356,6 +439,7 @@ fn oversized_record_counts_and_total_json_refuse_without_changing_library() {
             title: "Large Unicode snippet".into(),
             trigger: ";duplicate".into(),
             body: "🌍".repeat(16384),
+            rich_body: None,
             enabled: false,
             deleted: false,
         })
@@ -379,6 +463,7 @@ fn merged_import_json_limit_is_checked_even_when_each_library_is_valid() {
                 title: "Large Unicode snippet".into(),
                 trigger: ";duplicate".into(),
                 body: "🌍".repeat(16384),
+                rich_body: None,
                 enabled: false,
                 deleted: false,
             })
@@ -467,7 +552,7 @@ fn metadata_migrates_v1_and_usage_does_not_stale_an_editor_revision() {
     let store = LibraryStore::new(root.path().into());
     let original = store.load().unwrap();
     let conn = rusqlite::Connection::open(root.path().join("library.sqlite3")).unwrap();
-    conn.execute_batch("DROP TABLE IF EXISTS snippet_info; PRAGMA user_version=1;")
+    conn.execute_batch("DROP TABLE IF EXISTS snippet_info; ALTER TABLE snippets DROP COLUMN rich_body; PRAGMA user_version=1;")
         .unwrap();
     drop(conn);
     let metadata = store.metadata().unwrap();
@@ -517,5 +602,299 @@ fn import_accepts_a_missing_revision_and_literal_tokens_without_evaluating_them(
     assert_eq!(
         imported.snippets.last().unwrap().body,
         "{{date}} ${clipboard} plain literal"
+    );
+}
+
+#[test]
+fn rich_document_survives_save_restart_and_json_import() {
+    let root = tempfile::tempdir().unwrap();
+    let store = LibraryStore::new(root.path().into());
+    let mut input = serde_json::to_value(fixture(0)).unwrap();
+    let document = r#"{"version":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Café"}]}]}}"#;
+    input["snippets"][0]["body"] = "Café".into();
+    input["snippets"][0]["richBody"] = document.into();
+    let input: SaveLibrary = serde_json::from_value(input).unwrap();
+    let saved = store.save(input).unwrap();
+    drop(store);
+    let store = LibraryStore::new(root.path().into());
+    assert_eq!(store.load().unwrap(), saved);
+    let exported = store.export_json().unwrap();
+    let value: serde_json::Value = serde_json::from_str(&exported).unwrap();
+    assert_eq!(value["snippets"][0]["richBody"], document);
+    assert_eq!(value["snippets"][0]["body"], "Café");
+    let target = tempfile::tempdir().unwrap();
+    let target = LibraryStore::new(target.path().into());
+    let imported = target.import_json(&exported, 0).unwrap();
+    assert_eq!(imported.snippets.last().unwrap(), &saved.snippets[0]);
+}
+
+#[test]
+fn legacy_databases_migrate_without_changing_literal_text_or_backup_bytes() {
+    for version in 1..=3 {
+        let root = tempfile::tempdir().unwrap();
+        let store = LibraryStore::new(root.path().into());
+        let saved = store.save(fixture(0)).unwrap();
+        let legacy_json = store.export_json().unwrap();
+        assert!(!legacy_json.contains("richBody"));
+        let backup_dir = root.path().join("backups");
+        std::fs::write(backup_dir.join("library-r1.json"), legacy_json.as_bytes()).unwrap();
+        let connection = rusqlite::Connection::open(root.path().join("library.sqlite3")).unwrap();
+        connection
+            .execute_batch("ALTER TABLE snippets DROP COLUMN rich_body;")
+            .unwrap();
+        if version < 3 {
+            connection
+                .execute_batch("DROP TABLE attachments; DROP TABLE file_settings;")
+                .unwrap();
+        }
+        if version < 2 {
+            connection
+                .execute_batch("DROP TABLE snippet_info;")
+                .unwrap();
+        }
+        connection
+            .pragma_update(None, "user_version", version)
+            .unwrap();
+        drop(connection);
+        assert_eq!(store.load().unwrap(), saved);
+        let snapshots: Vec<_> = std::fs::read_dir(&backup_dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| {
+                path.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("library-before-v4-")
+            })
+            .collect();
+        assert_eq!(snapshots.len(), 1);
+        let snapshot = rusqlite::Connection::open(&snapshots[0]).unwrap();
+        assert_eq!(
+            snapshot
+                .pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
+                .unwrap(),
+            version
+        );
+        assert_eq!(store.export_json().unwrap(), legacy_json);
+        store
+            .save(SaveLibrary {
+                expected_revision: saved.revision,
+                folders: saved.folders,
+                snippets: saved.snippets,
+            })
+            .unwrap();
+        let connection = rusqlite::Connection::open(root.path().join("library.sqlite3")).unwrap();
+        assert_eq!(
+            connection
+                .pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
+                .unwrap(),
+            4
+        );
+    }
+}
+
+#[test]
+fn rich_json_is_bounded_and_invalid_json_does_not_change_library() {
+    let root = tempfile::tempdir().unwrap();
+    let store = LibraryStore::new(root.path().into());
+    let before = store.load().unwrap();
+    let mut input = fixture(0);
+    input.snippets[0].rich_body = Some("{not-json".into());
+    error_code(store.save(input.clone()), "invalidData");
+    input.snippets[0].rich_body = Some(format!("\"{}\"", "a".repeat(MAX_RICH_BODY_BYTES)));
+    error_code(store.save(input), "tooLarge");
+    assert_eq!(store.load().unwrap(), before);
+}
+
+#[test]
+fn rich_documents_must_match_plain_text_and_contain_no_unsafe_links() {
+    let root = tempfile::tempdir().unwrap();
+    let store = LibraryStore::new(root.path().into());
+    let before = store.load().unwrap();
+    let mut input = fixture(0);
+    input.snippets[0].body = "different".into();
+    input.snippets[0].rich_body = Some(r#"{"version":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"visible"}]}]}}"#.into());
+    error_code(store.save(input.clone()), "invalidData");
+    input.snippets[0].body = "visible".into();
+    input.snippets[0].rich_body = Some(r#"{"version":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"visible","marks":[{"type":"link","attrs":{"href":"javascript:alert(1)"}}]}]}]}}"#.into());
+    error_code(store.save(input), "invalidData");
+    assert_eq!(store.load().unwrap(), before);
+}
+
+#[test]
+fn imported_rich_content_participates_in_record_conflicts() {
+    let root = tempfile::tempdir().unwrap();
+    let store = LibraryStore::new(root.path().into());
+    let mut input = fixture(0);
+    input.snippets[0].body = "Café".into();
+    input.snippets[0].rich_body = Some(r#"{"version":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Café"}]}]}}"#.into());
+    let saved = store.save(input.clone()).unwrap();
+    input.snippets[0].rich_body = None;
+    error_code(store.preview_import(&envelope(&input)), "conflict");
+    assert_eq!(store.load().unwrap(), saved);
+}
+
+#[test]
+fn migration_snapshot_preserves_legacy_metadata_and_attachment_references() {
+    let root = tempfile::tempdir().unwrap();
+    let store = LibraryStore::new(root.path().into());
+    let original = store.load().unwrap();
+    let id = &original.snippets[0].id;
+    store.set_favorite(id, true).unwrap();
+    store.record_usage(id).unwrap();
+    let files = store
+        .add_attachment_data(id, "example.txt", b"attachment bytes")
+        .unwrap();
+    store
+        .set_file_settings(
+            id,
+            &FileSettings {
+                attachments_first: true,
+                strict_order: true,
+            },
+        )
+        .unwrap();
+    let connection = rusqlite::Connection::open(root.path().join("library.sqlite3")).unwrap();
+    connection
+        .execute_batch("ALTER TABLE snippets DROP COLUMN rich_body; PRAGMA user_version=3;")
+        .unwrap();
+    drop(connection);
+    assert_eq!(store.load().unwrap(), original);
+    let backups: Vec<_> = std::fs::read_dir(root.path().join("backups"))
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| {
+            path.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("library-before-v4-")
+        })
+        .collect();
+    assert_eq!(backups.len(), 1);
+    let snapshot = rusqlite::Connection::open(&backups[0]).unwrap();
+    assert_eq!(
+        snapshot
+            .pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
+            .unwrap(),
+        3
+    );
+    assert!(
+        snapshot
+            .query_row("SELECT favorite FROM snippet_info WHERE id=?1", [id], |r| r
+                .get::<_, bool>(0))
+            .unwrap()
+    );
+    assert_eq!(
+        snapshot
+            .query_row(
+                "SELECT usage_count FROM snippet_info WHERE id=?1",
+                [id],
+                |r| r.get::<_, u32>(0)
+            )
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        snapshot
+            .query_row(
+                "SELECT digest FROM attachments WHERE snippet_id=?1",
+                [id],
+                |r| r.get::<_, String>(0)
+            )
+            .unwrap(),
+        files[0].digest
+    );
+    assert!(
+        snapshot
+            .query_row(
+                "SELECT strict_order FROM file_settings WHERE snippet_id=?1",
+                [id],
+                |r| r.get::<_, bool>(0)
+            )
+            .unwrap()
+    );
+    assert_eq!(
+        std::fs::read(root.path().join("attachments").join(&files[0].digest)).unwrap(),
+        b"attachment bytes"
+    );
+}
+
+#[test]
+fn failed_migration_snapshot_leaves_legacy_database_untouched() {
+    let root = tempfile::tempdir().unwrap();
+    let store = LibraryStore::new(root.path().into());
+    store.load().unwrap();
+    let connection = rusqlite::Connection::open(root.path().join("library.sqlite3")).unwrap();
+    connection
+        .execute_batch("ALTER TABLE snippets DROP COLUMN rich_body; PRAGMA user_version=3;")
+        .unwrap();
+    std::fs::write(root.path().join("backups"), b"do not overwrite").unwrap();
+    error_code(store.load(), "storage");
+    assert_eq!(
+        connection
+            .pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
+            .unwrap(),
+        3
+    );
+    assert_eq!(
+        std::fs::read(root.path().join("backups")).unwrap(),
+        b"do not overwrite"
+    );
+}
+
+#[test]
+fn migration_snapshot_waits_for_committed_wal_writer_and_never_overwrites_previous_backup() {
+    let root = tempfile::tempdir().unwrap();
+    let store = LibraryStore::new(root.path().into());
+    store.load().unwrap();
+    std::fs::create_dir(root.path().join("backups")).unwrap();
+    let sentinel = root
+        .path()
+        .join("backups/library-before-v4-existing.sqlite3");
+    std::fs::write(&sentinel, b"previous snapshot").unwrap();
+    let connection = rusqlite::Connection::open(root.path().join("library.sqlite3")).unwrap();
+    connection.execute_batch("PRAGMA journal_mode=WAL; ALTER TABLE snippets DROP COLUMN rich_body; PRAGMA user_version=3; BEGIN IMMEDIATE; UPDATE snippets SET body='committed by other writer' WHERE trigger=';hello';").unwrap();
+    let (started_tx, started_rx) = std::sync::mpsc::channel();
+    let (finished_tx, finished_rx) = std::sync::mpsc::channel();
+    let path = root.path().to_owned();
+    let worker = std::thread::spawn(move || {
+        started_tx.send(()).unwrap();
+        finished_tx.send(LibraryStore::new(path).load()).unwrap();
+    });
+    started_rx.recv().unwrap();
+    assert!(matches!(
+        finished_rx.recv_timeout(std::time::Duration::from_millis(200)),
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+    ));
+    connection.execute_batch("COMMIT;").unwrap();
+    let loaded = finished_rx
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap()
+        .unwrap();
+    worker.join().unwrap();
+    assert_eq!(loaded.snippets[0].body, "committed by other writer");
+    assert_eq!(std::fs::read(&sentinel).unwrap(), b"previous snapshot");
+    let snapshots: Vec<_> = std::fs::read_dir(root.path().join("backups"))
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path != &sentinel)
+        .collect();
+    assert_eq!(snapshots.len(), 1);
+    let snapshot = rusqlite::Connection::open(&snapshots[0]).unwrap();
+    assert_eq!(
+        snapshot
+            .query_row(
+                "SELECT body FROM snippets WHERE trigger=';hello'",
+                [],
+                |r| r.get::<_, String>(0)
+            )
+            .unwrap(),
+        "committed by other writer"
+    );
+    assert_eq!(
+        snapshot
+            .pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
+            .unwrap(),
+        3
     );
 }

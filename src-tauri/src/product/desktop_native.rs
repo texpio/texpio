@@ -388,6 +388,7 @@ fn clipboard(
                     id: "clipboard".into(),
                     trigger: String::new(),
                     body: text.into(),
+                    rich_html: None,
                 },
                 erase_count: 0,
                 terminator: None,

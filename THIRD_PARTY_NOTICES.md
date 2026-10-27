@@ -5,3 +5,5 @@ Texpio incorporates adapted code, configuration and documentation from [dannysmi
 Copyright (c) 2025 Tauri Template Contributors. The complete [MIT license](third_party/tauri-template/LICENSE.md) accompanies the imported material. This notice does not change the licensing status of original Texpio code. Other dependencies retain their respective licenses.
 
 Texpio bundles [Poppins from Google Fonts](https://github.com/google/fonts/tree/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/poppins), revision `8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5`. The unmodified Regular, Medium, SemiBold and Bold fonts are distributed under the [SIL Open Font License 1.1](public/licenses/Poppins-OFL.txt). The upstream copyright notice is retained in that license file, which Vite includes in the desktop build.
+
+Texpio uses the open-source [Tiptap](https://github.com/ueberdosis/tiptap) editor and its ProseMirror-based dependencies. The exact package versions, copyright notices and MIT licenses are included in [Tiptap-dependencies.txt](public/licenses/Tiptap-dependencies.txt), which is bundled with the desktop app.

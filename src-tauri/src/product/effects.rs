@@ -158,6 +158,7 @@ mod tests {
                 id: "hello".into(),
                 trigger: ":hello".into(),
                 body: "Café 👋".into(),
+                rich_html: None,
             },
             erase_count: 6,
             terminator: Some(' '),

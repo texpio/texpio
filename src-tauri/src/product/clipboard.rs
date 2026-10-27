@@ -99,6 +99,18 @@ impl PasteBoard {
     ) -> Result<ClipboardLease, ProductError> {
         self.begin_formats(&[(13, text_bytes(text))], restore, require_complete)
     }
+    /// Publish a prepared HTML fragment and plain-text fallback in one lease.
+    /// The caller must provide safe, valid HTML and an equivalent text fallback;
+    /// this method serializes the fragment but does not sanitize or parse it.
+    pub fn begin_rich_text(
+        &self,
+        fragment: &str,
+        text: &str,
+        restore: bool,
+        require_complete: bool,
+    ) -> Result<ClipboardLease, ProductError> {
+        self.begin_formats(&rich_formats(fragment, text)?, restore, require_complete)
+    }
     pub fn begin_files(
         &self,
         paths: &[std::path::PathBuf],
@@ -109,6 +121,14 @@ impl PasteBoard {
     }
     pub fn replace_text(&self, lease: &mut ClipboardLease, text: &str) -> Result<(), ProductError> {
         self.replace_formats(lease, &[(13, text_bytes(text))])
+    }
+    pub fn replace_rich_text(
+        &self,
+        lease: &mut ClipboardLease,
+        fragment: &str,
+        text: &str,
+    ) -> Result<(), ProductError> {
+        self.replace_formats(lease, &rich_formats(fragment, text)?)
     }
     pub fn replace_files(
         &self,
@@ -218,6 +238,10 @@ fn text_bytes(text: &str) -> Vec<u8> {
         .chain(std::iter::once(0))
         .flat_map(u16::to_le_bytes)
         .collect()
+}
+fn rich_formats(fragment: &str, text: &str) -> Result<Vec<(u32, Vec<u8>)>, ProductError> {
+    let format = unsafe { RegisterClipboardFormatW(w!("HTML Format")) };
+    super::rich_clipboard::rich_formats(format, fragment, text)
 }
 fn file_formats(paths: &[std::path::PathBuf]) -> Result<Vec<(u32, Vec<u8>)>, ProductError> {
     let copy_format = unsafe { RegisterClipboardFormatW(w!("Preferred DropEffect")) };

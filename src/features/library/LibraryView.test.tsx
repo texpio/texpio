@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, expect, it, vi } from 'vitest'
@@ -7,6 +7,7 @@ import { LibraryNavigation } from './LibraryNavigation'
 import { useUIStore } from '@/store/ui-store'
 import { createKeyboardDispatcher } from '@/hooks/use-keyboard-shortcuts'
 import { mockPanelGeometry } from '@/test/panel-layout'
+import type { Editor } from '@tiptap/core'
 
 const native = vi.hoisted(() => ({
   load: vi.fn(),
@@ -99,6 +100,19 @@ const stopped = {
 }
 beforeEach(() => {
   mockPanelGeometry()
+  vi.spyOn(window, 'scrollBy').mockImplementation(() => {})
+  Object.defineProperty(document, 'elementFromPoint', {
+    configurable: true,
+    value: () => document.activeElement,
+  })
+  Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => new DOMRect(0, 0, 1, 16),
+  })
+  Object.defineProperty(Range.prototype, 'getClientRects', {
+    configurable: true,
+    value: () => [new DOMRect(0, 0, 1, 16)],
+  })
   useUIStore.setState({ activeView: 'home', libraryCollection: 'active', libraryFolder: 'all' })
   vi.stubGlobal(
     'ResizeObserver',
@@ -148,12 +162,21 @@ function show() {
     client,
   }
 }
+async function appendBody(text: string) {
+  const body = await screen.findByRole('textbox', { name: 'Body' })
+  const editor = (body as HTMLElement & { editor: Editor }).editor
+  expect(editor).toBeDefined()
+  act(() => {
+    editor.commands.insertContentAt(editor.state.doc.content.size - 1, { type: 'text', text })
+  })
+  await waitFor(() => expect(body.textContent).toContain(text))
+}
 it('blocks expansion starts for drafts and saves, then fails closed when the editor unmounts', async () => {
   const view = show()
   await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
   expect(useUIStore.getState().expansionStartBlocked).toBe(false)
-  await userEvent.type(screen.getByLabelText('Body'), ' draft')
-  expect(useUIStore.getState().expansionStartBlocked).toBe(true)
+  await appendBody(' draft')
+  await waitFor(() => expect(useUIStore.getState().expansionStartBlocked).toBe(true))
   let finish!: (value: unknown) => void
   native.save.mockReturnValueOnce(
     new Promise((resolve) => {
@@ -181,7 +204,7 @@ it('blocks expansion starts for drafts and saves, then fails closed when the edi
 it('filters favorites and keeps an edited body when usage metadata refreshes', async () => {
   const { client } = show()
   await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
-  await userEvent.type(screen.getByLabelText('Body'), ' draft')
+  await appendBody(' draft')
   await userEvent.click(screen.getByRole('button', { name: 'Add to favorites' }))
   await waitFor(() => expect(native.favorite).toHaveBeenCalledWith(initial.snippets[0].id, 4, true))
   act(() =>
@@ -197,11 +220,11 @@ it('filters favorites and keeps an edited body when usage metadata refreshes', a
       })),
     ),
   )
-  expect(screen.getByLabelText('Body')).toHaveValue('Hello, नमस्ते 👋 draft')
+  expect(screen.getByLabelText('Body').textContent).toBe('Hello, नमस्ते 👋 draft')
   await userEvent.click(screen.getByRole('button', { name: 'Favorites' }))
   expect(screen.queryByRole('button', { name: /Greeting/ })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: /Address/ })).toBeInTheDocument()
-  expect(screen.getByLabelText('Body')).toHaveValue('Hello, नमस्ते 👋 draft')
+  expect(screen.getByLabelText('Body').textContent).toBe('Hello, नमस्ते 👋 draft')
 })
 it('navigates the list without deleting text drafts and dispatches find/save from the editor', async () => {
   const dispatch = createKeyboardDispatcher({
@@ -216,13 +239,14 @@ it('navigates the list without deleting text drafts and dispatches find/save fro
     const greeting = await screen.findByRole('button', { name: /Greeting/ })
     await userEvent.click(greeting)
     const body = screen.getByLabelText('Body')
-    await userEvent.type(body, ' draft')
+    await appendBody(' draft')
+    body.focus()
     await userEvent.keyboard('{Delete}')
     expect(native.save).not.toHaveBeenCalled()
     greeting.focus()
     await userEvent.keyboard('{ArrowDown}')
     expect(screen.getByRole('button', { name: /Address/ })).toHaveFocus()
-    expect(body).toHaveValue('Hello, नमस्ते 👋 draft')
+    expect(body.textContent).toBe('Hello, नमस्ते 👋 draft')
     await userEvent.click(body)
     await userEvent.keyboard('{Control>}f{/Control}')
     expect(screen.getByLabelText('Find in body')).toBeInTheDocument()
@@ -236,7 +260,7 @@ it('navigates the list without deleting text drafts and dispatches find/save fro
 it('keeps an unsaved snippet when native Quit is cancelled and exits only after discard', async () => {
   show()
   await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
-  await userEvent.type(screen.getByLabelText('Body'), ' unsaved')
+  await appendBody(' unsaved')
   await waitFor(() =>
     expect(native.listen.mock.calls.some(([event]) => event === 'quit-requested')).toBe(true),
   )
@@ -246,7 +270,7 @@ it('keeps an unsaved snippet when native Quit is cancelled and exits only after 
     within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Keep editing' }),
   )
   expect(native.quit).not.toHaveBeenCalled()
-  expect(screen.getByLabelText('Body')).toHaveValue('Hello, नमस्ते 👋 unsaved')
+  expect(screen.getByLabelText('Body').textContent).toBe('Hello, नमस्ते 👋 unsaved')
   act(() => quit({ payload: null }))
   await userEvent.click(
     within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Discard draft' }),
@@ -272,7 +296,7 @@ it('saves a new Unicode snippet only through explicit Save and retains the ackno
   await userEvent.click(screen.getByRole('button', { name: 'New snippet' }))
   await userEvent.type(screen.getByLabelText('Title'), 'Sign off')
   await userEvent.type(screen.getByLabelText('Trigger'), ';bye')
-  await userEvent.type(screen.getByLabelText('Body'), 'धन्यवाद 👋')
+  await appendBody('धन्यवाद 👋')
   expect(native.save).not.toHaveBeenCalled()
   await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
   await screen.findByText('Saved.')
@@ -294,13 +318,13 @@ it('focuses the title for a new snippet and preserves an unsaved body across edi
   expect(screen.getByLabelText('Title')).toHaveFocus()
   await userEvent.type(screen.getByLabelText('Title'), 'A new reply')
   await userEvent.type(screen.getByLabelText('Trigger'), ';reply')
-  await userEvent.type(screen.getByLabelText('Body'), 'Unfinished नमस्ते')
+  await appendBody('Unfinished नमस्ते')
   await userEvent.click(screen.getByRole('radio', { name: 'Preview' }))
   expect(screen.getByRole('region', { name: 'Text preview' })).toHaveTextContent(
     'Unfinished नमस्ते',
   )
   await userEvent.click(screen.getByRole('radio', { name: 'Content' }))
-  expect(screen.getByLabelText('Body')).toHaveValue('Unfinished नमस्ते')
+  expect(screen.getByLabelText('Body').textContent).toBe('Unfinished नमस्ते')
   expect(native.save).not.toHaveBeenCalled()
 })
 it('searches title, trigger and body while preserving the unsaved editor', async () => {
@@ -357,9 +381,9 @@ it('previews selected JSON before importing and uses the current revision for co
 it('never replaces an unsaved draft when a payload-free change event refreshes the library', async () => {
   const { client } = show()
   await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
-  await userEvent.type(screen.getByLabelText('Body'), ' locally edited')
+  await appendBody(' locally edited')
   act(() => client.setQueryData(['library'], { ...initial, revision: 5 }))
-  expect(screen.getByLabelText('Body')).toHaveValue('Hello, नमस्ते 👋 locally edited')
+  expect(screen.getByLabelText('Body').textContent).toBe('Hello, नमस्ते 👋 locally edited')
   expect(
     await screen.findByText(
       'The library changed in another window. Your draft is kept. Reload before saving again.',
@@ -418,7 +442,7 @@ it('duplicates as disabled, then trashes and restores without losing literal tex
   await waitFor(() => expect(native.save).toHaveBeenCalledTimes(2))
   await userEvent.click(screen.getByRole('button', { name: 'Trash' }))
   await userEvent.click(await screen.findByRole('button', { name: /Greeting \(copy\)/ }))
-  expect(screen.getByLabelText('Body')).toHaveValue('Hello, नमस्ते 👋')
+  expect(screen.getByLabelText('Body').textContent).toBe('Hello, नमस्ते 👋')
   await menuAction('Snippet actions', 'Restore snippet')
   await waitFor(() => expect(native.save).toHaveBeenCalledTimes(3))
   expect(native.save).toHaveBeenLastCalledWith(
@@ -434,6 +458,40 @@ it('duplicates as disabled, then trashes and restores without losing literal tex
     }),
   )
 })
+it('duplicates a rich snippet without losing its saved rich document', async () => {
+  const richBody = JSON.stringify({
+    version: 1,
+    doc: {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: initial.snippets[0].body }] }],
+    },
+  })
+  native.load.mockResolvedValueOnce({
+    status: 'ok',
+    data: {
+      ...initial,
+      snippets: [{ ...initial.snippets[0], richBody }, initial.snippets[1]],
+    },
+  })
+  show()
+  await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
+  await menuAction('Snippet actions', 'Duplicate')
+  await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
+  await waitFor(() =>
+    expect(native.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        snippets: expect.arrayContaining([
+          expect.objectContaining({
+            title: 'Greeting (copy)',
+            body: initial.snippets[0].body,
+            richBody,
+            enabled: false,
+          }),
+        ]),
+      }),
+    ),
+  )
+})
 it('creates folders and removes them while preserving their snippets as unfiled', async () => {
   show()
   await screen.findByRole('button', { name: /Greeting/ })
@@ -444,7 +502,7 @@ it('creates folders and removes them while preserving their snippets as unfiled'
   await userEvent.click(screen.getByRole('button', { name: 'New snippet' }))
   await userEvent.type(screen.getByLabelText('Title'), 'Work note')
   await userEvent.type(screen.getByLabelText('Trigger'), ';work')
-  await userEvent.type(screen.getByLabelText('Body'), 'Keep this text')
+  await appendBody('Keep this text')
   await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
   await screen.findByText('Saved.')
   await userEvent.click(screen.getByRole('button', { name: 'Manage folder' }))
@@ -489,14 +547,22 @@ it('starts a new snippet outside search and Favorites so the saved record remain
   expect(screen.getByLabelText('Search snippets')).toHaveValue('')
   await userEvent.type(screen.getByLabelText('Title'), 'New reply')
   await userEvent.type(screen.getByLabelText('Trigger'), ';reply')
-  await userEvent.type(screen.getByLabelText('Body'), 'New body')
+  await appendBody('New body')
   await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
   expect(await screen.findByRole('button', { name: /New reply/ })).toBeVisible()
 })
 it('shows body validation when Save is pressed outside the Content section', async () => {
   show()
   await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
-  fireEvent.change(screen.getByLabelText('Body'), { target: { value: 'bad\u0001text' } })
+  const body = await screen.findByRole('textbox', { name: 'Body' })
+  const editor = (body as HTMLElement & { editor: Editor }).editor
+  act(() => {
+    editor.commands.setContent({
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'bad\u0001text' }] }],
+    })
+  })
+  await waitFor(() => expect(body.textContent).toBe('bad\u0001text'))
   await userEvent.click(screen.getByRole('radio', { name: 'Preview' }))
   await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
   expect(screen.getByRole('alert')).toBeVisible()

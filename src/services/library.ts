@@ -44,6 +44,22 @@ export function validSnippetBody(value: unknown): value is string {
     return (code < 32 && code !== 9 && code !== 10 && code !== 13) || (code >= 127 && code <= 159)
   })
 }
+function validRichBody(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > 2 * 1024 * 1024) return false
+  if (new TextEncoder().encode(value).length > 2 * 1024 * 1024) return false
+  try {
+    const envelope: unknown = JSON.parse(value)
+    return (
+      object(envelope) &&
+      envelope.version === 1 &&
+      object(envelope.doc) &&
+      envelope.doc.type === 'doc' &&
+      (envelope.doc.content === undefined || Array.isArray(envelope.doc.content))
+    )
+  } catch {
+    return false
+  }
+}
 export function validSnippetTrigger(value: unknown): value is string {
   return (
     typeof value === 'string' &&
@@ -95,6 +111,7 @@ function parseLibrary(value: unknown): Library {
       typeof snippet.trigger !== 'string' ||
       !validSnippetTrigger(snippet.trigger) ||
       !validSnippetBody(snippet.body) ||
+      ('richBody' in snippet && snippet.richBody !== null && !validRichBody(snippet.richBody)) ||
       typeof snippet.enabled !== 'boolean' ||
       typeof snippet.deleted !== 'boolean'
     )
@@ -110,6 +127,7 @@ function parseLibrary(value: unknown): Library {
       title: snippet.title,
       trigger: snippet.trigger,
       body: snippet.body,
+      ...('richBody' in snippet ? { richBody: snippet.richBody as string | null } : {}),
       enabled: snippet.enabled,
       deleted: snippet.deleted,
     }

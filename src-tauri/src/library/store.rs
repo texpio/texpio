@@ -187,8 +187,13 @@ impl LibraryStore {
         let version: u32 = transaction
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .map_err(|_| LibraryError::storage())?;
-        if version > 3 {
+        if version > 4 {
             return Err(LibraryError::unsupported_version());
+        }
+        if (1..4).contains(&version) {
+            // The immediate transaction fences writers across the snapshot and
+            // migration. VACUUM INTO itself must use a separate connection.
+            self.backup_before_v4()?;
         }
         if version == 0 {
             let tables: u32 = transaction.query_row(
@@ -203,7 +208,7 @@ impl LibraryStore {
                 INSERT INTO metadata(singleton, revision) VALUES(1, 0);
                 CREATE TABLE folders (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, position INTEGER NOT NULL);
                 CREATE TABLE snippets (id TEXT PRIMARY KEY NOT NULL, folder_id TEXT REFERENCES folders(id), title TEXT NOT NULL,
-                    trigger TEXT NOT NULL, body TEXT NOT NULL, enabled INTEGER NOT NULL CHECK(enabled IN (0,1)),
+                    trigger TEXT NOT NULL, body TEXT NOT NULL, rich_body TEXT, enabled INTEGER NOT NULL CHECK(enabled IN (0,1)),
                     deleted INTEGER NOT NULL CHECK(deleted IN (0,1)), position INTEGER NOT NULL);
                 CREATE UNIQUE INDEX active_triggers ON snippets(trigger) WHERE enabled=1 AND deleted=0;
                 CREATE TABLE snippet_info(id TEXT PRIMARY KEY NOT NULL,favorite INTEGER NOT NULL DEFAULT 0 CHECK(favorite IN(0,1)),usage_count INTEGER NOT NULL DEFAULT 0,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,last_used_at INTEGER);
@@ -217,9 +222,54 @@ impl LibraryStore {
         if version < 3 {
             transaction.execute_batch("CREATE TABLE IF NOT EXISTS attachments(id TEXT PRIMARY KEY NOT NULL,snippet_id TEXT NOT NULL,name TEXT NOT NULL,digest TEXT NOT NULL,bytes INTEGER NOT NULL,position INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS attachment_snippet ON attachments(snippet_id,position); CREATE TABLE IF NOT EXISTS file_settings(snippet_id TEXT PRIMARY KEY NOT NULL,attachments_first INTEGER NOT NULL DEFAULT 0,strict_order INTEGER NOT NULL DEFAULT 0); PRAGMA user_version=3;").map_err(|_|LibraryError::storage())?;
         }
+        if (1..4).contains(&version) {
+            transaction
+                .execute_batch("ALTER TABLE snippets ADD COLUMN rich_body TEXT;")
+                .map_err(|_| LibraryError::storage())?;
+        }
+        if version < 4 {
+            transaction
+                .execute_batch("PRAGMA user_version=4;")
+                .map_err(|_| LibraryError::storage())?;
+        }
         transaction.execute("INSERT OR IGNORE INTO snippet_info(id,created_at,updated_at) SELECT id,?1,?1 FROM snippets",[now_ms()]).map_err(|_|LibraryError::storage())?;
         transaction.commit().map_err(|_| LibraryError::storage())?;
         Ok(connection)
+    }
+
+    fn backup_before_v4(&self) -> Result<(), LibraryError> {
+        let directory = self.root.join("backups");
+        fs::create_dir_all(&directory).map_err(|_| LibraryError::storage())?;
+        let temporary = tempfile::NamedTempFile::new_in(&directory)
+            .map_err(|_| LibraryError::storage())?
+            .into_temp_path();
+        let snapshot_path = temporary.to_str().ok_or_else(LibraryError::storage)?;
+        let reader = Connection::open(self.root.join("library.sqlite3"))
+            .map_err(|_| LibraryError::storage())?;
+        reader
+            .busy_timeout(Duration::from_secs(5))
+            .map_err(|_| LibraryError::storage())?;
+        // VACUUM INTO produces a standalone SQLite database with committed WAL
+        // contents. Attachment blobs remain in the library's attachments folder.
+        reader
+            .execute("VACUUM INTO ?1", [snapshot_path])
+            .map_err(|_| LibraryError::storage())?;
+        fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&temporary)
+            .and_then(|file| file.sync_all())
+            .map_err(|_| LibraryError::storage())?;
+        let destination = directory.join(format!(
+            "library-before-v4-{}.sqlite3",
+            uuid::Uuid::new_v4()
+        ));
+        temporary
+            .persist_noclobber(destination)
+            .map_err(|_| LibraryError::storage())?;
+        // This snapshot represents the database at migration time only. Later
+        // edits, including rich content, are not present if it is restored.
+        Ok(())
     }
 
     fn backup(&self, library: &Library) -> Result<(), LibraryError> {
@@ -287,7 +337,7 @@ fn read_library(connection: &Connection) -> Result<Library, LibraryError> {
         .collect::<Result<Vec<_>, _>>()
         .map_err(|_| LibraryError::storage())?;
     let mut snippet_statement = connection.prepare(
-        "SELECT id, folder_id, title, trigger, body, enabled, deleted FROM snippets ORDER BY position, id LIMIT 10001"
+        "SELECT id, folder_id, title, trigger, body, enabled, deleted, rich_body FROM snippets ORDER BY position, id LIMIT 10001"
     ).map_err(|_| LibraryError::storage())?;
     let snippets = snippet_statement
         .query_map([], |row| {
@@ -299,6 +349,7 @@ fn read_library(connection: &Connection) -> Result<Library, LibraryError> {
                 body: row.get(4)?,
                 enabled: row.get(5)?,
                 deleted: row.get(6)?,
+                rich_body: row.get(7)?,
             })
         })
         .map_err(|_| LibraryError::storage())?
@@ -335,7 +386,7 @@ fn replace_library(
     }
     {
         let mut statement = transaction.prepare(
-            "INSERT INTO snippets(id,folder_id,title,trigger,body,enabled,deleted,position) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)"
+            "INSERT INTO snippets(id,folder_id,title,trigger,body,enabled,deleted,position,rich_body) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)"
         ).map_err(|_| LibraryError::storage())?;
         for (position, snippet) in library.snippets.iter().enumerate() {
             statement
@@ -347,7 +398,8 @@ fn replace_library(
                     snippet.body,
                     snippet.enabled,
                     snippet.deleted,
-                    position as i64
+                    position as i64,
+                    snippet.rich_body
                 ])
                 .map_err(|_| LibraryError::storage())?;
         }
@@ -470,6 +522,7 @@ fn initial_library() -> Library {
                 title: "Greeting".into(),
                 trigger: ";hello".into(),
                 body: "Hello! Thanks for getting in touch.".into(),
+                rich_body: None,
                 enabled: true,
                 deleted: false,
             },
@@ -479,6 +532,7 @@ fn initial_library() -> Library {
                 title: "Example address".into(),
                 trigger: ";addr".into(),
                 body: "123 Example Street\nSample City".into(),
+                rich_body: None,
                 enabled: true,
                 deleted: false,
             },

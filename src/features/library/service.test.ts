@@ -1,8 +1,9 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { copySnippet, loadLibrary, selectLibraryImport } from '@/services/library'
+import { copySnippet, loadLibrary, saveLibrary, selectLibraryImport } from '@/services/library'
 const native = vi.hoisted(() => ({
   desktop: vi.fn(),
   load: vi.fn(),
+  save: vi.fn(),
   open: vi.fn(),
   stat: vi.fn(),
   read: vi.fn(),
@@ -11,7 +12,11 @@ const native = vi.hoisted(() => ({
 }))
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: native.desktop }))
 vi.mock('@/lib/bindings', () => ({
-  commands: { libraryLoad: native.load, libraryImportPreview: native.preview },
+  commands: {
+    libraryLoad: native.load,
+    librarySave: native.save,
+    libraryImportPreview: native.preview,
+  },
 }))
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: native.open, save: vi.fn() }))
 vi.mock('@tauri-apps/plugin-fs', () => ({
@@ -22,6 +27,63 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
 vi.mock('@tauri-apps/plugin-clipboard-manager', () => ({ writeText: native.copy }))
 beforeEach(() => {
   native.desktop.mockReturnValue(true)
+})
+const richBody = JSON.stringify({
+  version: 1,
+  doc: {
+    type: 'doc',
+    content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] }],
+  },
+})
+const snippet = {
+  id: '20000000-0000-4000-8000-000000000000',
+  folderId: null,
+  title: 'Greeting',
+  trigger: ';hello',
+  body: 'Hello',
+  enabled: true,
+  deleted: false,
+}
+const library = { schemaVersion: 1, revision: 1, folders: [], snippets: [snippet] }
+
+it('retains rich documents through load and save while leaving legacy omitted and null values intact', async () => {
+  const rich = { ...library, snippets: [{ ...snippet, richBody }] }
+  native.load.mockResolvedValueOnce({ status: 'ok', data: rich })
+  const loaded = await loadLibrary()
+  expect(loaded).toEqual(rich)
+  native.save.mockResolvedValueOnce({ status: 'ok', data: rich })
+  const input = { expectedRevision: 1, folders: loaded.folders, snippets: loaded.snippets }
+  expect(await saveLibrary(input)).toEqual(rich)
+  expect(native.save).toHaveBeenCalledWith(input)
+  for (const legacy of [snippet, { ...snippet, richBody: null }]) {
+    native.load.mockResolvedValueOnce({ status: 'ok', data: { ...library, snippets: [legacy] } })
+    expect((await loadLibrary()).snippets[0]).toEqual(legacy)
+  }
+})
+
+it('refuses malformed, wrongly typed, or oversized rich documents from native responses', async () => {
+  for (const invalid of [
+    '{',
+    42,
+    JSON.stringify({ version: 2, doc: { type: 'doc' } }),
+    JSON.stringify({ version: 1, doc: { type: 'doc', content: 'invalid' } }),
+    'x'.repeat(2 * 1024 * 1024 + 1),
+    JSON.stringify({
+      version: 1,
+      doc: {
+        type: 'doc',
+        content: [
+          { type: 'paragraph', content: [{ type: 'text', text: 'é'.repeat(1024 * 1024) }] },
+        ],
+      },
+    }),
+  ]) {
+    native.load.mockResolvedValueOnce({
+      status: 'ok',
+      data: { ...library, snippets: [{ ...snippet, richBody: invalid }] },
+    })
+    await expect(loadLibrary()).rejects.toMatchObject({ code: 'invalidData' })
+  }
 })
 it('browser preview refuses native library and clipboard operations without invoking them', async () => {
   native.desktop.mockReturnValue(false)

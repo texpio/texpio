@@ -5,6 +5,7 @@ pub mod location;
 pub mod watch;
 use specta::Type;
 
+mod json_strict;
 mod store;
 mod validation;
 pub use store::{
@@ -13,11 +14,13 @@ pub use store::{
 };
 
 pub const SCHEMA_VERSION: u32 = 1;
+pub const RICH_SCHEMA_VERSION: u32 = 2;
 pub const MAX_JSON_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_SNIPPETS: usize = 10_000;
 pub const MAX_FOLDERS: usize = 1_000;
 pub const MAX_NAME_SCALARS: usize = 120;
 pub const MAX_BODY_SCALARS: usize = 1_000_000;
+pub const MAX_RICH_BODY_BYTES: usize = 2 * 1024 * 1024;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -34,6 +37,8 @@ pub struct Snippet {
     pub title: String,
     pub trigger: String,
     pub body: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rich_body: Option<String>,
     pub enabled: bool,
     pub deleted: bool,
 }

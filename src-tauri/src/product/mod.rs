@@ -10,6 +10,8 @@ pub mod effects;
 mod hooks;
 pub mod matcher;
 pub mod payload;
+#[cfg(any(target_os = "windows", test))]
+mod rich_clipboard;
 pub mod service;
 pub mod settings;
 #[cfg(target_os = "windows")]

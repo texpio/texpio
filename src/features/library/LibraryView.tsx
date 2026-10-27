@@ -259,6 +259,7 @@ export function LibraryView() {
         title: source ? t('library.copyTitle', { title: source.title }) : '',
         trigger: source?.trigger ?? '',
         body: source?.body ?? '',
+        ...(source && 'richBody' in source ? { richBody: source.richBody } : {}),
         enabled: !source,
         deleted: false,
       },

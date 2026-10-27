@@ -290,6 +290,7 @@ mod trial {
                                 id: "owned-file-fixture".into(),
                                 trigger: String::new(),
                                 body: "".into(),
+                                rich_html: None,
                             },
                             erase_count: 0,
                             terminator: None,

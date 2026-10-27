@@ -66,8 +66,22 @@ impl PreparedImport {
     }
     fn validate(&self) -> Result<(), LibraryError> {
         let manifest = &self.manifest;
-        if manifest.schema_version != 2 || manifest.library.schema_version != SCHEMA_VERSION {
+        if manifest.schema_version != 2
+            || !matches!(
+                manifest.library.schema_version,
+                SCHEMA_VERSION | RICH_SCHEMA_VERSION
+            )
+        {
             return Err(LibraryError::unsupported_version());
+        }
+        if manifest.library.schema_version == SCHEMA_VERSION
+            && manifest
+                .library
+                .snippets
+                .iter()
+                .any(|snippet| snippet.rich_body.is_some())
+        {
+            return Err(LibraryError::invalid_data());
         }
         validate_records(&manifest.library.folders, &manifest.library.snippets, true)?;
         encode_library(&manifest.library)?;
@@ -164,7 +178,10 @@ impl PreparedImport {
         match mode {
             ImportMode::Merge => merge_import(current, self.manifest.library.clone()),
             ImportMode::Replace => Ok((
-                self.manifest.library.clone(),
+                Library {
+                    schema_version: SCHEMA_VERSION,
+                    ..self.manifest.library.clone()
+                },
                 ImportPreview {
                     folders: self.manifest.library.folders.len() as u32,
                     snippets: self.manifest.library.snippets.len() as u32,
@@ -319,7 +336,8 @@ impl LibraryStore {
         let transaction = connection
             .transaction()
             .map_err(|_| LibraryError::storage())?;
-        let library = read_library(&transaction)?;
+        let mut library = read_library(&transaction)?;
+        library.schema_version = super::super::validation::interchange_version(&library.snippets);
         let mut statement = transaction.prepare("SELECT id,favorite,usage_count,created_at,updated_at,last_used_at FROM snippet_info ORDER BY id LIMIT 10001").map_err(|_| LibraryError::storage())?;
         let metadata = statement
             .query_map([], |r| {
@@ -465,11 +483,12 @@ fn parse_manifest(data: &[u8], format: BackupFormat) -> Result<Manifest, Library
     let value: serde_json::Value = if matches!(format, BackupFormat::Yaml) {
         yaml_value(data, MAX_MANIFEST)?
     } else {
-        serde_json::from_slice(data).map_err(|_| LibraryError::invalid_data())?
+        super::super::json_strict::decode(data).map_err(|_| LibraryError::invalid_data())?
     };
-    if value.get("schemaVersion").and_then(|v| v.as_u64()) == Some(1) {
+    if value.get("library").is_none() {
         let json = serde_json::to_string(&value).map_err(|_| LibraryError::invalid_data())?;
-        let library = parse_import(&json)?;
+        let mut library = parse_import(&json)?;
+        library.schema_version = value["schemaVersion"].as_u64().unwrap_or(0) as u32;
         return Ok(Manifest {
             schema_version: 2,
             library,
@@ -478,7 +497,13 @@ fn parse_manifest(data: &[u8], format: BackupFormat) -> Result<Manifest, Library
             file_settings: vec![],
         });
     }
-    serde_json::from_value(value).map_err(|_| LibraryError::invalid_data())
+    let manifest: Manifest =
+        serde_json::from_value(value.clone()).map_err(|_| LibraryError::invalid_data())?;
+    super::super::validation::validate_interchange_version(
+        &value["library"],
+        manifest.library.schema_version,
+    )?;
+    Ok(manifest)
 }
 fn yaml_value(data: &[u8], maximum: usize) -> Result<serde_json::Value, LibraryError> {
     yaml_budget::decode(data, maximum).map_err(|_| LibraryError::invalid_data())
@@ -637,6 +662,32 @@ mod tests {
         writer.finish().unwrap().into_inner()
     }
     #[test]
+    fn duplicate_keys_are_rejected_in_json_yaml_and_archive_manifests() {
+        let root = br#"{"schemaVersion":2,"schemaVersion":2,"library":{"schemaVersion":1,"revision":0,"folders":[],"snippets":[]}}"#;
+        let nested = br#"{"schemaVersion":2,"library":{"schemaVersion":1,"revision":0,"folders":[{"id":"10000000-0000-4000-8000-000000000000","name":"A","name":"B"}],"snippets":[]}}"#;
+        for json in [root.as_slice(), nested.as_slice()] {
+            assert_eq!(
+                parse_manifest(json, BackupFormat::Json).err().unwrap().code,
+                "invalidData"
+            );
+            assert_eq!(
+                PreparedImport::decode(&archive(&[("manifest.json", json)]), BackupFormat::Archive)
+                    .err()
+                    .unwrap()
+                    .code,
+                "invalidData"
+            );
+        }
+        let yaml_root = b"schemaVersion: 1\nschemaVersion: 1\nfolders: []\nsnippets: []\n";
+        let yaml_nested = b"schemaVersion: 2\nlibrary:\n  schemaVersion: 1\n  revision: 0\n  folders:\n    - id: 10000000-0000-4000-8000-000000000000\n      name: A\n      name: B\n  snippets: []\n";
+        for yaml in [yaml_root.as_slice(), yaml_nested.as_slice()] {
+            assert_eq!(
+                parse_manifest(yaml, BackupFormat::Yaml).err().unwrap().code,
+                "invalidData"
+            );
+        }
+    }
+    #[test]
     fn zip_traversal_hidden_duplicates_and_declared_size_abuse_are_rejected() {
         assert!(
             PreparedImport::decode(&archive(&[("../escape", b"x")]), BackupFormat::Archive)
@@ -727,6 +778,8 @@ mod tests {
         let mut library = store.load().unwrap();
         let id = library.snippets[0].id.clone();
         library.snippets[0].body = "literal: [नमस्ते]\n\t👋 & anchor".into();
+        library.snippets[1].body = "Café".into();
+        library.snippets[1].rich_body = Some(r#"{"version":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Café"}]}]}}"#.into());
         let library = store
             .save(SaveLibrary {
                 expected_revision: library.revision,

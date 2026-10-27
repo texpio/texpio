@@ -3,6 +3,7 @@ pub struct ProductRule {
     pub id: String,
     pub trigger: String,
     pub body: std::sync::Arc<str>,
+    pub rich_html: Option<std::sync::Arc<str>>,
 }
 
 #[derive(
@@ -153,6 +154,7 @@ mod tests {
             id: trigger.into(),
             trigger: trigger.into(),
             body: "Café 👋 नमस्ते\n".into(),
+            rich_html: None,
         }
     }
     fn type_text(history: &mut TypedHistory, text: &str) -> Vec<Expansion> {

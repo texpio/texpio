@@ -102,16 +102,7 @@ impl LibraryService {
             .store
             .load()
             .map_err(|_| crate::product::effects::ProductError::Unavailable)?;
-        let rules = library
-            .snippets
-            .into_iter()
-            .filter(|snippet| snippet.enabled && !snippet.deleted)
-            .map(|snippet| crate::product::matcher::ProductRule {
-                id: snippet.id,
-                trigger: snippet.trigger,
-                body: snippet.body.into(),
-            })
-            .collect();
+        let rules = product_rules(&library)?;
         let usage = self
             .store
             .snapshot()
@@ -250,6 +241,36 @@ fn stopped(handle: &ProbeHandle) -> Result<(), LibraryError> {
     } else {
         Err(storage_error())
     }
+}
+
+fn product_rules(
+    library: &Library,
+) -> Result<Vec<crate::product::matcher::ProductRule>, crate::product::effects::ProductError> {
+    use crate::product::{effects::ProductError, matcher::ProductRule};
+    library
+        .snippets
+        .iter()
+        .filter(|snippet| snippet.enabled && !snippet.deleted)
+        .map(|snippet| {
+            let rich_html = match &snippet.rich_body {
+                None => None,
+                Some(document) => {
+                    let rendered = crate::rich_text::render(document)
+                        .map_err(|_| ProductError::Unavailable)?;
+                    if rendered.plain != snippet.body {
+                        return Err(ProductError::Unavailable);
+                    }
+                    Some(rendered.html.into())
+                }
+            };
+            Ok(ProductRule {
+                id: snippet.id.clone(),
+                trigger: snippet.trigger.clone(),
+                body: snippet.body.clone().into(),
+                rich_html,
+            })
+        })
+        .collect()
 }
 
 fn rule_snapshot(library: &Library) -> Result<RuleSet, RefusalReason> {
@@ -406,6 +427,54 @@ pub async fn library_start(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn product_rules_render_rich_content_and_keep_legacy_text_literal() {
+        let directory = tempfile::tempdir().unwrap();
+        let service = LibraryService::new(directory.path().into());
+        let mut library = service.store.load().unwrap();
+        library.snippets[0].body = "Café & tea".into();
+        library.snippets[0].rich_body = Some(r#"{"version":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Café & tea","marks":[{"type":"bold"}]}]}]}}"#.into());
+        library.snippets[1].body = "<b>literal</b>\r\n\t👋".into();
+        let rules = product_rules(&library).unwrap();
+        assert_eq!(&*rules[0].body, "Café & tea");
+        assert_eq!(
+            rules[0].rich_html.as_deref(),
+            Some(
+                "<div style=\"white-space:pre-wrap\"><p dir=\"auto\"><strong>Café &amp; tea</strong></p></div>"
+            )
+        );
+        assert_eq!(&*rules[1].body, "<b>literal</b>\r\n\t👋");
+        assert!(rules[1].rich_html.is_none());
+        let mut history = crate::product::matcher::TypedHistory::new(
+            rules.clone(),
+            crate::product::matcher::Boundary::Anywhere,
+            crate::product::matcher::Activation::Immediate,
+        );
+        let matched = library.snippets[0]
+            .trigger
+            .chars()
+            .filter_map(|ch| history.push(ch))
+            .next()
+            .unwrap();
+        assert_eq!(matched.rule.rich_html, rules[0].rich_html);
+    }
+
+    #[test]
+    fn product_rules_reject_unsafe_or_mismatched_rich_documents() {
+        let directory = tempfile::tempdir().unwrap();
+        let service = LibraryService::new(directory.path().into());
+        let mut library = service.store.load().unwrap();
+        library.snippets[0].body = "visible".into();
+        for document in [
+            r#"{"version":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"other"}]}]}}"#,
+            r#"{"version":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"visible","marks":[{"type":"link","attrs":{"href":"javascript:alert(1)"}}]}]}]}}"#,
+            "{bad-json",
+        ] {
+            library.snippets[0].rich_body = Some(document.into());
+            assert!(product_rules(&library).is_err());
+        }
+    }
 
     #[test]
     fn launch_never_replaces_a_running_session_or_rearms_after_pause_or_stop() {

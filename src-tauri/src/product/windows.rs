@@ -33,6 +33,44 @@ fn compatibility_interval(class: &str, mode: InsertionMode) -> Duration {
     }
 }
 
+// Native rich paste requires separate physical qualification. This gate cannot
+// be enabled through user settings, environment variables, or debug builds.
+fn rich_clipboard_qualified() -> bool {
+    false
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ClipboardPlan {
+    None,
+    Text,
+    Files,
+    Rich,
+    RichThenFiles,
+}
+
+fn clipboard_plan(
+    mode: InsertionMode,
+    files: bool,
+    files_first: bool,
+    text_empty: bool,
+    rich_available: bool,
+    qualified: bool,
+) -> ClipboardPlan {
+    let rich = qualified && rich_available && mode == InsertionMode::Paste && !text_empty;
+    let files_initially = files && (files_first || text_empty || mode == InsertionMode::Type);
+    if rich && files_initially {
+        ClipboardPlan::RichThenFiles
+    } else if rich {
+        ClipboardPlan::Rich
+    } else if files_initially {
+        ClipboardPlan::Files
+    } else if mode == InsertionMode::Paste && !text_empty {
+        ClipboardPlan::Text
+    } else {
+        ClipboardPlan::None
+    }
+}
+
 fn event(vk: VIRTUAL_KEY, scan: u16, flags: KEYBD_EVENT_FLAGS) -> INPUT {
     INPUT {
         r#type: INPUT_KEYBOARD,
@@ -82,6 +120,7 @@ pub struct NativeEdit {
     lease: Option<ClipboardLease>,
     files: super::payload::FileDelivery,
     strict_clipboard: bool,
+    rich_html: Option<Arc<str>>,
     pub submitted_events: u32,
     pub clipboard_incomplete: bool,
 }
@@ -128,6 +167,7 @@ impl NativeEdit {
             lease: None,
             files: Default::default(),
             strict_clipboard: false,
+            rich_html: None,
             submitted_events: 0,
             clipboard_incomplete: false,
         })
@@ -222,6 +262,11 @@ impl NativeEdit {
         Ok(())
     }
     pub fn deliver(&mut self, expansion: &Expansion) -> Result<(), ProductError> {
+        self.rich_html = if rich_clipboard_qualified() {
+            expansion.rule.rich_html.clone()
+        } else {
+            None
+        };
         effects::wait_for_modifier_release(
             || self.check(),
             || thread::sleep(Duration::from_millis(10)),
@@ -267,26 +312,54 @@ impl EffectBackend for NativeEdit {
         Ok(())
     }
     fn prepare(&mut self, text: &str, mode: InsertionMode) -> Result<(), ProductError> {
-        if !self.files.files.is_empty() || (mode == InsertionMode::Paste && !text.is_empty()) {
+        let plan = clipboard_plan(
+            mode,
+            !self.files.files.is_empty(),
+            self.files.first,
+            text.is_empty(),
+            self.rich_html.is_some(),
+            self.rich_html.is_some(),
+        );
+        if plan != ClipboardPlan::None {
             let board = PasteBoard::new()?;
-            let lease = if !self.files.files.is_empty()
-                && (self.files.first || text.is_empty() || mode == InsertionMode::Type)
-            {
-                board.begin_files(
-                    if self.files.strict {
-                        &self.files.files[..1]
-                    } else {
-                        &self.files.files
-                    },
+            let initial_files = if self.files.strict && !self.files.files.is_empty() {
+                &self.files.files[..1]
+            } else {
+                &self.files.files[..]
+            };
+            let lease = match plan {
+                ClipboardPlan::Files => board.begin_files(
+                    initial_files,
                     self.settings.restore_clipboard,
                     self.strict_clipboard,
-                )?
-            } else {
-                board.begin_text(text, self.settings.restore_clipboard, self.strict_clipboard)?
+                )?,
+                ClipboardPlan::Rich | ClipboardPlan::RichThenFiles => board.begin_rich_text(
+                    self.rich_html.as_deref().ok_or(ProductError::Clipboard)?,
+                    text,
+                    self.settings.restore_clipboard,
+                    self.strict_clipboard,
+                )?,
+                ClipboardPlan::Text => board.begin_text(
+                    text,
+                    self.settings.restore_clipboard,
+                    self.strict_clipboard,
+                )?,
+                ClipboardPlan::None => unreachable!(),
             };
             self.clipboard_incomplete = lease.incomplete;
             self.board = Some(board);
             self.lease = Some(lease);
+            if plan == ClipboardPlan::RichThenFiles {
+                // Validate and publish both representations before erasing the
+                // trigger. Store the lease first so failed preparation restores it.
+                self.board
+                    .as_ref()
+                    .ok_or(ProductError::Clipboard)?
+                    .replace_files(
+                        self.lease.as_mut().ok_or(ProductError::Clipboard)?,
+                        initial_files,
+                    )?;
+            }
         }
         Ok(())
     }
@@ -316,10 +389,13 @@ impl EffectBackend for NativeEdit {
             }
             InsertionMode::Paste => {
                 if !self.files.files.is_empty() {
-                    self.board
-                        .as_ref()
-                        .ok_or(ProductError::Clipboard)?
-                        .replace_text(self.lease.as_mut().ok_or(ProductError::Clipboard)?, text)?;
+                    let board = self.board.as_ref().ok_or(ProductError::Clipboard)?;
+                    let lease = self.lease.as_mut().ok_or(ProductError::Clipboard)?;
+                    if let Some(html) = &self.rich_html {
+                        board.replace_rich_text(lease, html, text)?;
+                    } else {
+                        board.replace_text(lease, text)?;
+                    }
                 }
                 self.settle(Duration::from_millis(25))?;
                 self.paste_shortcut()?;
@@ -395,6 +471,7 @@ pub fn diagnostic_dispatch(
             id: "fixture".into(),
             trigger: "x".repeat(delete_count),
             body: output.into(),
+            rich_html: None,
         },
         erase_count: delete_count,
         terminator: None,
@@ -412,6 +489,59 @@ pub fn diagnostic_dispatch(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn rich_clipboard_policy_stays_disabled_and_file_order_prepares_before_erase() {
+        assert!(!rich_clipboard_qualified());
+        for mode in [InsertionMode::Paste, InsertionMode::Type] {
+            for (files, first, text_empty) in [
+                (false, false, false),
+                (true, false, false),
+                (true, true, false),
+                (true, true, true),
+            ] {
+                let plan = clipboard_plan(
+                    mode,
+                    files,
+                    first,
+                    text_empty,
+                    true,
+                    rich_clipboard_qualified(),
+                );
+                assert!(!matches!(
+                    plan,
+                    ClipboardPlan::Rich | ClipboardPlan::RichThenFiles
+                ));
+            }
+        }
+        assert_eq!(
+            clipboard_plan(InsertionMode::Paste, false, false, false, true, true),
+            ClipboardPlan::Rich
+        );
+        assert_eq!(
+            clipboard_plan(InsertionMode::Paste, true, false, false, true, true),
+            ClipboardPlan::Rich
+        );
+        assert_eq!(
+            clipboard_plan(InsertionMode::Paste, true, true, false, true, true),
+            ClipboardPlan::RichThenFiles
+        );
+        assert_eq!(
+            clipboard_plan(InsertionMode::Type, true, true, false, true, true),
+            ClipboardPlan::Files
+        );
+        assert_eq!(
+            clipboard_plan(InsertionMode::Paste, true, true, true, true, true),
+            ClipboardPlan::Files
+        );
+        assert_eq!(
+            clipboard_plan(InsertionMode::Paste, false, false, false, false, true),
+            ClipboardPlan::Text
+        );
+        assert_eq!(
+            clipboard_plan(InsertionMode::Type, false, false, false, true, true),
+            ClipboardPlan::None
+        );
+    }
     #[test]
     fn modern_notepad_type_is_paced_without_slowing_paste_or_classic_edit() {
         assert_eq!(
