@@ -7,6 +7,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Button } from '@/components/ui/button'
 import { BrandLogo } from '@/components/brand/BrandLogo'
+import { SidebarToggle } from '@/components/layout/SidebarToggle'
 import { usePreferences } from '@/services/preferences'
 import { useCommandContext } from '@/hooks/use-command-context'
 import { runCommand } from '@/lib/commands'
@@ -96,9 +97,12 @@ export function PreferencesPage() {
     >
       <aside className="flex w-48 min-w-0 shrink-0 flex-col border-e bg-sidebar/30 @3xl/preferences:w-56">
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4">
-          <h1 id="preferences-heading" className="text-xl font-semibold tracking-tight">
-            {t('preferences.title')}
-          </h1>
+          <div className="flex min-w-0 items-center gap-2">
+            <SidebarToggle />
+            <h1 id="preferences-heading" className="truncate text-xl font-semibold tracking-tight">
+              {t('preferences.title')}
+            </h1>
+          </div>
           <InputGroup>
             <InputGroupAddon>
               <Search aria-hidden="true" />

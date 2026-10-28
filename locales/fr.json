@@ -265,6 +265,7 @@
   "library.triggerHelp": "Utilisez une abréviation comme :email ou ;hello, sans espaces.",
   "library.bodyHelp": "Votre texte de remplacement. Unicode, tabulations et sauts de ligne sont pris en charge.",
   "library.enabled": "Activé pour le développement",
+  "library.snippetDisabledWarning": "Cet extrait est désactivé et ne sera pas développé.",
   "library.save": "Enregistrer le texte",
   "library.saving": "Enregistrement…",
   "library.copy": "Copier le texte",

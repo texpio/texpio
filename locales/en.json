@@ -265,6 +265,7 @@
   "library.triggerHelp": "Use an abbreviation such as :email or ;hello, without spaces.",
   "library.bodyHelp": "Your replacement text. Unicode, tabs and line breaks are supported.",
   "library.enabled": "Enabled for expansion",
+  "library.snippetDisabledWarning": "This snippet is off and won’t expand.",
   "library.save": "Save snippet",
   "library.saving": "Saving…",
   "library.copy": "Copy text",

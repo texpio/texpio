@@ -265,6 +265,7 @@
   "library.triggerHelp": "استخدم اختصارًا مثل :email أو ;hello دون مسافات.",
   "library.bodyHelp": "النص البديل. يدعم Unicode وعلامات الجدولة وفواصل الأسطر.",
   "library.enabled": "مفعّل للتوسيع",
+  "library.snippetDisabledWarning": "هذا المقتطف معطّل ولن يتم توسيعه.",
   "library.save": "حفظ النص",
   "library.saving": "جارٍ الحفظ…",
   "library.copy": "نسخ النص",

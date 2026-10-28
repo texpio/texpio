@@ -136,6 +136,16 @@ impl LibraryService {
             .store(library.revision, std::sync::atomic::Ordering::Release);
         Ok(result)
     }
+    pub(crate) fn resume_product_after_update(
+        &self,
+        engine: &crate::product::service::ProductEngine,
+        settings: &crate::product::store::SettingsStore,
+        ticket: u64,
+    ) {
+        if let Err(error) = self.resume_product_locked(engine, settings, ticket) {
+            engine.record_resume_failure(ticket, error);
+        }
+    }
     pub(crate) fn start_probe_admitted(
         &self,
         product: &crate::product::service::ProductEngine,
@@ -329,7 +339,7 @@ pub async fn library_save(
                     service.store.save(input)
                 },
                 |ticket| {
-                    let _ = service.resume_product_locked(&product, &settings, ticket);
+                    service.resume_product_after_update(&product, &settings, ticket);
                 },
             )
             .map_err(|_| storage_error())?
@@ -386,7 +396,7 @@ pub async fn library_import(
                     service.store.import_json(&json, expected_revision)
                 },
                 |ticket| {
-                    let _ = service.resume_product_locked(&product, &settings, ticket);
+                    service.resume_product_after_update(&product, &settings, ticket);
                 },
             )
             .map_err(|_| storage_error())?
@@ -520,6 +530,22 @@ mod tests {
             Err(crate::product::effects::ProductError::Unavailable)
         ));
         assert_eq!(std::fs::read_to_string(path).unwrap(), "{invalid");
+    }
+
+    #[test]
+    fn failed_resume_after_update_exposes_the_reason_without_starting_input() {
+        use crate::product::{effects::ProductError, service::ProductEngine, store::SettingsStore};
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("expansion-settings.json"), "{invalid").unwrap();
+        let service = LibraryService::new(root.path().into());
+        let settings = SettingsStore::new(root.path().into());
+        let engine = ProductEngine::new();
+        service.resume_product_after_update(&engine, &settings, engine.admission());
+        assert_eq!(engine.status().last_error, Some(ProductError::Unavailable));
+        assert_eq!(
+            engine.status().phase,
+            crate::product::service::ProductPhase::Stopped
+        );
     }
 
     #[test]

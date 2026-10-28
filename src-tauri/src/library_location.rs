@@ -50,7 +50,7 @@ pub async fn library_switch(
                     service.store.switch(root)
                 },
                 |ticket| {
-                    let _ = service.resume_product_locked(&engine, &settings, ticket);
+                    service.resume_product_after_update(&engine, &settings, ticket);
                 },
             )
             .map_err(|_| storage_error())?
@@ -120,7 +120,7 @@ pub fn start_watch(app: &AppHandle, service: &Arc<LibraryService>) {
                                 return;
                             }
                             if let Ok(Some(ticket)) = engine.suspend_for_update() {
-                                let _ = service.resume_product_locked(&engine, &settings, ticket);
+                                service.resume_product_after_update(&engine, &settings, ticket);
                             }
                         });
                     }

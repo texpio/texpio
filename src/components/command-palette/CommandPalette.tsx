@@ -8,9 +8,8 @@ import {
   CommandGroup,
   CommandItem,
 } from '@/components/ui/command'
-import { Kbd } from '@/components/ui/kbd'
+import { ShortcutKeys } from '@/components/ShortcutKeys'
 import { getAllCommands, runCommand } from '@/lib/commands'
-import { formatShortcut } from '@/lib/shortcut-format'
 import { useCommandContext } from '@/hooks/use-command-context'
 import { useUIStore } from '@/store/ui-store'
 
@@ -52,12 +51,7 @@ function OpenPalette() {
                   {t(command.labelKey, { defaultValue: command.labelKey })}
                   {command.shortcut && (
                     <span className="ms-auto inline-flex items-center gap-1">
-                      {formatShortcut(command.shortcut, context.platform)
-                        .split('')
-                        .map((part, index) => {
-                          if (part === '+') return <span key={`sep-${index}`}>+</span>
-                          return <Kbd key={`kbd-${index}`}>{part}</Kbd>
-                        })}
+                      <ShortcutKeys shortcut={command.shortcut} platform={context.platform} />
                     </span>
                   )}
                 </CommandItem>

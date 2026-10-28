@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
-import { Kbd } from '@/components/ui/kbd'
+import { ShortcutKeys } from '@/components/ShortcutKeys'
 import { usePlatform } from '@/hooks/use-platform'
 import { formatShortcut } from '@/lib/shortcut-format'
 export function ShortcutPicker({
@@ -76,18 +76,7 @@ export function ShortcutPicker({
           }
         }}
       >
-        {capturing ? (
-          t('shortcut.capture')
-        ) : (
-          <span className="inline-flex items-center gap-1">
-            {formatShortcut(value.replace('CommandOrControl', 'CmdOrCtrl'), platform)
-              .split(platform === 'macos' ? /(?=[^\w\s])/ : '+')
-              .filter(Boolean)
-              .map((part, index) => (
-                <Kbd key={`kbd-${index}`}>{part}</Kbd>
-              ))}
-          </span>
-        )}
+        {capturing ? t('shortcut.capture') : <ShortcutKeys shortcut={value} platform={platform} />}
       </Button>
       <Button
         type="button"

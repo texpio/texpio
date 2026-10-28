@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { isTauri } from '@tauri-apps/api/core'
@@ -29,4 +29,11 @@ it('finds translated labels and routes selection through the registered action',
   await userEvent.click(screen.getByRole('option', { name: /paramètres/i }))
   expect(useUIStore.getState().activeView).toBe('preferences')
   expect(useUIStore.getState().commandPaletteOpen).toBe(false)
+})
+it('shows each shortcut key as a whole keycap', async () => {
+  render(<CommandPalette />)
+  const item = screen.getByRole('option', { name: /Open Settings/ })
+  const keys = within(item).getAllByText(/^(Ctrl|,)$/)
+  expect(keys.map((key) => key.textContent)).toEqual(['Ctrl', ','])
+  expect(keys.every((key) => key.tagName === 'KBD')).toBe(true)
 })

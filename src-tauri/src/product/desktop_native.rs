@@ -184,10 +184,10 @@ impl DesktopSettingsActor {
                                 .map(|_| ())
                         });
                         if result != Err(ProductError::Cancelled) {
-                            report(&app, result);
+                            report(&app, result, None);
                         }
                     }
-                    Err(error) => report(&app, Err(error)),
+                    Err(error) => report(&app, Err(error), None),
                 }
                 while let Ok(request) = receiver.recv() {
                     match request {
@@ -224,14 +224,13 @@ impl DesktopSettingsActor {
         let _ = self.sender.try_send(Request::Stop);
     }
 }
-fn report(app: &AppHandle, result: Result<(), ProductError>) {
+fn report(
+    app: &AppHandle,
+    result: Result<(), ProductError>,
+    resume_failure: Option<(u64, ProductError)>,
+) {
     if let Some(engine) = app.try_state::<Arc<ProductEngine>>() {
-        engine
-            .shared
-            .status
-            .lock()
-            .unwrap_or_else(|p| p.into_inner())
-            .last_error = result.err();
+        engine.record_desktop_result(result, resume_failure);
     }
     crate::desktop::refresh_probe_tray(app);
     let _ = app.emit("product-status-changed", ());
@@ -258,6 +257,7 @@ fn dispatch(app: AppHandle, published: Arc<Published>, action: DesktopAction, ep
             published: published.clone(),
             action,
         };
+        let mut resume_failure = None;
         let result = (|| {
             if published.epoch.load(Ordering::Acquire) != epoch || engine.admission() != admission {
                 return Err(ProductError::Cancelled);
@@ -291,12 +291,12 @@ fn dispatch(app: AppHandle, published: Arc<Published>, action: DesktopAction, ep
                         settings,
                         target,
                         admission,
-                        (&published, epoch),
+                        (&published, epoch, &mut resume_failure),
                     )
                 }
             }
         })();
-        report(&app, result);
+        report(&app, result, resume_failure);
     });
 }
 fn clipboard(
@@ -306,9 +306,9 @@ fn clipboard(
     settings: ProductSettings,
     target: crate::engine::windows::TargetStamp,
     admission: u64,
-    current: (&Published, u64),
+    current: (&Published, u64, &mut Option<(u64, ProductError)>),
 ) -> Result<(), ProductError> {
-    let (published, epoch) = current;
+    let (published, epoch, resume_failure) = current;
     use windows::Win32::UI::Input::KeyboardAndMouse::*;
     let deadline = std::time::Instant::now() + std::time::Duration::from_millis(500);
     loop {
@@ -405,8 +405,10 @@ fn clipboard(
             status.clipboard_incomplete = edit.clipboard_incomplete;
             result
         })();
-        if let Some(ticket) = resume {
-            let _ = service.resume_product_locked(engine, &store, ticket);
+        if let Some(ticket) = resume
+            && let Err(error) = service.resume_product_locked(engine, &store, ticket)
+        {
+            *resume_failure = Some((ticket, error));
         }
         result
     })?

@@ -100,16 +100,7 @@ pub async fn product_save_settings(
                 Ok(input)
             },
             |ticket| {
-                if let Err(error) = service.resume_product_locked(&engine, &settings, ticket)
-                    && error != ProductError::Cancelled
-                {
-                    engine
-                        .shared
-                        .status
-                        .lock()
-                        .unwrap_or_else(|p| p.into_inner())
-                        .last_error = Some(error);
-                }
+                service.resume_product_after_update(&engine, &settings, ticket);
             },
         )?
     })

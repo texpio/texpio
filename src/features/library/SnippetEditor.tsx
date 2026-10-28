@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/core'
 import { useTranslation } from 'react-i18next'
-import { Copy, Files, MoreHorizontal, Search, Star, Trash2 } from 'lucide-react'
+import { Copy, Files, MoreHorizontal, Search, Star, Trash2, TriangleAlert } from 'lucide-react'
 import type { Folder, Snippet } from '@/services/library'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
@@ -41,6 +42,7 @@ interface SnippetEditorProps {
   revision: number
   dirty: boolean
   busy: boolean
+  saving: boolean
   stale: boolean
   validation: SnippetValidation | null
   favorite: boolean
@@ -48,7 +50,6 @@ interface SnippetEditorProps {
   findMode: 'find' | 'replace' | null
   onFind: (mode: 'find' | 'replace' | null) => void
   onEdit: (patch: Partial<Snippet>) => void
-  onSave: () => void
   onCopy: () => void
   onDuplicate: () => void
   onDelete: () => void
@@ -61,6 +62,7 @@ export function SnippetEditor({
   revision,
   dirty,
   busy,
+  saving,
   stale,
   validation,
   favorite,
@@ -68,7 +70,6 @@ export function SnippetEditor({
   findMode,
   onFind,
   onEdit,
-  onSave,
   onCopy,
   onDuplicate,
   onDelete,
@@ -89,19 +90,15 @@ export function SnippetEditor({
     }
   }, [snippet.id, isNew])
   return (
-    <form
-      className="flex h-full min-h-0 flex-col"
-      onSubmit={(event) => {
-        event.preventDefault()
-        onSave()
-      }}
-    >
+    <form className="flex h-full min-h-0 flex-col" onSubmit={(event) => event.preventDefault()}>
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <h2 className="truncate text-sm font-semibold">
             {isNew ? t('library.new') : snippet.title || t('workspace.untitled')}
           </h2>
-          {dirty && <Badge variant="secondary">{t('library.unsaved')}</Badge>}
+          {(dirty || saving) && (
+            <Badge variant="secondary">{t(saving ? 'library.saving' : 'library.unsaved')}</Badge>
+          )}
           {snippet.deleted && <Badge variant="outline">{t('library.inTrash')}</Badge>}
         </div>
         <div className="flex items-center gap-1">
@@ -146,22 +143,31 @@ export function SnippetEditor({
                   <Files />
                   {t('library.duplicate')}
                 </DropdownMenuItem>
-                {original && (
-                  <DropdownMenuItem disabled={busy} onSelect={onDelete}>
-                    <Trash2 />
-                    {t(snippet.deleted ? 'library.restore' : 'library.moveToTrash')}
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem disabled={busy} onSelect={onDelete}>
+                  <Trash2 />
+                  {t(
+                    !original
+                      ? 'library.discard'
+                      : snippet.deleted
+                        ? 'library.restore'
+                        : 'library.moveToTrash',
+                  )}
+                </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-          {!snippet.deleted && (
-            <Button type="submit" size="sm" disabled={busy || !dirty}>
-              {t(busy ? 'library.saving' : 'library.save')}
-            </Button>
-          )}
         </div>
       </header>
+      {!snippet.enabled && !snippet.deleted && (
+        <Alert
+          id="snippet-disabled-warning"
+          variant="warning"
+          className="shrink-0 rounded-none border-x-0 border-t-0"
+        >
+          <TriangleAlert aria-hidden="true" />
+          <AlertTitle>{t('library.snippetDisabledWarning')}</AlertTitle>
+        </Alert>
+      )}
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 lg:p-5">
         <FieldGroup className="gap-3">
           <Field data-invalid={validation === 'title'}>
@@ -171,7 +177,7 @@ export function SnippetEditor({
               dir="auto"
               ref={title}
               value={snippet.title}
-              disabled={busy || snippet.deleted}
+              disabled={(busy && !saving) || snippet.deleted}
               aria-invalid={validation === 'title'}
               onChange={(event) => onEdit({ title: event.target.value })}
             />
@@ -188,7 +194,7 @@ export function SnippetEditor({
                 autoComplete="off"
                 autoCapitalize="off"
                 spellCheck={false}
-                disabled={busy || snippet.deleted}
+                disabled={(busy && !saving) || snippet.deleted}
                 aria-invalid={validation === 'trigger' || validation === 'duplicateTrigger'}
                 onChange={(event) => onEdit({ trigger: event.target.value })}
               />
@@ -201,7 +207,7 @@ export function SnippetEditor({
               <NativeSelect
                 id="snippet-folder"
                 value={snippet.folderId ?? ''}
-                disabled={busy || snippet.deleted}
+                disabled={(busy && !saving) || snippet.deleted}
                 onChange={(event) => onEdit({ folderId: event.target.value || null })}
               >
                 <NativeSelectOption value="">{t('library.unfiled')}</NativeSelectOption>
@@ -214,15 +220,6 @@ export function SnippetEditor({
             </Field>
           </div>
           {isNew && <p className="text-xs text-muted-foreground">{t('library.triggerHelp')}</p>}
-          <Field orientation="horizontal">
-            <FieldLabel htmlFor="snippet-enabled">{t('library.enabled')}</FieldLabel>
-            <Switch
-              id="snippet-enabled"
-              checked={snippet.enabled}
-              disabled={busy || snippet.deleted}
-              onCheckedChange={(enabled) => onEdit({ enabled })}
-            />
-          </Field>
         </FieldGroup>
         <ToggleGroup
           type="single"
@@ -259,7 +256,7 @@ export function SnippetEditor({
                   type="button"
                   size="sm"
                   variant="ghost"
-                  disabled={busy || snippet.deleted}
+                  disabled={(busy && !saving) || snippet.deleted}
                   onClick={() => onFind('find')}
                 >
                   <Search data-icon="inline-start" />
@@ -269,7 +266,7 @@ export function SnippetEditor({
                   type="button"
                   size="sm"
                   variant="ghost"
-                  disabled={busy || snippet.deleted || !richMode}
+                  disabled={(busy && !saving) || snippet.deleted || !richMode}
                   onClick={() => onFind('replace')}
                 >
                   {t('editor.findReplace')}
@@ -297,7 +294,7 @@ export function SnippetEditor({
                   value={snippet.body}
                   rows={10}
                   className="min-h-52 flex-1 resize-y font-mono"
-                  disabled={busy || snippet.deleted}
+                  disabled={(busy && !saving) || snippet.deleted}
                   readOnly
                   aria-invalid={validation === 'body'}
                   onKeyDown={(event) => {
@@ -314,7 +311,7 @@ export function SnippetEditor({
                   label={t('library.field.body')}
                   body={snippet.body}
                   richBody={snippet.richBody ?? null}
-                  disabled={busy || snippet.deleted}
+                  disabled={(busy && !saving) || snippet.deleted}
                   invalid={validation === 'body'}
                   onChange={(value, richBody) => onEdit({ body: value, richBody })}
                   onEditorChange={setRichEditor}
@@ -330,7 +327,7 @@ export function SnippetEditor({
                         type="button"
                         size="sm"
                         variant="outline"
-                        disabled={busy || snippet.deleted}
+                        disabled={(busy && !saving) || snippet.deleted}
                       >
                         {t('editor.convertLineEndings')}
                       </Button>
@@ -399,6 +396,18 @@ export function SnippetEditor({
           ) : (
             <p className="text-sm text-muted-foreground">{t('attachments.saveFirst')}</p>
           ))}
+        <Field orientation="horizontal" className="border-t pt-4">
+          <FieldLabel htmlFor="snippet-enabled">{t('library.enabled')}</FieldLabel>
+          <Switch
+            id="snippet-enabled"
+            checked={snippet.enabled}
+            disabled={(busy && !saving) || snippet.deleted}
+            aria-describedby={
+              !snippet.enabled && !snippet.deleted ? 'snippet-disabled-warning' : undefined
+            }
+            onCheckedChange={(enabled) => onEdit({ enabled })}
+          />
+        </Field>
       </div>
     </form>
   )

@@ -31,6 +31,7 @@ const props = {
   revision: 1,
   dirty: false,
   busy: false,
+  saving: false,
   stale: false,
   validation: null,
   favorite: false,
@@ -38,12 +39,32 @@ const props = {
   findMode: null,
   onFind: vi.fn(),
   onEdit: vi.fn(),
-  onSave: vi.fn(),
   onCopy: vi.fn(),
   onDuplicate: vi.fn(),
   onDelete: vi.fn(),
   onFavorite: vi.fn(),
 }
+it('warns when the snippet is disabled and provides its expansion switch after the body', async () => {
+  const onEdit = vi.fn()
+  const disabledSnippet = { ...snippet, enabled: false }
+  render(
+    <SnippetEditor
+      {...props}
+      snippet={disabledSnippet}
+      original={disabledSnippet}
+      onEdit={onEdit}
+    />,
+  )
+  expect(screen.getByRole('alert')).toHaveTextContent('This snippet is off and won’t expand.')
+  const toggle = screen.getByRole('switch', { name: 'Enabled for expansion' })
+  expect(toggle).not.toBeChecked()
+  expect(
+    screen.getByLabelText('Body').compareDocumentPosition(toggle) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy()
+  await userEvent.click(toggle)
+  expect(onEdit).toHaveBeenCalledWith({ enabled: true })
+})
 it('provides formatting controls and updates text and rich document together', async () => {
   const onEdit = vi.fn()
   render(<SnippetEditor {...props} onEdit={onEdit} />)

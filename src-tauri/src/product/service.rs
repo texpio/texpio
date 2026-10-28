@@ -137,6 +137,37 @@ impl ProductEngine {
     pub fn admission(&self) -> u64 {
         *self.publication.lock().unwrap_or_else(|p| p.into_inner())
     }
+    #[cfg(any(target_os = "windows", test))]
+    pub(crate) fn record_desktop_result(
+        &self,
+        result: Result<(), ProductError>,
+        resume_failure: Option<(u64, ProductError)>,
+    ) {
+        let operation_error = result.err();
+        self.shared
+            .status
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .last_error = operation_error;
+        if operation_error.is_none()
+            && let Some((ticket, error)) = resume_failure
+        {
+            self.record_resume_failure(ticket, error);
+        }
+    }
+    pub(crate) fn record_resume_failure(&self, ticket: u64, error: ProductError) {
+        if error == ProductError::Cancelled {
+            return;
+        }
+        let publication = self.publication.lock().unwrap_or_else(|p| p.into_inner());
+        if *publication != ticket || self.shared.active.load(Ordering::SeqCst) {
+            return;
+        }
+        let mut status = self.shared.status.lock().unwrap_or_else(|p| p.into_inner());
+        if status.phase == ProductPhase::Stopped {
+            status.last_error = Some(error);
+        }
+    }
     fn admit(&self, ticket: u64) -> Result<(), ProductError> {
         let publication = self
             .publication
@@ -264,6 +295,44 @@ impl Drop for ProductEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn desktop_result_keeps_delivery_failure_and_reports_current_resume_failure() {
+        let engine = ProductEngine::new();
+        let (_, ticket, _) = engine.stop_inner();
+        engine.record_desktop_result(Ok(()), Some((ticket, ProductError::Unavailable)));
+        assert_eq!(engine.status().last_error, Some(ProductError::Unavailable));
+
+        engine.record_desktop_result(
+            Err(ProductError::InputBlocked),
+            Some((ticket, ProductError::Unavailable)),
+        );
+        assert_eq!(engine.status().last_error, Some(ProductError::InputBlocked));
+
+        engine.stop();
+        engine.record_desktop_result(Ok(()), Some((ticket, ProductError::Unavailable)));
+        assert_eq!(engine.status().last_error, None);
+        let current = engine.admission();
+        engine.record_desktop_result(Ok(()), Some((current, ProductError::Cancelled)));
+        assert_eq!(engine.status().last_error, None);
+    }
+    #[test]
+    fn resume_failure_is_reported_only_for_the_current_stopped_generation() {
+        let engine = ProductEngine::new();
+        let (_, ticket, _) = engine.stop_inner();
+        engine.record_resume_failure(ticket, ProductError::Unavailable);
+        assert_eq!(engine.status().last_error, Some(ProductError::Unavailable));
+
+        let (_, newer_ticket, _) = engine.stop_inner();
+        engine.record_resume_failure(ticket, ProductError::Busy);
+        assert_eq!(engine.status().last_error, None);
+        engine.record_resume_failure(newer_ticket, ProductError::Cancelled);
+        assert_eq!(engine.status().last_error, None);
+        engine.admit(newer_ticket).unwrap();
+        engine.shared.status.lock().unwrap().phase = ProductPhase::Running;
+        engine.record_resume_failure(newer_ticket, ProductError::Unavailable);
+        assert_eq!(engine.status().last_error, None);
+        assert_eq!(engine.status().phase, ProductPhase::Running);
+    }
     #[test]
     fn delayed_clipboard_request_cannot_run_after_stop() {
         let engine = ProductEngine::new();

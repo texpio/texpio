@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { approveExit } from '@/lib/exit-guard'
 import { Button } from '@/components/ui/button'
 import {
@@ -45,7 +46,13 @@ export function LibraryBackups() {
   const [mode, setMode] = useState<ImportMode>('merge')
   const [preview, setPreview] = useState<BackupPreview | null>(null)
   const [recover, setRecover] = useState(false)
-  const [notice, setNotice] = useState<'error' | 'exported' | 'imported' | 'recovered' | null>(null)
+  const [notice, setNotice] = useState<'error' | null>(null)
+  const [announcement, setAnnouncement] = useState('')
+  function showSuccess(key: 'backups.exported' | 'backups.imported' | 'backups.recovered') {
+    const message = t(key)
+    setAnnouncement(message)
+    toast.success(message)
+  }
   const recovery = useQuery({
     queryKey: ['library-recovery'],
     queryFn: recoveryStatus,
@@ -54,7 +61,10 @@ export function LibraryBackups() {
   })
   const action = useMutation({
     mutationFn: (operation: () => Promise<void>) => operation(),
-    onMutate: () => setNotice(null),
+    onMutate: () => {
+      setNotice(null)
+      setAnnouncement('')
+    },
     onError: () => setNotice('error'),
   })
   const token = preview?.token
@@ -91,9 +101,12 @@ export function LibraryBackups() {
             <DialogTitle>{t('backups.title')}</DialogTitle>
             <DialogDescription>{t('backups.help')}</DialogDescription>
           </DialogHeader>
+          <span className="sr-only" role="status">
+            {announcement}
+          </span>
           {notice && (
-            <Alert variant={notice === 'error' ? 'destructive' : 'default'}>
-              <AlertTitle>{t(`backups.${notice}`)}</AlertTitle>
+            <Alert variant="destructive">
+              <AlertTitle>{t('backups.error')}</AlertTitle>
             </Alert>
           )}
           <Field>
@@ -115,7 +128,7 @@ export function LibraryBackups() {
             disabled={action.isPending}
             onClick={() =>
               action.mutate(async () => {
-                if (await exportBackup(format)) setNotice('exported')
+                if (await exportBackup(format)) showSuccess('backups.exported')
               })
             }
           >
@@ -164,7 +177,7 @@ export function LibraryBackups() {
                       await importBackup(preview.token)
                       setPreview(null)
                       await refresh()
-                      setNotice('imported')
+                      showSuccess('backups.imported')
                     })
                   }
                 >
@@ -214,7 +227,7 @@ export function LibraryBackups() {
                   await recoverLibrary()
                   setRecover(false)
                   await refresh()
-                  setNotice('recovered')
+                  showSuccess('backups.recovered')
                 })
               }}
             >

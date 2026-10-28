@@ -169,7 +169,7 @@ pub async fn backup_import(
                     })
                 },
                 |ticket| {
-                    let _ = service.resume_product_locked(&engine, &settings, ticket);
+                    service.resume_product_after_update(&engine, &settings, ticket);
                 },
             )
             .map_err(|_| storage_error())?

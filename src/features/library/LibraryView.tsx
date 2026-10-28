@@ -1,9 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isTauri } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import { useQueryClient } from '@tanstack/react-query'
 import { quitApp } from '@/lib/app-exit'
 import { approveExit, registerExitGuard } from '@/lib/exit-guard'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Download, MoreHorizontal, Plus, RefreshCw, Upload } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
@@ -33,6 +35,7 @@ import {
   copySnippet,
   exportLibraryFile,
   LibraryCommandError,
+  libraryKeys,
   selectLibraryImport,
   useImportLibrary,
   useLibrary,
@@ -54,6 +57,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { LibraryDashboard } from './LibraryDashboard'
+import { SidebarToggle } from '@/components/layout/SidebarToggle'
 import { useLibraryMetadata, useSetFavorite } from '@/services/library-metadata'
 import { bindLibraryActions } from '@/lib/commands/library-commands'
 import {
@@ -65,20 +69,24 @@ import {
 
 type Draft = { snippet: Snippet; original: Snippet | null; base: Library }
 type Notice = {
-  kind: 'success' | 'error'
-  key:
-    | 'library.saved'
-    | 'library.exported'
-    | 'library.copied'
-    | `library.error.${LibraryErrorCode}`
-    | 'library.error.importConflict'
+  kind: 'error'
+  key: `library.error.${LibraryErrorCode}` | 'library.error.importConflict'
 } | null
 type FolderEditor = { id: string | null; name: string } | null
-const same = (left: Snippet, right: Snippet) => JSON.stringify(left) === JSON.stringify(right)
+const same = (left: Snippet, right: Snippet) =>
+  left.id === right.id &&
+  left.folderId === right.folderId &&
+  left.title === right.title &&
+  left.trigger === right.trigger &&
+  left.body === right.body &&
+  (left.richBody ?? null) === (right.richBody ?? null) &&
+  left.enabled === right.enabled &&
+  left.deleted === right.deleted
 
 export function LibraryView() {
   const { t } = useTranslation()
   const library = useLibrary()
+  const client = useQueryClient()
   const save = useSaveLibrary()
   const importer = useImportLibrary()
   const metadata = useLibraryMetadata()
@@ -87,7 +95,13 @@ export function LibraryView() {
     metadata.data?.filter((info) => info.favorite).map((info) => info.snippetId),
   )
   const [findMode, setFindMode] = useState<'find' | 'replace' | null>(null)
-  const [draft, setDraft] = useState<Draft | null>(null)
+  const [draft, setDraftState] = useState<Draft | null>(null)
+  const draftRef = useRef<Draft | null>(null)
+  function setDraft(next: Draft | null | ((current: Draft | null) => Draft | null)) {
+    const value = typeof next === 'function' ? next(draftRef.current) : next
+    draftRef.current = value
+    setDraftState(value)
+  }
   const [query, setQuery] = useState('')
   const requestedFolder = useUIStore((state) => state.libraryFolder)
   const folder = resolveFolderSelection(library.data?.folders ?? [], requestedFolder)
@@ -113,13 +127,28 @@ export function LibraryView() {
   const pendingAction = useRef<(() => void) | null>(null)
   const pendingCancel = useRef<(() => void) | null>(null)
   const [busy, setBusy] = useState(false)
+  const [savingDraft, setSavingDraft] = useState(false)
   const busyRef = useRef(false)
+  const draftSaveRef = useRef<Promise<boolean> | null>(null)
+  const flushDraftRef = useRef<() => Promise<boolean>>(async () => false)
+  useLayoutEffect(() => {
+    flushDraftRef.current = flushDraft
+  })
   const dirty = !!draft && (!draft.original || !same(draft.snippet, draft.original))
   useLayoutEffect(() => {
     useUIStore.getState().setExpansionStartBlocked(dirty || busy)
     return () => useUIStore.getState().setExpansionStartBlocked(true)
   }, [dirty, busy])
   const stale = !!draft && !!library.data && draft.base.revision !== library.data.revision
+  useEffect(() => {
+    if (!dirty || !draft || draft.snippet.deleted || busy || stale || notice?.kind === 'error')
+      return
+    // Do not show validation errors before the user starts a new snippet.
+    if (!draft.original && !draft.snippet.title && !draft.snippet.trigger && !draft.snippet.body)
+      return
+    const timer = window.setTimeout(() => void saveDraft(), 800)
+    return () => window.clearTimeout(timer)
+  })
   useEffect(() =>
     bindLibraryActions((action) => {
       if (busyRef.current) return
@@ -144,22 +173,21 @@ export function LibraryView() {
     }),
   )
   useEffect(() => {
-    const unregister = registerExitGuard(
-      () =>
-        new Promise<boolean>((resolve) => {
-          if (busyRef.current || pendingAction.current) return resolve(false)
-          if (!dirty) return resolve(true)
-          pendingAction.current = () => resolve(true)
-          pendingCancel.current = () => resolve(false)
-          setGuardOpen(true)
-        }),
-    )
+    const unregister = registerExitGuard(async () => {
+      if ((busyRef.current && !draftSaveRef.current) || pendingAction.current) return false
+      if (await flushDraftRef.current()) return true
+      return new Promise<boolean>((resolve) => {
+        pendingAction.current = () => resolve(true)
+        pendingCancel.current = () => resolve(false)
+        setGuardOpen(true)
+      })
+    })
     return () => {
       unregister()
       pendingCancel.current?.()
       pendingCancel.current = null
     }
-  }, [dirty])
+  }, [])
   useEffect(() => {
     if (!isTauri()) return
     let cancelled = false
@@ -200,14 +228,22 @@ export function LibraryView() {
   }, [dirty])
   function guarded(action: () => void) {
     if (busyRef.current) return
-    if (dirty) {
-      pendingAction.current = action
-      setGuardOpen(true)
+    const current = draftRef.current
+    if (current && (!current.original || !same(current.snippet, current.original))) {
+      void (async () => {
+        if (await flushDraft()) action()
+        else {
+          pendingAction.current = action
+          setGuardOpen(true)
+        }
+      })()
     } else action()
   }
   function select(snippet: Snippet) {
-    if (!library.data) return
-    setDraft({ snippet: { ...snippet }, original: snippet, base: library.data })
+    const base = client.getQueryData<Library>(libraryKeys.all)
+    const selected = base?.snippets.find((item) => item.id === snippet.id)
+    if (!base || !selected) return
+    setDraft({ snippet: { ...selected }, original: selected, base })
     setValidation(null)
     setNotice(null)
     setFindMode(null)
@@ -241,19 +277,20 @@ export function LibraryView() {
     }
   }
   function newSnippet(source?: Snippet) {
-    if (!library.data) return
+    const base = client.getQueryData<Library>(libraryKeys.all)
+    if (!base) return
     setQuery('')
     const nextFolder =
       source && folder !== 'all' && folder !== (source.folderId ?? 'unfiled') ? 'all' : folder
     useUIStore.getState().setLibraryFilter('active', nextFolder)
     setDraft({
-      base: library.data,
+      base,
       original: null,
       snippet: {
         id: crypto.randomUUID(),
         folderId: source
           ? source.folderId
-          : library.data.folders.some((item) => item.id === folder)
+          : base.folders.some((item) => item.id === folder)
             ? folder
             : null,
         title: source ? t('library.copyTitle', { title: source.title }) : '',
@@ -267,13 +304,28 @@ export function LibraryView() {
     setValidation(null)
     setNotice(null)
   }
-  async function saveDraft() {
-    if (!draft) return
-    const problem = validateSnippet(draft.snippet, draft.base)
+  function saveDraft(): Promise<boolean> {
+    if (draftSaveRef.current) return draftSaveRef.current
+    const pending = writeDraft().finally(() => {
+      if (draftSaveRef.current === pending) draftSaveRef.current = null
+    })
+    draftSaveRef.current = pending
+    return pending
+  }
+  async function writeDraft(): Promise<boolean> {
+    const current = draftRef.current
+    if (!current || (current.original && same(current.snippet, current.original))) return true
+    const latestLibrary = client.getQueryData<Library>(libraryKeys.all)
+    if (busyRef.current || (latestLibrary && current.base.revision !== latestLibrary.revision))
+      return false
+    const problem = validateSnippet(current.snippet, current.base)
     setValidation(problem)
-    if (problem) return
-    await perform(async () => {
-      const current = draft
+    if (problem) return false
+    busyRef.current = true
+    setBusy(true)
+    setSavingDraft(true)
+    setNotice(null)
+    try {
       const snippets = current.base.snippets.some((item) => item.id === current.snippet.id)
         ? current.base.snippets.map((item) =>
             item.id === current.snippet.id ? current.snippet : item,
@@ -285,14 +337,37 @@ export function LibraryView() {
         snippets,
       })
       const record = saved.snippets.find((item) => item.id === current.snippet.id)!
-      setDraft({ snippet: { ...record }, original: record, base: saved })
-      setNotice({ kind: 'success', key: 'library.saved' })
-    })
+      setDraft((latest) =>
+        latest?.snippet.id === record.id
+          ? { snippet: latest.snippet, original: record, base: saved }
+          : latest,
+      )
+      return true
+    } catch (error) {
+      const code = error instanceof LibraryCommandError ? error.code : 'unavailable'
+      setNotice({ kind: 'error', key: `library.error.${code}` })
+      return false
+    } finally {
+      busyRef.current = false
+      setSavingDraft(false)
+      setBusy(false)
+    }
+  }
+  async function flushDraft(): Promise<boolean> {
+    while (
+      draftSaveRef.current ||
+      (draftRef.current &&
+        (!draftRef.current.original || !same(draftRef.current.snippet, draftRef.current.original)))
+    ) {
+      if (!(await saveDraft())) return false
+    }
+    return true
   }
   function changeDeleted(snippet: Snippet, deleted: boolean) {
     guarded(() => {
       void perform(async () => {
-        const base = library.data!
+        const base = client.getQueryData<Library>(libraryKeys.all)
+        if (!base) throw new LibraryCommandError('unavailable')
         const current = base.snippets.find((item) => item.id === snippet.id)
         if (!current) throw new LibraryCommandError('conflict')
         const next = { ...current, deleted }
@@ -309,7 +384,7 @@ export function LibraryView() {
         setDraft(null)
         setTab(deleted ? 'active' : 'trash')
         setValidation(null)
-        setNotice({ kind: 'success', key: 'library.saved' })
+        toast.success(t('library.saved'))
         if (!saved.snippets.length) setFolder('all')
       })
     })
@@ -326,9 +401,10 @@ export function LibraryView() {
     guarded(() => {
       void perform(async () => {
         const selected = await selectLibraryImport()
-        if (selected && library.data) {
+        const base = client.getQueryData<Library>(libraryKeys.all)
+        if (selected && base) {
           setDraft(null)
-          setImportPreview({ ...selected, revision: library.data.revision })
+          setImportPreview({ ...selected, revision: base.revision })
         }
       }, 'import')
     })
@@ -342,7 +418,7 @@ export function LibraryView() {
       })
       setImportPreview(null)
       setDraft(null)
-      setNotice({ kind: 'success', key: 'library.saved' })
+      toast.success(t('library.saved'))
     }, 'import')
   }
   async function saveFolder(remove = false) {
@@ -376,7 +452,7 @@ export function LibraryView() {
       setFolder(remove ? 'all' : id)
       setFolderEditor(null)
       setDraft(null)
-      setNotice({ kind: 'success', key: 'library.saved' })
+      toast.success(t('library.saved'))
     })
   }
   const data = library.data
@@ -407,7 +483,8 @@ export function LibraryView() {
   return (
     <section className="flex h-full min-w-0 flex-col" aria-labelledby="library-heading">
       <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <SidebarToggle />
           <h1 id="library-heading" className="truncate text-lg font-semibold tracking-tight">
             {heading}
           </h1>
@@ -432,9 +509,10 @@ export function LibraryView() {
                 <DropdownMenuItem
                   disabled={busy || !data}
                   onSelect={() => {
-                    void perform(async () => {
-                      if (await exportLibraryFile())
-                        setNotice({ kind: 'success', key: 'library.exported' })
+                    guarded(() => {
+                      void perform(async () => {
+                        if (await exportLibraryFile()) toast.success(t('library.exported'))
+                      })
                     })
                   }}
                 >
@@ -456,12 +534,14 @@ export function LibraryView() {
         </Alert>
       )}
       {notice && (
-        <Alert
-          variant={notice.kind === 'error' ? 'destructive' : 'default'}
-          role={notice.kind === 'error' ? 'alert' : 'status'}
-        >
-          <AlertTitle>{t(notice.kind === 'error' ? 'library.notice' : 'library.done')}</AlertTitle>
+        <Alert variant="destructive" role="alert">
+          <AlertTitle>{t('library.notice')}</AlertTitle>
           <AlertDescription>{t(notice.key)}</AlertDescription>
+          {notice.key !== 'library.error.conflict' && dirty && !stale && (
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => void saveDraft()}>
+              {t('common.retry')}
+            </Button>
+          )}
         </Alert>
       )}
       {stale && notice?.key !== 'library.error.conflict' && (
@@ -517,6 +597,7 @@ export function LibraryView() {
                     revision={draft.base.revision}
                     dirty={dirty}
                     busy={busy}
+                    saving={savingDraft}
                     stale={stale}
                     validation={validation}
                     favorite={favoriteIds.has(draft.snippet.id)}
@@ -524,17 +605,21 @@ export function LibraryView() {
                     findMode={findMode}
                     onFind={setFindMode}
                     onEdit={edit}
-                    onSave={() => {
-                      void saveDraft()
-                    }}
                     onCopy={() => {
                       void perform(async () => {
                         await copySnippet(draft.snippet.body)
-                        setNotice({ kind: 'success', key: 'library.copied' })
+                        toast.success(t('library.copied'))
                       })
                     }}
-                    onDuplicate={() => guarded(() => newSnippet(draft.snippet))}
-                    onDelete={() => changeDeleted(draft.original!, !draft.original!.deleted)}
+                    onDuplicate={() => guarded(() => newSnippet(draftRef.current?.snippet))}
+                    onDelete={() => {
+                      if (draft.original) changeDeleted(draft.original, !draft.original.deleted)
+                      else {
+                        setDraft(null)
+                        setValidation(null)
+                        setNotice(null)
+                      }
+                    }}
                     onFavorite={() =>
                       favorite.mutate({
                         id: draft.snippet.id,

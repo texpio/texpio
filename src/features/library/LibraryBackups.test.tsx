@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { LibraryBackups } from './LibraryBackups'
+import { toast } from 'sonner'
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true }))
 const native = vi.hoisted(() => ({
   open: vi.fn(),
@@ -71,6 +72,7 @@ it('cancels file selection and never enables recovery for a healthy library', as
   expect(screen.getByRole('button', { name: 'Recover corrupt library' })).toBeDisabled()
 })
 it('previews explicit replacement and respects the draft guard before applying its token', async () => {
+  const success = vi.spyOn(toast, 'success')
   native.open.mockResolvedValue('C:\\fixture\\backup.zip')
   show()
   await userEvent.click(screen.getByRole('button', { name: 'Backups and recovery' }))
@@ -86,4 +88,8 @@ it('previews explicit replacement and respects the draft guard before applying i
   native.approve.mockResolvedValue(true)
   await userEvent.click(screen.getByRole('button', { name: 'Replace library' }))
   await waitFor(() => expect(native.apply).toHaveBeenCalledWith('owned-token'))
+  await waitFor(() => expect(success).toHaveBeenCalledWith('Backup imported.'))
+  expect(screen.getByRole('status')).toHaveTextContent('Backup imported.')
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  success.mockRestore()
 })

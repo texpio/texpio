@@ -266,7 +266,11 @@ function useLibraryMutation<T>(operation: (input: T) => Promise<Library>) {
     mutationFn: operation,
     retry: false,
     onSuccess: (library) => {
+      // Discard loads started before this write, then refresh after the write so
+      // changes from another window or a library replacement remain visible.
+      void client.cancelQueries({ queryKey: libraryKeys.all, exact: true })
       client.setQueryData(libraryKeys.all, library)
+      void client.invalidateQueries({ queryKey: libraryKeys.all, exact: true })
       void client.invalidateQueries({ queryKey: libraryKeys.engine })
     },
   })

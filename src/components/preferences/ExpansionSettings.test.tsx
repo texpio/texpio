@@ -136,8 +136,18 @@ it('persists desktop options and shortcuts without overwriting other settings', 
     }),
   )
   const shortcut = screen.getByLabelText('Expansion toggle shortcut')
+  expect(
+    [...shortcut.parentElement!.querySelectorAll('[data-slot="kbd"]')].map(
+      (key) => key.textContent,
+    ),
+  ).toEqual(['Ctrl', 'Shift', 'Space'])
   await userEvent.clear(shortcut)
   await userEvent.type(shortcut, 'Ctrl+Alt+T')
+  expect(
+    [...shortcut.parentElement!.querySelectorAll('[data-slot="kbd"]')].map(
+      (key) => key.textContent,
+    ),
+  ).toEqual(['Ctrl', 'Alt', 'T'])
   await userEvent.tab()
   await waitFor(() =>
     expect(native.save).toHaveBeenLastCalledWith({
@@ -161,4 +171,23 @@ it('explains a native shortcut conflict without discarding acknowledged settings
     ),
   ).toBeVisible()
   expect(screen.getByLabelText('Insertion method')).toHaveValue('paste')
+})
+it('restores the acknowledged shortcut display after a shortcut save fails', async () => {
+  native.save.mockRejectedValue(
+    Object.assign(new Error('unavailable'), { code: 'shortcutUnavailable' }),
+  )
+  show()
+  await waitFor(() => expect(screen.getByLabelText('Expansion toggle shortcut')).toBeEnabled())
+  const input = screen.getByLabelText('Expansion toggle shortcut')
+  await userEvent.clear(input)
+  await userEvent.type(input, 'Ctrl+Alt+T')
+  await userEvent.tab()
+  await screen.findByRole('alert')
+  const restored = screen.getByLabelText('Expansion toggle shortcut')
+  expect(restored).toHaveValue('CmdOrCtrl+Shift+Space')
+  expect(
+    [...restored.parentElement!.querySelectorAll('[data-slot="kbd"]')].map(
+      (key) => key.textContent,
+    ),
+  ).toEqual(['Ctrl', 'Shift', 'Space'])
 })

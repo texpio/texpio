@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, expect, it, vi } from 'vitest'
@@ -8,6 +8,10 @@ import { useUIStore } from '@/store/ui-store'
 import { createKeyboardDispatcher } from '@/hooks/use-keyboard-shortcuts'
 import { mockPanelGeometry } from '@/test/panel-layout'
 import type { Editor } from '@tiptap/core'
+import { toast } from 'sonner'
+import type { SaveLibrary } from '@/lib/bindings'
+
+let persistedLibrary: unknown
 
 const native = vi.hoisted(() => ({
   load: vi.fn(),
@@ -40,9 +44,17 @@ vi.mock('@/lib/bindings', () => ({
       status: 'ok',
       data: { attachmentsFirst: false, strictOrder: false },
     }),
-    librarySave: native.save,
+    librarySave: async (input: SaveLibrary) => {
+      const result = await native.save(input)
+      if (result.status === 'ok') persistedLibrary = structuredClone(result.data)
+      return result
+    },
     libraryImportPreview: native.preview,
-    libraryImport: native.import,
+    libraryImport: async (json: string, revision: number) => {
+      const result = await native.import(json, revision)
+      if (result.status === 'ok') persistedLibrary = structuredClone(result.data)
+      return result
+    },
     libraryExport: native.export,
     libraryStart: native.start,
     probeStatus: native.status,
@@ -122,7 +134,11 @@ beforeEach(() => {
       disconnect() {}
     },
   )
-  native.load.mockResolvedValue({ status: 'ok', data: structuredClone(initial) })
+  persistedLibrary = structuredClone(initial)
+  native.load.mockImplementation(async () => ({
+    status: 'ok',
+    data: structuredClone(persistedLibrary),
+  }))
   native.metadata.mockResolvedValue({
     status: 'ok',
     data: initial.snippets.map((snippet, index) => ({
@@ -171,6 +187,165 @@ async function appendBody(text: string) {
   })
   await waitFor(() => expect(body.textContent).toContain(text))
 }
+it('shows a success toast instead of an inline banner after creating a folder', async () => {
+  const success = vi.spyOn(toast, 'success')
+  show()
+  await screen.findByRole('button', { name: /Greeting/ })
+  await userEvent.click(screen.getByRole('button', { name: 'New folder' }))
+  await userEvent.type(screen.getByLabelText('Folder name'), 'Work')
+  await userEvent.click(screen.getByRole('button', { name: 'Save folder' }))
+  await waitFor(() => expect(success).toHaveBeenCalledWith('Saved.'))
+  expect(screen.queryByText('Done')).not.toBeInTheDocument()
+  success.mockRestore()
+})
+it('automatically saves an edited snippet without a save button', async () => {
+  show()
+  await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
+  await appendBody(' automatically saved')
+  expect(screen.queryByRole('button', { name: 'Save snippet' })).not.toBeInTheDocument()
+  await waitFor(
+    () =>
+      expect(native.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          expectedRevision: 4,
+          snippets: expect.arrayContaining([
+            expect.objectContaining({ body: 'Hello, नमस्ते 👋 automatically saved' }),
+          ]),
+        }),
+      ),
+    { timeout: 3000 },
+  )
+})
+it('saves later edits after an in-flight save without replacing them', async () => {
+  let finish!: (value: unknown) => void
+  native.save.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve
+    }),
+  )
+  show()
+  await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
+  await appendBody(' first')
+  await waitFor(() => expect(native.save).toHaveBeenCalledOnce(), { timeout: 3000 })
+  const first = native.save.mock.calls[0][0]
+  await appendBody(' second')
+  await act(async () =>
+    finish({
+      status: 'ok',
+      data: { schemaVersion: 1, revision: 5, folders: first.folders, snippets: first.snippets },
+    }),
+  )
+  await waitFor(() => expect(native.save).toHaveBeenCalledTimes(2), { timeout: 3000 })
+  expect(native.save).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      expectedRevision: 5,
+      snippets: expect.arrayContaining([
+        expect.objectContaining({ body: 'Hello, नमस्ते 👋 first second' }),
+      ]),
+    }),
+  )
+  expect(screen.getByLabelText('Body')).toHaveTextContent('Hello, नमस्ते 👋 first second')
+})
+it('keeps a failed autosave and retries without losing the draft', async () => {
+  native.save.mockResolvedValueOnce({ status: 'error', error: { code: 'storage' } })
+  show()
+  await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
+  await appendBody(' retained')
+  const retry = await screen.findByRole('button', { name: 'Retry' }, { timeout: 3000 })
+  expect(screen.getByLabelText('Body')).toHaveTextContent('Hello, नमस्ते 👋 retained')
+  await userEvent.click(retry)
+  await waitFor(() => expect(native.save).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(screen.queryByText('Unsaved draft')).not.toBeInTheDocument())
+})
+it('waits for an in-flight autosave before native Quit', async () => {
+  let finish!: (value: unknown) => void
+  native.save.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve
+    }),
+  )
+  show()
+  await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
+  await appendBody(' before quit')
+  await waitFor(() => expect(native.save).toHaveBeenCalledOnce(), { timeout: 3000 })
+  const quit = native.listen.mock.calls.find(([event]) => event === 'quit-requested')![1]
+  act(() => quit({ payload: null }))
+  expect(native.quit).not.toHaveBeenCalled()
+  const input = native.save.mock.calls[0][0]
+  await act(async () =>
+    finish({
+      status: 'ok',
+      data: { schemaVersion: 1, revision: 5, folders: input.folders, snippets: input.snippets },
+    }),
+  )
+  await waitFor(() => expect(native.quit).toHaveBeenCalledOnce())
+})
+it('flushes an edit made in the same turn as a quit request', async () => {
+  let finish!: (value: unknown) => void
+  native.save.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve
+    }),
+  )
+  show()
+  await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
+  const title = screen.getByLabelText('Title')
+  const quit = native.listen.mock.calls.find(([event]) => event === 'quit-requested')![1]
+  act(() => {
+    fireEvent.change(title, { target: { value: 'Latest title' } })
+    quit({ payload: null })
+  })
+  await waitFor(() => expect(native.save).toHaveBeenCalledOnce())
+  expect(native.quit).not.toHaveBeenCalled()
+  const input = native.save.mock.calls[0][0]
+  expect(input.snippets).toEqual(
+    expect.arrayContaining([expect.objectContaining({ title: 'Latest title' })]),
+  )
+  await act(async () =>
+    finish({
+      status: 'ok',
+      data: { schemaVersion: 1, revision: 5, folders: input.folders, snippets: input.snippets },
+    }),
+  )
+  await waitFor(() => expect(native.quit).toHaveBeenCalledOnce())
+})
+it('saves a reverted edit after the pending save before quitting', async () => {
+  let finish!: (value: unknown) => void
+  native.save.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve
+    }),
+  )
+  show()
+  await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
+  const title = screen.getByLabelText('Title')
+  fireEvent.change(title, { target: { value: 'Changed title' } })
+  await waitFor(() => expect(native.save).toHaveBeenCalledOnce(), { timeout: 3000 })
+  const first = native.save.mock.calls[0][0]
+  fireEvent.change(title, { target: { value: 'Greeting' } })
+  await waitFor(() => expect(title).toHaveValue('Greeting'))
+  const quit = native.listen.mock.calls.find(([event]) => event === 'quit-requested')![1]
+  act(() => quit({ payload: null }))
+  await act(async () => {
+    await Promise.resolve()
+    await Promise.resolve()
+  })
+  expect(native.quit).not.toHaveBeenCalled()
+  await act(async () =>
+    finish({
+      status: 'ok',
+      data: { schemaVersion: 1, revision: 5, folders: first.folders, snippets: first.snippets },
+    }),
+  )
+  await waitFor(() => expect(native.save).toHaveBeenCalledTimes(2), { timeout: 3000 })
+  expect(native.save).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      expectedRevision: 5,
+      snippets: expect.arrayContaining([expect.objectContaining({ title: 'Greeting' })]),
+    }),
+  )
+  await waitFor(() => expect(native.quit).toHaveBeenCalledOnce())
+})
 it('blocks expansion starts for drafts and saves, then fails closed when the editor unmounts', async () => {
   const view = show()
   await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
@@ -183,7 +358,7 @@ it('blocks expansion starts for drafts and saves, then fails closed when the edi
       finish = resolve
     }),
   )
-  await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
+  await waitFor(() => expect(native.save).toHaveBeenCalledOnce(), { timeout: 3000 })
   expect(useUIStore.getState().expansionStartBlocked).toBe(true)
   await act(async () =>
     finish({
@@ -191,9 +366,7 @@ it('blocks expansion starts for drafts and saves, then fails closed when the edi
       data: {
         ...initial,
         revision: 5,
-        snippets: initial.snippets.map((snippet, index) =>
-          index === 0 ? { ...snippet, body: snippet.body + ' draft' } : snippet,
-        ),
+        snippets: native.save.mock.calls[0][0].snippets,
       },
     }),
   )
@@ -257,7 +430,8 @@ it('navigates the list without deleting text drafts and dispatches find/save fro
     document.removeEventListener('keydown', dispatch)
   }
 })
-it('keeps an unsaved snippet when native Quit is cancelled and exits only after discard', async () => {
+it('keeps a draft when saving fails and Quit is cancelled', async () => {
+  native.save.mockResolvedValue({ status: 'error', error: { code: 'storage' } })
   show()
   await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
   await appendBody(' unsaved')
@@ -289,27 +463,38 @@ it('acknowledges native Quit without a discard prompt when the editor is clean',
   await waitFor(() => expect(native.quit).toHaveBeenCalledOnce())
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
 })
-it('saves a new Unicode snippet only through explicit Save and retains the acknowledged revision', async () => {
+it('automatically saves a valid new Unicode snippet', async () => {
   show()
   await screen.findByRole('button', { name: /Greeting/ })
   expect(native.start).not.toHaveBeenCalled()
   await userEvent.click(screen.getByRole('button', { name: 'New snippet' }))
+  expect(screen.getByRole('switch', { name: 'Enabled for expansion' })).toBeChecked()
   await userEvent.type(screen.getByLabelText('Title'), 'Sign off')
   await userEvent.type(screen.getByLabelText('Trigger'), ';bye')
   await appendBody('धन्यवाद 👋')
   expect(native.save).not.toHaveBeenCalled()
-  await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
-  await screen.findByText('Saved.')
-  expect(native.save).toHaveBeenCalledWith(
-    expect.objectContaining({
-      expectedRevision: 4,
-      snippets: expect.arrayContaining([
-        expect.objectContaining({ title: 'Sign off', trigger: ';bye', body: 'धन्यवाद 👋' }),
-      ]),
-    }),
+  await waitFor(
+    () =>
+      expect(native.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          expectedRevision: 4,
+          snippets: expect.arrayContaining([
+            expect.objectContaining({ title: 'Sign off', trigger: ';bye', body: 'धन्यवाद 👋' }),
+          ]),
+        }),
+      ),
+    { timeout: 3000 },
   )
-  expect(screen.getByRole('button', { name: 'Save snippet' })).toBeDisabled()
   expect(localStorage.getItem('texpio.layout') ?? '').not.toContain('धन्यवाद')
+})
+it('can discard an incomplete new snippet without writing it to the library', async () => {
+  show()
+  await screen.findByRole('button', { name: /Greeting/ })
+  await userEvent.click(screen.getByRole('button', { name: 'New snippet' }))
+  await userEvent.type(screen.getByLabelText('Title'), 'Incomplete')
+  await menuAction('Snippet actions', 'Discard draft')
+  expect(screen.queryByLabelText('Title')).not.toBeInTheDocument()
+  expect(native.save).not.toHaveBeenCalled()
 })
 it('focuses the title for a new snippet and preserves an unsaved body across editor sections', async () => {
   show()
@@ -327,7 +512,7 @@ it('focuses the title for a new snippet and preserves an unsaved body across edi
   expect(screen.getByLabelText('Body').textContent).toBe('Unfinished नमस्ते')
   expect(native.save).not.toHaveBeenCalled()
 })
-it('searches title, trigger and body while preserving the unsaved editor', async () => {
+it('saves the current editor before selecting another search result', async () => {
   show()
   await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
   await userEvent.type(screen.getByLabelText('Title'), ' draft')
@@ -336,32 +521,26 @@ it('searches title, trigger and body while preserving the unsaved editor', async
   expect(screen.getByRole('button', { name: /Address/ })).toBeInTheDocument()
   expect(screen.getByLabelText('Title')).toHaveValue('Greeting draft')
   await userEvent.click(screen.getByRole('button', { name: /Address/ }))
-  const dialog = screen.getByRole('alertdialog')
-  await userEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }))
-  expect(screen.getByLabelText('Title')).toHaveValue('Greeting draft')
-  await userEvent.click(screen.getByRole('button', { name: /Address/ }))
-  await userEvent.click(
-    within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Discard draft' }),
-  )
-  expect(screen.getByLabelText('Title')).toHaveValue('Address')
+  await waitFor(() => expect(screen.getByLabelText('Title')).toHaveValue('Address'))
+  expect(native.save).toHaveBeenCalledOnce()
 })
 it('keeps a conflicted draft and refuses invalid or duplicate active triggers before saving', async () => {
   show()
   await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
   await userEvent.clear(screen.getByLabelText('Trigger'))
   await userEvent.type(screen.getByLabelText('Trigger'), ';addr')
-  await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
-  expect(screen.getByRole('alert')).toHaveTextContent('already used')
+  expect(await screen.findByRole('alert', {}, { timeout: 3000 })).toHaveTextContent('already used')
   expect(native.save).not.toHaveBeenCalled()
   await userEvent.clear(screen.getByLabelText('Trigger'))
   await userEvent.type(screen.getByLabelText('Trigger'), ';new')
   native.save.mockResolvedValueOnce({ status: 'error', error: { code: 'conflict' } })
-  await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
   await screen.findByText(
     'The library changed in another window. Your draft is kept. Reload before saving again.',
+    {},
+    { timeout: 3000 },
   )
   expect(screen.getByLabelText('Trigger')).toHaveValue(';new')
-  expect(screen.getByRole('button', { name: 'Save snippet' })).toBeEnabled()
+  expect(screen.getByText('Unsaved draft')).toBeVisible()
 })
 it('previews selected JSON before importing and uses the current revision for confirmation', async () => {
   native.open.mockResolvedValue('C:/selected/library.json')
@@ -436,8 +615,7 @@ it('duplicates as disabled, then trashes and restores without losing literal tex
   await menuAction('Snippet actions', 'Duplicate')
   expect(screen.getByLabelText('Title')).toHaveValue('Greeting (copy)')
   expect(screen.getByRole('switch')).not.toBeChecked()
-  await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
-  await screen.findByText('Saved.')
+  await waitFor(() => expect(native.save).toHaveBeenCalledTimes(1), { timeout: 3000 })
   await menuAction('Snippet actions', 'Move to Trash')
   await waitFor(() => expect(native.save).toHaveBeenCalledTimes(2))
   await userEvent.click(screen.getByRole('button', { name: 'Trash' }))
@@ -476,20 +654,21 @@ it('duplicates a rich snippet without losing its saved rich document', async () 
   show()
   await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
   await menuAction('Snippet actions', 'Duplicate')
-  await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
-  await waitFor(() =>
-    expect(native.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        snippets: expect.arrayContaining([
-          expect.objectContaining({
-            title: 'Greeting (copy)',
-            body: initial.snippets[0].body,
-            richBody,
-            enabled: false,
-          }),
-        ]),
-      }),
-    ),
+  await waitFor(
+    () =>
+      expect(native.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          snippets: expect.arrayContaining([
+            expect.objectContaining({
+              title: 'Greeting (copy)',
+              body: initial.snippets[0].body,
+              richBody,
+              enabled: false,
+            }),
+          ]),
+        }),
+      ),
+    { timeout: 3000 },
   )
 })
 it('creates folders and removes them while preserving their snippets as unfiled', async () => {
@@ -503,8 +682,8 @@ it('creates folders and removes them while preserving their snippets as unfiled'
   await userEvent.type(screen.getByLabelText('Title'), 'Work note')
   await userEvent.type(screen.getByLabelText('Trigger'), ';work')
   await appendBody('Keep this text')
-  await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
-  await screen.findByText('Saved.')
+  await waitFor(() => expect(native.save).toHaveBeenCalledTimes(2), { timeout: 3000 })
+  await waitFor(() => expect(screen.queryByText('Saving…')).not.toBeInTheDocument())
   await userEvent.click(screen.getByRole('button', { name: 'Manage folder' }))
   await userEvent.click(screen.getByRole('button', { name: 'Remove folder' }))
   await waitFor(() => expect(native.save).toHaveBeenCalledTimes(3))
@@ -522,6 +701,33 @@ async function menuAction(menu: string, action: string) {
   await userEvent.click(screen.getByRole('button', { name: menu }))
   await userEvent.click(await screen.findByRole('menuitem', { name: action }))
 }
+
+it('saves the current draft before exporting the library', async () => {
+  let finish!: (value: unknown) => void
+  native.save.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve
+    }),
+  )
+  native.export.mockResolvedValue({ status: 'ok', data: '{}' })
+  show()
+  await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
+  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Updated greeting' } })
+  await menuAction('Library actions', 'Export JSON')
+  await waitFor(() => expect(native.save).toHaveBeenCalledOnce())
+  expect(native.export).not.toHaveBeenCalled()
+  const input = native.save.mock.calls[0][0]
+  expect(input.snippets).toEqual(
+    expect.arrayContaining([expect.objectContaining({ title: 'Updated greeting' })]),
+  )
+  await act(async () =>
+    finish({
+      status: 'ok',
+      data: { schemaVersion: 1, revision: 5, folders: input.folders, snippets: input.snippets },
+    }),
+  )
+  await waitFor(() => expect(native.export).toHaveBeenCalledOnce())
+})
 it('returns to all snippets when a selected folder disappears after a library refresh', async () => {
   const { client } = show()
   await screen.findByRole('button', { name: /Greeting/ })
@@ -548,10 +754,9 @@ it('starts a new snippet outside search and Favorites so the saved record remain
   await userEvent.type(screen.getByLabelText('Title'), 'New reply')
   await userEvent.type(screen.getByLabelText('Trigger'), ';reply')
   await appendBody('New body')
-  await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
   expect(await screen.findByRole('button', { name: /New reply/ })).toBeVisible()
 })
-it('shows body validation when Save is pressed outside the Content section', async () => {
+it('shows body validation during autosave outside the Content section', async () => {
   show()
   await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
   const body = await screen.findByRole('textbox', { name: 'Body' })
@@ -564,7 +769,6 @@ it('shows body validation when Save is pressed outside the Content section', asy
   })
   await waitFor(() => expect(body.textContent).toBe('bad\u0001text'))
   await userEvent.click(screen.getByRole('radio', { name: 'Preview' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Save snippet' }))
-  expect(screen.getByRole('alert')).toBeVisible()
+  expect(await screen.findByRole('alert', {}, { timeout: 3000 })).toBeVisible()
   expect(native.save).not.toHaveBeenCalled()
 })

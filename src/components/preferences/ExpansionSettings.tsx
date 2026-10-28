@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { loadProductSettings, saveProductSettings } from '@/services/product'
 import type { ProductSettings } from '@/lib/bindings'
@@ -8,6 +9,46 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
+import { ShortcutKeys } from '@/components/ShortcutKeys'
+import { usePlatform } from '@/hooks/use-platform'
+
+function ShortcutInput({
+  id,
+  value,
+  disabled,
+  onCommit,
+}: {
+  id: string
+  value: string
+  disabled: boolean
+  onCommit: (value: string) => void
+}) {
+  const platform = usePlatform()
+  const [draft, setDraft] = useState(value)
+  return (
+    <div className="group relative min-w-0 w-full">
+      <Input
+        id={id}
+        disabled={disabled}
+        value={draft}
+        className="text-transparent transition-[box-shadow] focus:text-foreground"
+        maxLength={128}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => {
+          const next = draft.trim()
+          if (next && next !== value) onCommit(next)
+          else setDraft(value)
+        }}
+      />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 flex items-center overflow-hidden px-3 group-focus-within:invisible"
+      >
+        <ShortcutKeys shortcut={draft} platform={platform} />
+      </span>
+    </div>
+  )
+}
 
 const key = ['expansion-settings'] as const
 const optionLabels = {
@@ -177,17 +218,12 @@ export function ExpansionSettings({
               label={t(`product.field.${name}`)}
               disabled={disabled}
             >
-              <Input
+              <ShortcutInput
                 id={`expansion-${name}`}
                 disabled={disabled}
-                key={query.data?.[name]}
-                defaultValue={query.data?.[name] ?? ''}
-                maxLength={128}
-                onBlur={(event) => {
-                  const value = event.currentTarget.value.trim()
-                  if (value && value !== query.data?.[name]) update({ [name]: value })
-                  else event.currentTarget.value = query.data?.[name] ?? ''
-                }}
+                key={`${query.data?.[name] ?? ''}:${save.isError}`}
+                value={query.data?.[name] ?? ''}
+                onCommit={(value) => update({ [name]: value })}
               />
             </SettingsRow>
           ))}

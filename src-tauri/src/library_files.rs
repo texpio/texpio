@@ -58,7 +58,7 @@ async fn mutate<T: Send + 'static>(
                 || engine.suspend_for_update(),
                 || service.store.with_revision(revision, operation),
                 |ticket| {
-                    let _ = service.resume_product_locked(&engine, &settings, ticket);
+                    service.resume_product_after_update(&engine, &settings, ticket);
                 },
             )
             .map_err(|_| storage_error())?

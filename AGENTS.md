@@ -1,5 +1,11 @@
 # Texpio agent instructions
 
+## Development build and restart
+
+- For development work in this checkout, after implementation and applicable checks succeed, build the Windows app with the pinned tools (`bun run tauri build --no-bundle -- --locked`). If the running executable would block an in-place build, build to a separate target directory first, then replace the development executable after stopping the app. Do not replace a working build with a failed build.
+- After a successful build, identify the running Texpio development process by its PID and exact resolved executable path, then force-terminate that process before starting the newly built app. Skip termination if it is not running. The user has authorized force termination in this development environment: do not ask them to save drafts or quit through the tray. Never terminate unrelated processes or another Texpio installation.
+- Start the new build and verify the work with focused checks appropriate to the change, including an actual-app check where relevant, before marking the work complete. Leave the app open for the user's development preview. If a required check cannot be performed, report precisely what remains unverified and do not claim it passed. Do not restart or build for read-only questions and reviews.
+
 ## Keep the user's computer available
 
 - If the user has not replied to a question, assume they are offline. Do not infer readiness or approval from silence, and do not start a check requiring their participation until they reply. For a manual typing check, announce when the window is actually visible and allow enough time for the user to focus it and type; do not end it after a short countdown while they are participating.

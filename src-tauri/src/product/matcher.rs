@@ -227,6 +227,26 @@ mod tests {
         assert_eq!(found.terminator, None);
         assert!(history.push(' ').is_none(), "the match is consumed once");
     }
+
+    #[test]
+    fn update_command_matches_immediately_and_preserves_its_colon_in_output() {
+        let expected = ProductRule {
+            id: "update".into(),
+            trigger: ":update".into(),
+            body: "pnpm astero:update".into(),
+            rich_html: None,
+        };
+        let mut history = TypedHistory::new(
+            vec![expected.clone()],
+            Boundary::Word,
+            Activation::Immediate,
+        );
+        let matches = type_text(&mut history, ":update");
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0].rule, expected);
+        assert_eq!(matches[0].erase_count, 6);
+        assert_eq!(matches[0].terminator, None);
+    }
     #[test]
     fn backspace_and_retyping_complete_an_immediate_trigger() {
         for (mistyped, backspaces) in [(";helllo", 2), (";helllo ", 3)] {
