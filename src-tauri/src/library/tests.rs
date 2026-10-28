@@ -80,6 +80,52 @@ fn committed_unicode_content_survives_restart() {
 }
 
 #[test]
+fn seven_snippets_in_three_folders_survive_router_restart() {
+    let root = tempfile::tempdir().unwrap();
+    let router = location::LibraryRouter::new(root.path().into());
+    let mut current = router.load().unwrap();
+    let mut folders = current.folders.clone();
+    folders.extend((0..2).map(|index| Folder {
+        id: uuid::Uuid::new_v4().to_string(),
+        name: format!("Synthetic folder {index}"),
+    }));
+    current = router
+        .save(SaveLibrary {
+            expected_revision: current.revision,
+            folders,
+            snippets: current.snippets,
+        })
+        .unwrap();
+    for index in 0..5 {
+        let mut snippets = current.snippets.clone();
+        snippets.push(Snippet {
+            id: uuid::Uuid::new_v4().to_string(),
+            folder_id: Some(current.folders[index % current.folders.len()].id.clone()),
+            title: format!("Synthetic snippet {index}"),
+            trigger: format!(";sample{index}"),
+            body: format!("Saved text {index} — नमस्ते 🌍"),
+            rich_body: None,
+            enabled: true,
+            deleted: false,
+        });
+        current = router
+            .save(SaveLibrary {
+                expected_revision: current.revision,
+                folders: current.folders.clone(),
+                snippets,
+            })
+            .unwrap();
+    }
+    assert_eq!(current.folders.len(), 3);
+    assert_eq!(current.snippets.len(), 7);
+    drop(router);
+    let reopened = location::LibraryRouter::new(root.path().into())
+        .load()
+        .unwrap();
+    assert_eq!(reopened, current);
+}
+
+#[test]
 fn stale_revision_cannot_replace_acknowledged_content() {
     let root = tempfile::tempdir().unwrap();
     let first = LibraryStore::new(root.path().into());

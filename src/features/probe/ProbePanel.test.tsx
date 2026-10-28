@@ -56,8 +56,8 @@ describe('probe panel', () => {
     await choose()
     await userEvent.click(screen.getByRole('button', { name: 'Start probe' }))
     expect(probe.startProbe).toHaveBeenCalledWith({ profile: 'notepad', strategy: 'unicode' })
-    expect(await screen.findByRole('status', { name: 'Expansion status' })).toHaveTextContent(
-      'Running',
+    await waitFor(() =>
+      expect(screen.getByRole('status', { name: 'Expansion status' })).toHaveTextContent('Running'),
     )
   })
   it('serializes ordinary controls while keeping Stop available', async () => {

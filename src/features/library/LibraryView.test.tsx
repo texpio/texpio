@@ -374,6 +374,22 @@ it('blocks expansion starts for drafts and saves, then fails closed when the edi
   view.unmount()
   expect(useUIStore.getState().expansionStartBlocked).toBe(true)
 })
+it('explains when the open snippet is outside the selected folder without losing edits', async () => {
+  show()
+  await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))
+  await appendBody(' draft')
+  await userEvent.click(screen.getByRole('button', { name: 'Personal' }))
+  expect(screen.getByText('No snippets here yet')).toBeInTheDocument()
+  expect(screen.getByText('The open snippet is outside this view.')).toBeInTheDocument()
+  expect(screen.getByRole('textbox', { name: 'Body' })).toHaveTextContent('Hello, नमस्ते 👋 draft')
+  await userEvent.click(screen.getByRole('button', { name: /All snippets/ }))
+  expect(screen.queryByText('The open snippet is outside this view.')).not.toBeInTheDocument()
+  expect(screen.getByRole('textbox', { name: 'Body' })).toHaveTextContent('Hello, नमस्ते 👋 draft')
+  await waitFor(() => expect(native.save).toHaveBeenCalled(), { timeout: 3000 })
+  expect(native.save.mock.calls[native.save.mock.calls.length - 1][0].snippets).toEqual(
+    expect.arrayContaining([expect.objectContaining({ body: 'Hello, नमस्ते 👋 draft' })]),
+  )
+})
 it('filters favorites and keeps an edited body when usage metadata refreshes', async () => {
   const { client } = show()
   await userEvent.click(await screen.findByRole('button', { name: /Greeting/ }))

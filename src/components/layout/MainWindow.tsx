@@ -44,7 +44,7 @@ function MainWindowLayout() {
     else if (!layout.leftVisible && !panel.isCollapsed()) panel.collapse()
   }, [layoutReady, layout.leftVisible, layout.leftPercent])
   return (
-    <div className="flex h-svh min-h-0 flex-col overflow-hidden rounded-[var(--app-corner-radius)] bg-background text-foreground">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--app-corner-radius)] bg-background text-foreground">
       <TitleBar />
       <ExpansionNotice />
       {error && (

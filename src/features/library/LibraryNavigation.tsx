@@ -12,16 +12,24 @@ import {
   Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ShortcutKeys } from '@/components/ShortcutKeys'
 import { useUIStore, type LibraryCollection } from '@/store/ui-store'
 import { useLibrary } from '@/services/library'
 import { useLibraryMetadata } from '@/services/library-metadata'
 import { useCommandContext } from '@/hooks/use-command-context'
-import { runCommand } from '@/lib/commands'
+import { getAllCommands, runCommand } from '@/lib/commands'
 import { resolveFolderSelection } from './model'
 
 export function LibraryNavigation() {
   const { t } = useTranslation()
   const context = useCommandContext()
+  const commands = getAllCommands(context)
+  const searchShortcut = commands.find(
+    (command) => command.id === 'toggle-command-palette',
+  )?.shortcut
+  const settingsShortcut = commands.find((command) => command.id === 'open-preferences')?.shortcut
+  const accessibleShortcut = (shortcut: string | undefined) =>
+    shortcut?.replace(/^CmdOrCtrl(?=\+)/i, context.platform === 'macos' ? 'Meta' : 'Control')
   const view = useUIStore((state) => state.activeView)
   const collection = useUIStore((state) => state.libraryCollection)
   const requestedFolder = useUIStore((state) => state.libraryFolder)
@@ -58,7 +66,7 @@ export function LibraryNavigation() {
     void runCommand(`library-${action}`, context)
   }
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="@container/navigation flex h-full min-h-0 flex-col">
       <nav
         aria-label={t('workspace.navigation')}
         className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-3"
@@ -142,24 +150,42 @@ export function LibraryNavigation() {
       <div className="flex shrink-0 flex-col gap-1 border-t p-3">
         <Button
           variant="ghost"
-          className="justify-start"
+          className="min-w-0 justify-start"
+          aria-keyshortcuts={accessibleShortcut(searchShortcut)}
           onClick={() => {
             void runCommand('toggle-command-palette', context)
           }}
         >
           <Search data-icon="inline-start" />
-          <span className="min-w-0 truncate">{t('workspace.commands')}</span>
+          <span className="min-w-0 flex-1 truncate text-start">{t('workspace.commands')}</span>
+          {searchShortcut && (
+            <span
+              aria-hidden="true"
+              className="ms-auto hidden shrink-0 @min-[12rem]/navigation:inline-flex"
+            >
+              <ShortcutKeys shortcut={searchShortcut} platform={context.platform} />
+            </span>
+          )}
         </Button>
         <Button
           variant={view === 'preferences' ? 'secondary' : 'ghost'}
-          className="justify-start"
+          className="min-w-0 justify-start"
           aria-current={view === 'preferences' ? 'page' : undefined}
+          aria-keyshortcuts={accessibleShortcut(settingsShortcut)}
           onClick={() => {
             void runCommand('open-preferences', context)
           }}
         >
           <Settings data-icon="inline-start" />
-          <span className="min-w-0 truncate">{t('preferences.title')}</span>
+          <span className="min-w-0 flex-1 truncate text-start">{t('preferences.title')}</span>
+          {settingsShortcut && (
+            <span
+              aria-hidden="true"
+              className="ms-auto hidden shrink-0 @min-[12rem]/navigation:inline-flex"
+            >
+              <ShortcutKeys shortcut={settingsShortcut} platform={context.platform} />
+            </span>
+          )}
         </Button>
       </div>
     </div>

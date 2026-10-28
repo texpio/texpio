@@ -38,6 +38,7 @@ import type { SnippetValidation } from './model'
 interface SnippetEditorProps {
   snippet: Snippet
   original: Snippet | null
+  outsideView?: boolean
   folders: Folder[]
   revision: number
   dirty: boolean
@@ -58,6 +59,7 @@ interface SnippetEditorProps {
 export function SnippetEditor({
   snippet,
   original,
+  outsideView = false,
   folders,
   revision,
   dirty,
@@ -158,6 +160,11 @@ export function SnippetEditor({
           </DropdownMenu>
         </div>
       </header>
+      {outsideView && (
+        <Alert role="status" className="shrink-0 rounded-none border-x-0 border-t-0">
+          <AlertTitle>{t('library.outsideView')}</AlertTitle>
+        </Alert>
+      )}
       {!snippet.enabled && !snippet.deleted && (
         <Alert
           id="snippet-disabled-warning"
@@ -183,7 +190,7 @@ export function SnippetEditor({
             />
             {validation === 'title' && <FieldError>{t('library.validation.title')}</FieldError>}
           </Field>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid min-w-0 gap-4 @md/field-group:grid-cols-2">
             <Field data-invalid={validation === 'trigger' || validation === 'duplicateTrigger'}>
               <FieldLabel htmlFor="snippet-trigger">{t('library.field.trigger')}</FieldLabel>
               <Input
@@ -226,6 +233,7 @@ export function SnippetEditor({
           value={selectedSection}
           variant="outline"
           size="sm"
+          className="max-w-full flex-wrap"
           aria-label={t('workspace.snippetSections')}
           onValueChange={(value) => {
             if (value) {
@@ -248,10 +256,10 @@ export function SnippetEditor({
           <FieldError>{t('library.validation.body')}</FieldError>
         )}
         {selectedSection === 'content' && (
-          <div className="flex flex-1 flex-col gap-3">
-            <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <FieldLabel htmlFor="snippet-body">{t('library.field.body')}</FieldLabel>
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1">
                 <Button
                   type="button"
                   size="sm"

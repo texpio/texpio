@@ -8,7 +8,7 @@ import type { Selection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
 import OrderedList from '@tiptap/extension-ordered-list'
 import FindAndReplace from '@tiptap/extension-find-and-replace'
-import { Bold, Italic, Underline, Link, List, ListOrdered } from 'lucide-react'
+import { Bold, GripHorizontal, Italic, Underline, Link, List, ListOrdered } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { projectRichBody } from './rich-body-projection'
@@ -59,6 +59,7 @@ function editorProps(
   label: string,
   readOnly: boolean,
   invalid: boolean,
+  resizable: boolean,
   onCarriagePaste: (text: string, view: EditorView) => void,
 ): EditorProps {
   let parsedCarriagePaste: string | null = null
@@ -71,8 +72,7 @@ function editorProps(
       'aria-multiline': 'true',
       'aria-readonly': String(readOnly),
       'aria-invalid': String(invalid),
-      class:
-        'min-h-52 rounded-md border bg-background px-3 py-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50 whitespace-pre-wrap [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:ps-6 [&_ol]:ps-6',
+      class: `${resizable ? 'h-full min-h-0 overflow-y-auto' : 'min-h-52'} rounded-md border bg-background px-3 py-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50 whitespace-pre-wrap break-words [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:ps-6 [&_ol]:ps-6`,
     },
     clipboardTextParser: (text, _context, _plain, view) => {
       parsedCarriagePaste = text.includes('\r') ? text : null
@@ -166,6 +166,12 @@ type RichBodyEditorProps = {
   label: string
 }
 
+const MIN_BODY_HEIGHT = 160
+const MAX_BODY_HEIGHT = 1200
+const BODY_HEIGHT_STEP = 24
+const clampBodyHeight = (height: number) =>
+  Math.min(MAX_BODY_HEIGHT, Math.max(MIN_BODY_HEIGHT, height))
+
 export function RichBodyEditor(props: RichBodyEditorProps) {
   return <RichBodyEditorInstance key={props.id} {...props} />
 }
@@ -183,6 +189,8 @@ function RichBodyEditorInstance({
 }: RichBodyEditorProps) {
   const { t } = useTranslation()
   const readOnly = disabled || readOnlyPreview || body.includes('\r')
+  const [bodyHeight, setBodyHeight] = useState(208)
+  const drag = useRef<{ pointerId: number; startY: number; startHeight: number } | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
   const [href, setHref] = useState('')
   const [pendingPaste, setPendingPaste] = useState<{
@@ -200,7 +208,7 @@ function RichBodyEditorInstance({
     enablePasteRules: false,
     content: contentFor(body, richBody),
     editable: !readOnly,
-    editorProps: editorProps(id, label, readOnly, invalid, onCarriagePaste),
+    editorProps: editorProps(id, label, readOnly, invalid, !readOnlyPreview, onCarriagePaste),
     onUpdate: ({ editor: current }) => {
       const doc = current.getJSON()
       const nextBody = projectRichBody(doc)
@@ -238,9 +246,9 @@ function RichBodyEditorInstance({
   useEffect(() => {
     if (!editor) return
     editor.setOptions({
-      editorProps: editorProps(id, label, readOnly, invalid, onCarriagePaste),
+      editorProps: editorProps(id, label, readOnly, invalid, !readOnlyPreview, onCarriagePaste),
     })
-  }, [editor, id, label, readOnly, invalid, onCarriagePaste])
+  }, [editor, id, label, readOnly, invalid, readOnlyPreview, onCarriagePaste])
   useEffect(() => {
     if (!editor) return
     const last = emitted.current
@@ -386,7 +394,56 @@ function RichBodyEditorInstance({
           </Button>
         </div>
       )}
-      <EditorContent editor={editor} />
+      <EditorContent editor={editor} style={readOnlyPreview ? undefined : { height: bodyHeight }} />
+      {!readOnlyPreview && (
+        <div
+          role="separator"
+          aria-label={t('editor.resizeBody')}
+          aria-controls={id}
+          aria-orientation="horizontal"
+          aria-valuemin={MIN_BODY_HEIGHT}
+          aria-valuemax={MAX_BODY_HEIGHT}
+          aria-valuenow={bodyHeight}
+          tabIndex={0}
+          className="flex h-6 touch-none cursor-row-resize items-center justify-center rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onPointerDown={(event) => {
+            if (event.button !== 0) return
+            event.preventDefault()
+            drag.current = {
+              pointerId: event.pointerId,
+              startY: event.clientY,
+              startHeight: bodyHeight,
+            }
+            event.currentTarget.setPointerCapture(event.pointerId)
+          }}
+          onPointerMove={(event) => {
+            const current = drag.current
+            if (current?.pointerId === event.pointerId)
+              setBodyHeight(clampBodyHeight(current.startHeight + event.clientY - current.startY))
+          }}
+          onPointerUp={(event) => {
+            if (drag.current?.pointerId === event.pointerId) drag.current = null
+          }}
+          onPointerCancel={() => {
+            drag.current = null
+          }}
+          onLostPointerCapture={() => {
+            drag.current = null
+          }}
+          onKeyDown={(event) => {
+            let next: number
+            if (event.key === 'ArrowDown') next = bodyHeight + BODY_HEIGHT_STEP
+            else if (event.key === 'ArrowUp') next = bodyHeight - BODY_HEIGHT_STEP
+            else if (event.key === 'Home') next = MIN_BODY_HEIGHT
+            else if (event.key === 'End') next = MAX_BODY_HEIGHT
+            else return
+            event.preventDefault()
+            setBodyHeight(clampBodyHeight(next))
+          }}
+        >
+          <GripHorizontal aria-hidden="true" className="size-4" />
+        </div>
+      )}
     </div>
   )
 }

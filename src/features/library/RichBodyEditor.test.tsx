@@ -9,6 +9,47 @@ import { projectRichBody } from './rich-body-projection'
 Range.prototype.getClientRects = () => [] as unknown as DOMRectList
 Range.prototype.getBoundingClientRect = () => new DOMRect()
 
+it('resizes the body with the keyboard without changing snippet content', async () => {
+  const onChange = vi.fn()
+  render(<RichBodyEditor id="body" label="Body" body="Hello" richBody={null} onChange={onChange} />)
+  const editor = await screen.findByRole('textbox', { name: 'Body' })
+  const handle = screen.getByRole('separator', { name: 'Resize body editor' })
+  expect(handle).toHaveAttribute('aria-orientation', 'horizontal')
+  expect(handle).toHaveAttribute('aria-valuenow', '208')
+  handle.focus()
+  await userEvent.keyboard('{ArrowDown}')
+  expect(handle).toHaveAttribute('aria-valuenow', '232')
+  expect(editor.parentElement).toHaveStyle({ height: '232px' })
+  await userEvent.keyboard('{Home}')
+  expect(handle).toHaveAttribute('aria-valuenow', '160')
+  await userEvent.keyboard('{End}')
+  expect(handle).toHaveAttribute('aria-valuenow', '1200')
+  expect(onChange).not.toHaveBeenCalled()
+})
+
+it('resizes the body by dragging without changing snippet content', async () => {
+  class TestPointerEvent extends MouseEvent {
+    pointerId: number
+    constructor(type: string, options: PointerEventInit = {}) {
+      super(type, options)
+      this.pointerId = options.pointerId ?? 0
+    }
+  }
+  vi.stubGlobal('PointerEvent', TestPointerEvent)
+  const onChange = vi.fn()
+  render(<RichBodyEditor id="body" label="Body" body="Hello" richBody={null} onChange={onChange} />)
+  const editor = await screen.findByRole('textbox', { name: 'Body' })
+  const handle = screen.getByRole('separator', { name: 'Resize body editor' })
+  handle.setPointerCapture = vi.fn()
+  fireEvent.pointerDown(handle, { button: 0, pointerId: 1, clientY: 200 })
+  fireEvent.pointerMove(handle, { pointerId: 1, clientY: 300 })
+  expect(editor.parentElement).toHaveStyle({ height: '308px' })
+  fireEvent.pointerUp(handle, { pointerId: 1, clientY: 300 })
+  fireEvent.pointerMove(handle, { pointerId: 1, clientY: 350 })
+  expect(editor.parentElement).toHaveStyle({ height: '308px' })
+  expect(onChange).not.toHaveBeenCalled()
+})
+
 it('opens legacy text literally without emitting a change', async () => {
   const onChange = vi.fn()
   const body = '<b>literal</b>\r\n\tनमस्ते 👋'

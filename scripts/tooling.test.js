@@ -3,8 +3,22 @@ import { mkdtemp, mkdir, writeFile, readFile, rm, symlink } from 'node:fs/promis
 import os from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
+import { execFileSync } from 'node:child_process'
 import { completeTask, renameDoneTasks } from './complete-task.js'
 import { prepareRelease } from './prepare-release.js'
+
+test(
+  'Windows launcher refuses running instances and verifies its new window',
+  { skip: process.platform !== 'win32' },
+  () => {
+    const checks = path.join(import.meta.dirname, 'launch-dev-guards.test.ps1')
+    const output = execFileSync('pwsh', ['-NoProfile', '-File', checks], {
+      encoding: 'utf8',
+      timeout: 15000,
+    })
+    assert.match(output, /Launcher guard checks passed/)
+  },
+)
 
 test('Windows main window starts hidden until the startup policy shows it', async () => {
   const config = JSON.parse(

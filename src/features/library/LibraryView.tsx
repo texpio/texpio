@@ -481,7 +481,10 @@ export function LibraryView() {
             : 'workspace.allSnippets',
     )
   return (
-    <section className="flex h-full min-w-0 flex-col" aria-labelledby="library-heading">
+    <section
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
+      aria-labelledby="library-heading"
+    >
       <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <SidebarToggle />
@@ -561,7 +564,7 @@ export function LibraryView() {
         data && (
           <ResizablePanelGroup
             direction="horizontal"
-            className="min-h-0 flex-1"
+            className="min-h-0 min-w-0 flex-1"
             onLayout={(values) => {
               if (values.length === 2) listWidth(values[0])
             }}
@@ -587,12 +590,18 @@ export function LibraryView() {
             </ResizablePanel>
             <ResizableHandle />
             <ResizablePanel id="editor" order={2} defaultSize={100 - listPercent} minSize={45}>
-              <section aria-label={t('library.editor')} className="h-full min-w-0">
+              <section
+                aria-label={t('library.editor')}
+                className="h-full min-h-0 min-w-0 overflow-hidden"
+              >
                 {draft ? (
                   <SnippetEditor
                     key={draft.snippet.id}
                     snippet={draft.snippet}
                     original={draft.original}
+                    outsideView={
+                      !!draft.original && !visible.some((item) => item.id === draft.snippet.id)
+                    }
                     folders={draft.base.folders}
                     revision={draft.base.revision}
                     dirty={dirty}
