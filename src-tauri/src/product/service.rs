@@ -47,6 +47,7 @@ impl Default for ProductEngine {
     }
 }
 impl ProductEngine {
+    #[cfg(any(target_os = "windows", test))]
     pub(crate) fn suspend_admitted(
         &self,
         admission: u64,

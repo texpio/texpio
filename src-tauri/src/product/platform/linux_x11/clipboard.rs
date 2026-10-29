@@ -312,8 +312,8 @@ impl Clipboard {
         }
         let mut snapshot = BTreeMap::new();
         let mut bytes = 0;
-        for chunk in formats.bytes.chunks_exact(4) {
-            let target = u32::from_ne_bytes(chunk.try_into().map_err(fail)?);
+        for chunk in formats.bytes.as_chunks::<4>().0 {
+            let target = u32::from_ne_bytes(*chunk);
             if [self.targets, self.timestamp, self.multiple].contains(&target) {
                 continue;
             }
@@ -409,11 +409,10 @@ impl Clipboard {
             .map_err(fail)?
             .check()
             .map_err(fail)?;
-        let result = self.current().map(|current| {
+        let result = self.current().inspect(|&current| {
             if current {
                 self.source = snapshot;
             }
-            current
         });
         let release = self
             .connection

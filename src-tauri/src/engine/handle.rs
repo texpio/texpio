@@ -1,9 +1,11 @@
+#[cfg(any(target_os = "windows", test))]
+use super::runtime::OperationResult;
 #[cfg(target_os = "windows")]
 use super::windows::worker::WindowsJob;
 use super::{
     control::{CloseOutcome, DispatchGate},
     rules::{RuleSet, TargetPolicy},
-    runtime::{OperationResult, StartOptions},
+    runtime::StartOptions,
     types::{ProbePhase, ProbeStatus, ReferenceProfile, RefusalReason},
 };
 use std::{
@@ -48,12 +50,14 @@ impl SharedState {
             status.counters.uncertain += 1;
         }
     }
+    #[cfg(target_os = "windows")]
     pub fn reason(&self, reason: Option<RefusalReason>) {
         let mut status = self.status.lock().unwrap_or_else(|p| p.into_inner());
         if status.phase == ProbePhase::Running {
             status.refusal_reason = reason;
         }
     }
+    #[cfg(any(target_os = "windows", test))]
     pub fn record(&self, result: OperationResult) {
         *self.activity.lock().unwrap_or_else(|p| p.into_inner()) = Some(Instant::now());
         if matches!(result, OperationResult::Uncertain { .. }) {
@@ -91,6 +95,7 @@ pub struct ProbeHandle {
 #[derive(Clone)]
 struct Session {
     policy: TargetPolicy,
+    #[cfg(target_os = "windows")]
     rules: Arc<RuleSet>,
     profile: Option<ReferenceProfile>,
     library_epoch: u64,
@@ -129,6 +134,7 @@ impl ProbeHandle {
         }
         self.start_session(Session {
             policy: TargetPolicy::Probe(options.profile),
+            #[cfg(target_os = "windows")]
             rules: Arc::new(RuleSet::fixtures()),
             profile: Some(options.profile),
             library_epoch: 0,
@@ -142,6 +148,7 @@ impl ProbeHandle {
         }
         self.start_session(Session {
             policy: TargetPolicy::NotepadEditor,
+            #[cfg(target_os = "windows")]
             rules,
             profile: None,
             library_epoch: self.library_epoch.load(Ordering::SeqCst),
@@ -408,6 +415,7 @@ mod tests {
         let handle = ProbeHandle::new();
         let old = Session {
             policy: TargetPolicy::NotepadEditor,
+            #[cfg(target_os = "windows")]
             rules: Arc::new(RuleSet::fixtures()),
             profile: None,
             library_epoch: 0,

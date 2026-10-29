@@ -38,6 +38,8 @@ mod lifecycle_tests {
         assert_eq!(close_behavior("quick-pane", false), CloseBehavior::Hide);
         assert!(!super::lifecycle::hidden_startup(["file--hidden".into()]));
         assert!(super::lifecycle::hidden_startup(["--hidden".into()]));
+        assert!(super::lifecycle::startup_command(std::path::Path::new("relative.exe")).is_none());
+        #[cfg(target_os = "windows")]
         assert_eq!(
             super::lifecycle::startup_command(std::path::Path::new(
                 "C:\\Program Files\\Texpio\\texpio.exe"

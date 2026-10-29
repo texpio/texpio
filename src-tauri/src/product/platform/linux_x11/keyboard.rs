@@ -50,7 +50,7 @@ impl Keyboard {
             // SAFETY: output pointers are valid, display is live and thread-confined.
             let ok =
                 unsafe { XkbLookupKeySym(self.0, key, state.into(), &mut consumed, &mut symbol) };
-            (ok != 0).then_some(symbol as u64)
+            (ok != 0).then_some(symbol)
         }
     }
 }

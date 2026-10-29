@@ -45,8 +45,12 @@ creates drafts only; no release has been published by this implementation.
 
 Native checks build explicit target triples without installing global observers
 or sending input. The separate helper package is built only for Wayland jobs;
-package installation and socket activation remain explicit user actions. CI
-source has been prepared, but these new remote jobs have not been executed here.
+package installation and socket activation remain explicit user actions. The
+[initial remote run](https://github.com/texpio/texpio/actions/runs/40949531644)
+started all eight variants. Its foreign-host Clippy findings led to precise
+platform guards, portable startup assertions and X11 lint corrections; strict
+warning checks remain enabled. Current build results are recorded in GitHub
+Actions and do not establish interactive qualification.
 
 ## Review corrections
 

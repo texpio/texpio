@@ -509,7 +509,7 @@ fn run(
                 invalidate(&shared, &mut history);
                 continue;
             }
-            for raw in reply.data.chunks_exact(32) {
+            for raw in reply.data.as_chunks::<32>().0 {
                 let event_type = raw[0] & 0x7f;
                 let code = raw[1];
                 if generated

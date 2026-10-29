@@ -335,13 +335,13 @@ mod tests {
         let personal = tempfile::tempdir().unwrap();
         let missing = personal.path().join("missing-selected-library");
         let not_directory = tempfile::NamedTempFile::new().unwrap();
-        let mut roots = vec![
+        let roots = [
             missing.clone(),
             not_directory.path().into(),
             PathBuf::from("relative-library"),
+            #[cfg(target_os = "windows")]
+            PathBuf::from(r"\\server\share\library"),
         ];
-        #[cfg(target_os = "windows")]
-        roots.push(PathBuf::from(r"\\server\share\library"));
         for root in roots {
             std::fs::write(
                 personal.path().join("library-location.json"),

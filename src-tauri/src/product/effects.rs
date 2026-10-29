@@ -35,6 +35,12 @@ pub trait EffectBackend {
     fn terminator(&mut self, character: char) -> Result<(), ProductError>;
 }
 
+#[cfg(any(
+    target_os = "windows",
+    target_os = "macos",
+    all(target_os = "linux", feature = "linux-x11"),
+    test
+))]
 pub(crate) fn wait_for_modifier_release(
     mut check: impl FnMut() -> Result<(), ProductError>,
     mut wait: impl FnMut(),
