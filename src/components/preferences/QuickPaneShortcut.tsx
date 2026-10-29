@@ -35,12 +35,14 @@ export function QuickPaneShortcut({
       <SettingsRow
         label={t('preferences.general.quickPaneShortcut')}
         description={t('preferences.general.quickPaneShortcutDescription')}
+        descriptionId="quick-pane-shortcut-description"
         disabled={disabled || update.isPending}
       >
         {defaults.data && (
           <ShortcutPicker
             value={value ?? defaults.data}
             defaultValue={defaults.data}
+            descriptionId="quick-pane-shortcut-description"
             disabled={disabled || update.isPending}
             onChange={(chord) => update.mutate(chord)}
           />

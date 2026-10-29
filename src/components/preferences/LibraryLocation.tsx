@@ -40,7 +40,7 @@ export function LibraryLocation() {
   return (
     <FieldSet>
       <FieldLegend>{t('location.title')}</FieldLegend>
-      <FieldDescription>{t('location.help')}</FieldDescription>
+      <FieldDescription id="library-location-help">{t('location.help')}</FieldDescription>
       {(query.isError || query.data?.problem || change.isError) && (
         <Alert variant="destructive">
           <AlertTitle>{t('location.error')}</AlertTitle>
@@ -50,12 +50,14 @@ export function LibraryLocation() {
         <SettingsRow
           label={t(query.data?.shared ? 'location.shared' : 'location.personal')}
           description={<span className="break-all">{query.data?.directory}</span>}
+          descriptionId="library-location-path"
           disabled={disabled}
         >
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               variant="outline"
+              aria-describedby="library-location-help library-location-path"
               className="h-auto min-h-8 max-w-full whitespace-normal py-1.5 text-start"
               disabled={disabled}
               onClick={() => change.mutate(true)}
@@ -65,6 +67,7 @@ export function LibraryLocation() {
             <Button
               type="button"
               variant="outline"
+              aria-describedby="library-location-help library-location-path"
               className="h-auto min-h-8 max-w-full whitespace-normal py-1.5 text-start"
               disabled={disabled || (!query.data?.shared && !query.data?.problem)}
               onClick={() => change.mutate(false)}

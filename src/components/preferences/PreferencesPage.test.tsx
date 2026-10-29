@@ -62,6 +62,31 @@ function open() {
     </QueryClientProvider>,
   )
 }
+it('connects appearance, quick pane and library location controls to their explanations', async () => {
+  vi.mocked(invoke).mockImplementation(async (command) =>
+    command === 'library_location'
+      ? { shared: false, directory: 'C:\\Texpio', problem: false }
+      : preferences,
+  )
+  open()
+  expect(await screen.findByRole('combobox', { name: 'Theme' })).toHaveAccessibleDescription(
+    'Choose light, dark, or match your system.',
+  )
+  expect(screen.getByRole('combobox', { name: 'Language' })).toHaveAccessibleDescription(
+    'Choose your preferred display language',
+  )
+  await userEvent.click(screen.getByRole('radio', { name: 'Shortcuts' }))
+  expect(
+    await screen.findByRole('button', { name: /Quick Pane Shortcut/ }),
+  ).toHaveAccessibleDescription(
+    'Global keyboard shortcut to toggle the quick pane from any application',
+  )
+  await userEvent.click(screen.getByRole('radio', { name: 'Data and backups' }))
+  expect(await screen.findByText('C:\\Texpio')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Choose shared folder' })).toHaveAccessibleDescription(
+    /Choose a local folder shared with another Texpio instance\..*C:\\Texpio/,
+  )
+})
 it('finds settings sections by option labels without saving and restores navigation when cleared', async () => {
   vi.mocked(invoke).mockResolvedValue(preferences)
   open()

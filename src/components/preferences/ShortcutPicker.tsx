@@ -9,11 +9,13 @@ export function ShortcutPicker({
   defaultValue,
   onChange,
   disabled = false,
+  descriptionId,
 }: {
   value: string
   defaultValue: string
   onChange: (value: string) => void
   disabled?: boolean
+  descriptionId?: string
 }) {
   const { t } = useTranslation()
   const platform = usePlatform()
@@ -30,6 +32,7 @@ export function ShortcutPicker({
         variant="outline"
         className="h-auto min-h-8 max-w-full whitespace-normal py-1.5 text-start"
         disabled={disabled}
+        aria-describedby={descriptionId}
         aria-pressed={capturing}
         aria-label={`${t('preferences.general.quickPaneShortcut')}: ${formatShortcut(value.replace('CommandOrControl', 'CmdOrCtrl'), platform)}`}
         onClick={() => {

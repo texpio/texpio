@@ -66,6 +66,12 @@ it('cancels file selection and never enables recovery for a healthy library', as
   show()
   await userEvent.click(screen.getByRole('button', { name: 'Backups and recovery' }))
   await screen.findByText('JSON, YAML or ZIP')
+  expect(screen.getByLabelText('Export format')).toHaveAccessibleDescription(
+    'Choose the format for exported backups.',
+  )
+  expect(screen.getByLabelText('Import behavior')).toHaveAccessibleDescription(
+    /Choose whether to merge or replace records\..*Merge keeps identical existing snippets/,
+  )
   await userEvent.click(screen.getByRole('button', { name: 'Choose backup' }))
   expect(native.preview).not.toHaveBeenCalled()
   expect(native.apply).not.toHaveBeenCalled()

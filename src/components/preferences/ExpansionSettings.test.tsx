@@ -43,6 +43,34 @@ function show() {
     </QueryClientProvider>,
   )
 }
+it('describes every expansion and shortcut control and retains matching guidance', async () => {
+  show()
+  await waitFor(() => expect(screen.getByLabelText('Insertion method')).toBeEnabled())
+  const descriptions = [
+    ['Insertion method', 'Choose whether expanded text is pasted or typed.'],
+    ['Trigger position', 'Choose whether abbreviations can match inside words.'],
+    ['Typing speed', 'Set the speed when text is typed.'],
+    ['Stop insertion key', 'Choose a key to stop insertion.'],
+    ['Clipboard insertion method', 'Choose how clipboard text is inserted.'],
+    ['Keep the terminating character', 'Keep the character that triggers expansion.'],
+    ['Restore the clipboard after expansion', 'Try to restore the clipboard after pasting.'],
+    ['Enable clipboard shortcut', 'Allow the shortcut to insert clipboard text.'],
+    ['Launch at Windows sign-in', 'Start Texpio in the tray when you sign in.'],
+    ['Keep running when the window closes', 'Keep Texpio in the tray after closing the window.'],
+    ['Expansion toggle shortcut', 'Turn expansion on or off with a shortcut.'],
+    ['Clipboard insertion shortcut', 'Insert clipboard text with a shortcut.'],
+    ['Attachment delay (milliseconds)', 'Set the wait after pasting attachments.'],
+    [
+      'Remote keyboard and key remapper compatibility',
+      'Allows typing sent by other applications to trigger your snippets.',
+    ],
+  ] as const
+  for (const [label, description] of descriptions)
+    expect(screen.getByLabelText(label)).toHaveAccessibleDescription(description)
+  expect(screen.getByLabelText('Expand abbreviation')).toHaveAccessibleDescription(
+    /Expand immediately or after a separator\..*shorter abbreviation expands before a longer one/,
+  )
+})
 it('persists insertion choice while retaining other native settings', async () => {
   show()
   await waitFor(() => expect(screen.getByLabelText('Insertion method')).toBeEnabled())

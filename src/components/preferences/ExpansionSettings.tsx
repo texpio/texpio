@@ -16,11 +16,13 @@ function ShortcutInput({
   id,
   value,
   disabled,
+  descriptionId,
   onCommit,
 }: {
   id: string
   value: string
   disabled: boolean
+  descriptionId: string
   onCommit: (value: string) => void
 }) {
   const platform = usePlatform()
@@ -29,6 +31,7 @@ function ShortcutInput({
     <div className="group relative min-w-0 w-full">
       <Input
         id={id}
+        aria-describedby={descriptionId}
         disabled={disabled}
         value={draft}
         className="text-transparent transition-[box-shadow] focus:text-foreground"
@@ -148,14 +151,12 @@ export function ExpansionSettings({
             id={`expansion-${field.name}`}
             label={t(`product.field.${field.name}`)}
             disabled={disabled}
-            description={field.name === 'activation' ? t('product.activationHelp') : undefined}
-            descriptionId={field.name === 'activation' ? 'expansion-activation-help' : undefined}
+            description={t(`product.description.${field.name}`)}
+            descriptionId={`expansion-${field.name}-description`}
           >
             <NativeSelect
               id={`expansion-${field.name}`}
-              aria-describedby={
-                field.name === 'activation' ? 'expansion-activation-help' : undefined
-              }
+              aria-describedby={`expansion-${field.name}-description${field.name === 'activation' ? ' expansion-activation-help' : ''}`}
               disabled={disabled}
               value={query.data?.[field.name] ?? field.values[0]}
               onChange={(event) => update({ [field.name]: event.target.value })}
@@ -175,11 +176,14 @@ export function ExpansionSettings({
             key={name}
             id={`expansion-${name}`}
             label={t(`product.field.${name}`)}
+            description={t(`product.description.${name}`)}
+            descriptionId={`expansion-${name}-description`}
             compact
             disabled={name === 'preserveTerminator' ? terminatorDisabled : disabled}
           >
             <Switch
               id={`expansion-${name}`}
+              aria-describedby={`expansion-${name}-description`}
               checked={
                 query.data?.[name] ??
                 (name === 'preserveTerminator' ||
@@ -216,10 +220,13 @@ export function ExpansionSettings({
               key={name}
               id={`expansion-${name}`}
               label={t(`product.field.${name}`)}
+              description={t(`product.description.${name}`)}
+              descriptionId={`expansion-${name}-description`}
               disabled={disabled}
             >
               <ShortcutInput
                 id={`expansion-${name}`}
+                descriptionId={`expansion-${name}-description`}
                 disabled={disabled}
                 key={`${query.data?.[name] ?? ''}:${save.isError}`}
                 value={query.data?.[name] ?? ''}
@@ -231,10 +238,13 @@ export function ExpansionSettings({
           <SettingsRow
             id="expansion-delay"
             label={t('product.field.attachmentDelayMs')}
+            description={t('product.description.attachmentDelayMs')}
+            descriptionId="expansion-delay-description"
             disabled={disabled}
           >
             <Input
               id="expansion-delay"
+              aria-describedby="expansion-delay-description"
               type="number"
               min={100}
               max={5000}
@@ -252,6 +262,11 @@ export function ExpansionSettings({
           </SettingsRow>
         )}
       </SettingsFields>
+      {(section === 'all' || section === 'expansion') && (
+        <FieldDescription id="expansion-activation-help">
+          {t('product.activationHelp')}
+        </FieldDescription>
+      )}
       {(section === 'all' || section === 'general') && (
         <FieldDescription>{t('product.desktopHelp')}</FieldDescription>
       )}

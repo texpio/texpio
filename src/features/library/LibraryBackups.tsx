@@ -22,7 +22,7 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog'
 import { Alert, AlertTitle } from '@/components/ui/alert'
-import { Field, FieldLabel } from '@/components/ui/field'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import {
   discardBackup,
@@ -113,6 +113,7 @@ export function LibraryBackups() {
             <FieldLabel htmlFor="backup-format">{t('backups.format')}</FieldLabel>
             <NativeSelect
               id="backup-format"
+              aria-describedby="backup-format-description"
               value={format}
               disabled={action.isPending}
               onChange={(event) => setFormat(event.target.value as BackupFormat)}
@@ -121,6 +122,9 @@ export function LibraryBackups() {
               <NativeSelectOption value="json">JSON</NativeSelectOption>
               <NativeSelectOption value="yaml">YAML</NativeSelectOption>
             </NativeSelect>
+            <FieldDescription id="backup-format-description">
+              {t('backups.formatDescription')}
+            </FieldDescription>
           </Field>
           <Button
             type="button"
@@ -138,6 +142,7 @@ export function LibraryBackups() {
             <FieldLabel htmlFor="backup-mode">{t('backups.mode')}</FieldLabel>
             <NativeSelect
               id="backup-mode"
+              aria-describedby="backup-mode-description backup-merge-help"
               value={mode}
               disabled={action.isPending || !!preview}
               onChange={(event) => setMode(event.target.value as ImportMode)}
@@ -145,8 +150,13 @@ export function LibraryBackups() {
               <NativeSelectOption value="merge">{t('backups.merge')}</NativeSelectOption>
               <NativeSelectOption value="replace">{t('backups.replace')}</NativeSelectOption>
             </NativeSelect>
+            <FieldDescription id="backup-mode-description">
+              {t('backups.modeDescription')}
+            </FieldDescription>
           </Field>
-          <p className="text-xs text-muted-foreground">{t('backups.mergeHelp')}</p>
+          <p id="backup-merge-help" className="text-xs text-muted-foreground">
+            {t('backups.mergeHelp')}
+          </p>
           <Button
             type="button"
             variant="outline"

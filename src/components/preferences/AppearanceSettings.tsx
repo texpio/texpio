@@ -34,10 +34,13 @@ export function AppearanceSettings() {
         <SettingsRow
           id="preference-theme"
           label={t('preferences.appearance.theme')}
+          description={t('preferences.appearance.themeDescription')}
+          descriptionId="preference-theme-description"
           disabled={disabled}
         >
           <NativeSelect
             id="preference-theme"
+            aria-describedby="preference-theme-description"
             value={query.data?.theme ?? 'system'}
             disabled={disabled}
             onChange={(event) =>
@@ -54,10 +57,13 @@ export function AppearanceSettings() {
         <SettingsRow
           id="preference-language"
           label={t('preferences.appearance.language')}
+          description={t('preferences.appearance.languageDescription')}
+          descriptionId="preference-language-description"
           disabled={disabled || !isTauri()}
         >
           <NativeSelect
             id="preference-language"
+            aria-describedby="preference-language-description"
             value={query.data?.language ?? 'system'}
             disabled={disabled || !isTauri()}
             onChange={(event) =>
