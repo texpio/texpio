@@ -1,0 +1,8 @@
+{
+  "uuid": "wayland-bridge@texpio.local",
+  "name": "Texpio Wayland bridge",
+  "description": "Explicit companion for Texpio's separately installed Wayland helper. GNOME 46 feasibility preview.",
+  "shell-version": ["46"],
+  "version": 1,
+  "session-modes": ["user"]
+}

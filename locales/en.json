@@ -498,5 +498,20 @@
   "editor.convertLineEndingsHelp": "Carriage returns will become line feeds. You can discard the draft before saving.",
   "editor.convertLineEndingsConfirm": "Convert",
   "editor.pasteLineEndings": "Pasted text contains carriage returns. Convert its line endings before pasting.",
-  "editor.pasteConvert": "Convert and paste"
+  "editor.pasteConvert": "Convert and paste",
+  "product.platform.title": "Native expansion",
+  "product.platform.windows": "Windows",
+  "product.platform.macos": "macOS",
+  "product.platform.linuxX11": "Linux X11 edition",
+  "product.platform.linuxWayland": "Linux Wayland edition",
+  "product.platform.ready": "Expansion prerequisites are available for supported text fields.",
+  "product.platform.permissionRequired": "Allow Accessibility and Input Monitoring for Texpio in macOS System Settings, then recheck and turn on expansion.",
+  "product.platform.unsupportedSession": "This Linux edition does not match your desktop session. Install the X11 or Wayland edition for your session.",
+  "product.platform.helperRequired": "Install the separate Wayland input helper using the included setup guide. Texpio itself runs without administrator privileges.",
+  "product.platform.bridgeRequired": "Enable the Texpio GNOME extension and recheck the Wayland integration.",
+  "product.platform.fieldEvidenceRequired": "The current field or input method cannot be verified. Automatic expansion remains off.",
+  "product.platform.unavailable": "Expansion prerequisites are unavailable. Check permissions, desktop integration and your current input source.",
+  "product.platform.permissions": "Request macOS permissions",
+  "product.platform.recheck": "Recheck readiness",
+  "product.platform.autostart": "Launch at sign-in"
 }

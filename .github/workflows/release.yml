@@ -30,6 +30,7 @@ jobs:
       contents: write
     outputs:
       release-id: ${{ steps.draft.outputs.id }}
+      matrix: ${{ steps.targets.outputs.matrix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -49,6 +50,8 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: node scripts/validate-release.js
+      - id: targets
+        run: node scripts/platform-builds.js matrix
       - name: Refuse an existing release or a tag at another commit
         env:
           GH_TOKEN: ${{ github.token }}
@@ -81,14 +84,7 @@ jobs:
       contents: write
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            args: --bundles msi -- --locked
-          - os: macos-latest
-            args: --bundles app,dmg -- --locked
-          - os: ubuntu-latest
-            args: --bundles appimage -- --locked
+      matrix: ${{ fromJSON(needs.draft.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
@@ -108,12 +104,15 @@ jobs:
           if (-not $pin) { throw 'Missing Rust pin' }
           rustup toolchain install $pin.Matches[0].Groups[1].Value --profile minimal
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup target add ${{ matrix.target }} --toolchain $pin.Matches[0].Groups[1].Value
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri -> target
+          shared-key: ${{ matrix.id }}
       - name: Linux system dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libx11-dev libxtst-dev libxkbcommon-dev libsystemd-dev libatspi2.0-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
       - name: Frozen dependencies
         shell: pwsh
         run: |
@@ -140,6 +139,44 @@ jobs:
           releaseDraft: true
           tauriScript: bun run tauri
           args: ${{ matrix.args }}
-          uploadUpdaterJson: true
+          uploadUpdaterJson: ${{ runner.os != 'Linux' }}
+          updaterJsonPreferNsis: true
           uploadUpdaterSignatures: true
           uploadPlainBinary: false
+      - name: Package the separate Wayland helper preview
+        if: matrix.variant == 'wayland'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          TARGET_ARCH: ${{ matrix.target }}
+        run: |
+          cargo build --release --locked --manifest-path native/wayland-helper/Cargo.toml
+          mkdir -p helper-packages
+          arch=amd64
+          if [ "$TARGET_ARCH" = aarch64-unknown-linux-gnu ]; then arch=arm64; fi
+          sh packaging/linux-wayland/build-deb.sh "$arch" native/wayland-helper/target/release/texpio-wayland-helper helper-packages
+          gh release upload "v$RELEASE_VERSION" helper-packages/*.deb
+
+  linux-update-feeds:
+    needs: [draft, build]
+    runs-on: ubuntu-22.04
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Create independent signed Linux update manifests in the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ needs.draft.outputs.release-id }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" > release.json
+          gh release download "v$RELEASE_VERSION" --pattern '*.sig' --dir signatures
+          node scripts/platform-builds.js manifests release.json signatures
+          gh release upload "v$RELEASE_VERSION" latest-linux-x11.json latest-linux-wayland.json

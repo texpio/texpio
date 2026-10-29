@@ -4,6 +4,25 @@ use crate::{
 };
 use serde_json::json;
 #[test]
+fn linux_update_feeds_never_cross_desktop_variants() {
+    use crate::commands::lifecycle::valid_update_variant;
+    let x11 = json!({"endpoints":["https://github.com/texpio/texpio/releases/latest/download/latest-linux-x11.json"]});
+    let wayland = json!({"endpoints":["https://github.com/texpio/texpio/releases/latest/download/latest-linux-wayland.json"]});
+    assert!(valid_update_variant(&x11, Some("x11")));
+    assert!(valid_update_variant(&wayland, Some("wayland")));
+    assert!(!valid_update_variant(&x11, Some("wayland")));
+    assert!(!valid_update_variant(&wayland, Some("x11")));
+    assert!(!valid_update_variant(
+        &json!({"endpoints":["https://github.com/latest.json"]}),
+        Some("x11")
+    ));
+    assert!(!valid_update_variant(
+        &json!({"endpoints":[]}),
+        Some("wayland")
+    ));
+    assert!(!valid_update_variant(&json!({}), Some("wayland")));
+}
+#[test]
 fn unconfigured_or_placeholder_feeds_are_refused() {
     for value in [
         json!(null),

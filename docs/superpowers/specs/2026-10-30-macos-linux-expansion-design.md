@@ -1,9 +1,17 @@
 # Native expansion on macOS and Linux
 
-30 October 2026 · Design for review
+30 October 2026 · Approved design
 
-Independent builder review is complete. User approval of this written design is
-pending; no native implementation or platform qualification is claimed.
+Independent builder review is complete. The user approved implementation on
+30 October 2026, including the Wayland helper, and additionally requested separate
+X11 and Wayland Linux build/release variants. Native platform qualification remains
+a separate evidence gate.
+
+After implementation exposed generic composition-evidence limits, the user
+explicitly confirmed keeping strict checks and leaving unsupported fields
+disabled. The user also selected CI preparation with foreign native interaction
+testing deferred. These choices do not authorize claiming unsupported native
+expansion as working.
 
 Texpio will retain its independent Rust product engine and add macOS, Linux X11
 and Linux Wayland adapters. The user requested both platforms, source comparisons
@@ -18,8 +26,9 @@ operating systems. Preserve Windows behavior, the current library and editor,
 immediate and delimiter activation, correction with Backspace, Pause/Stop,
 cancellation, configured insertion modes and clipboard ownership safeguards.
 
-There are six binary targets, but four input backends: Windows, macOS, X11 and
-Wayland. Linux distributions and applications are qualified individually. Building
+There are eight release variants: Windows and macOS on x64/ARM64, plus separate
+Linux X11 and Wayland downloads on both architectures. There are four input
+backends. Linux distributions and applications are qualified individually. Building
 an ARM64 binary does not establish native interaction acceptance on that hardware.
 
 The initial foreign-platform qualification scope is plain-text expansion and the

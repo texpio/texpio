@@ -6,6 +6,18 @@ CSP lives in `src-tauri/tauri.conf.json`, limits connections to IPC and avoids r
 
 Rust validates bounded DTOs, recovery paths and updater configuration. Preferences fail explicitly on corruption and write atomically. Diagnostics contain fixed enum events/counts only. No input, snippets, clipboard, titles, paths, credentials or exception stacks belong in logs/recovery.
 
-The P0 engine requires explicit arming and independent native acceptance. Ordinary suites never install hooks/send input. Automatic clipboard insertion remains disabled; explicit Copy is a separate user action. Real signing/feed and platform certificate/notarization setup are required before distribution.
+The P0 engine requires explicit arming and independent native acceptance. Ordinary
+suites never install hooks/send input. Its automatic clipboard experiment remains
+disabled; the separate Windows product engine already offers clipboard insertion
+with native ownership/sequence checks. Explicit Copy remains a separate action.
+New macOS/Linux adapters are incomplete native previews: unknown composition or
+protected-field evidence refuses. macOS restore-required paste is unavailable;
+GNOME helper authentication uses broker-owned PID/UID/start-time attestations
+without exposing its retained input descriptors; native validation is pending. The Wayland
+helper is separately packaged and opt-in; never grant root, setuid, capabilities
+or blanket input-group access to the Tauri/webview executable. See the
+[native acceptance record](research/native-platform-acceptance.md). Real
+signing/feed and platform certificate/notarization setup are required before
+distribution.
 
 Adapted from [tauri-template](https://github.com/dannysmith/tauri-template/tree/1295f691bbdf373896e7c0f1cc969e2040fbf42c/docs), MIT. [Attribution](../THIRD_PARTY_NOTICES.md).

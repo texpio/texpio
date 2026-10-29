@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-product-capabilities"
+description = "Enables the product_capabilities command without any pre-configured scope."
+commands.allow = ["product_capabilities"]
+
+[[permission]]
+identifier = "deny-product-capabilities"
+description = "Denies the product_capabilities command without any pre-configured scope."
+commands.deny = ["product_capabilities"]

@@ -48,6 +48,8 @@ fn main() {
             "attachment_reorder",
             "attachment_save_settings",
             "product_status",
+            "product_capabilities",
+            "product_request_permissions",
             "product_start",
             "product_stop",
             "product_pause",

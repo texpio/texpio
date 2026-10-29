@@ -10,6 +10,27 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 #[tauri::command]
 #[specta::specta]
+pub async fn product_capabilities() -> Result<super::capabilities::ProductCapabilities, ProductError>
+{
+    tauri::async_runtime::spawn_blocking(super::capabilities::current)
+        .await
+        .map_err(|_| ProductError::Unavailable)
+}
+#[tauri::command]
+#[specta::specta]
+pub async fn product_request_permissions()
+-> Result<super::capabilities::ProductCapabilities, ProductError> {
+    tauri::async_runtime::spawn_blocking(|| {
+        #[cfg(target_os = "macos")]
+        super::platform::macos::request_permissions();
+        super::capabilities::current()
+    })
+    .await
+    .map_err(|_| ProductError::Unavailable)
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn product_status(engine: State<'_, Arc<ProductEngine>>) -> ProductStatus {
     engine.status()
 }
@@ -81,22 +102,18 @@ pub async fn product_save_settings(
     let settings = settings.inner().clone();
     let engine = engine.inner().clone();
     let service = service.inner().clone();
-    #[cfg(target_os = "windows")]
     let desktop = app
         .state::<super::desktop_native::DesktopSettingsActor>()
         .inner()
         .clone();
     let saved = tauri::async_runtime::spawn_blocking(move || {
-        if !input.validate() {
+        if !input.validate_for_platform(std::env::consts::OS) {
             return Err(ProductError::InvalidSettings);
         }
         service.update_product(
             || engine.suspend_for_update(),
             || {
-                #[cfg(target_os = "windows")]
                 desktop.apply(input.clone())?;
-                #[cfg(not(target_os = "windows"))]
-                settings.save(&input)?;
                 Ok(input)
             },
             |ticket| {

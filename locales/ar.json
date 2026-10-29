@@ -498,5 +498,20 @@
   "editor.convertLineEndingsHelp": "ستتحول محارف الرجوع إلى فواصل أسطر. يمكنك تجاهل المسودة قبل حفظها.",
   "editor.convertLineEndingsConfirm": "تحويل",
   "editor.pasteLineEndings": "يحتوي النص المنسوخ على محارف رجوع. حوّل نهايات الأسطر قبل لصقه.",
-  "editor.pasteConvert": "تحويل ولصق"
+  "editor.pasteConvert": "تحويل ولصق",
+  "product.platform.title": "التوسيع الأصلي",
+  "product.platform.windows": "Windows",
+  "product.platform.macos": "macOS",
+  "product.platform.linuxX11": "إصدار Linux X11",
+  "product.platform.linuxWayland": "إصدار Linux Wayland",
+  "product.platform.ready": "متطلبات التوسيع متاحة لحقول النص المدعومة.",
+  "product.platform.permissionRequired": "اسمح لتطبيق Texpio بإمكانية الوصول ومراقبة الإدخال في إعدادات نظام macOS، ثم أعد التحقق وشغّل التوسيع.",
+  "product.platform.unsupportedSession": "هذا الإصدار لا يطابق جلسة سطح المكتب. ثبّت إصدار X11 أو Wayland المناسب.",
+  "product.platform.helperRequired": "ثبّت مساعد Wayland المنفصل باتباع دليل الإعداد المرفق. يعمل Texpio دون صلاحيات مسؤول.",
+  "product.platform.bridgeRequired": "فعّل إضافة Texpio في GNOME وأعد التحقق من تكامل Wayland.",
+  "product.platform.fieldEvidenceRequired": "لا يمكن التحقق من الحقل أو طريقة الإدخال الحالية. يظل التوسيع التلقائي متوقفًا.",
+  "product.platform.unavailable": "متطلبات التوسيع غير متاحة. تحقّق من الأذونات وتكامل سطح المكتب ومصدر الإدخال.",
+  "product.platform.permissions": "طلب أذونات macOS",
+  "product.platform.recheck": "إعادة التحقق من الجاهزية",
+  "product.platform.autostart": "التشغيل عند تسجيل الدخول"
 }

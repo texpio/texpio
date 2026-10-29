@@ -63,7 +63,17 @@ pub fn run() {
             .plugins
             .0
             .get("updater")
-            .is_some_and(commands::lifecycle::valid_update_configuration),
+            .is_some_and(|value| {
+                let variant = if cfg!(all(target_os = "linux", feature = "linux-wayland")) {
+                    Some("wayland")
+                } else if cfg!(all(target_os = "linux", feature = "linux-x11")) {
+                    Some("x11")
+                } else {
+                    None
+                };
+                commands::lifecycle::valid_update_configuration(value)
+                    && commands::lifecycle::valid_update_variant(value, variant)
+            }),
     };
     let builder = tauri::Builder::default().manage(window_layout::InitialWindowLayout::default());
 
@@ -176,7 +186,6 @@ pub fn run() {
                 // Window failure and shortcut conflict cannot prevent the main app from starting.
                 let _ = commands::quick_pane::init(app.handle());
                 commands::quick_pane::start_shortcut_worker(app.handle(), preferences);
-                #[cfg(target_os = "windows")]
                 app.manage(product::desktop_native::DesktopSettingsActor::start(
                     app.handle(),
                 ));
@@ -195,7 +204,6 @@ pub fn run() {
             std::process::exit(1)
         })
         .run(|app, event| {
-            #[cfg(target_os = "windows")]
             if matches!(
                 event,
                 tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit

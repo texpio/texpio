@@ -39,8 +39,7 @@ type FileResolver =
 pub struct ProductEngine {
     pub(crate) shared: Arc<Shared>,
     publication: Mutex<u64>,
-    #[cfg(target_os = "windows")]
-    runtime: Mutex<Option<super::hooks::HookRuntime>>,
+    runtime: Mutex<Option<super::platform::Runtime>>,
 }
 impl Default for ProductEngine {
     fn default() -> Self {
@@ -82,7 +81,6 @@ impl ProductEngine {
                 files: Mutex::new(None),
                 effects: Mutex::new(()),
             }),
-            #[cfg(target_os = "windows")]
             runtime: Mutex::new(None),
         }
     }
@@ -137,7 +135,6 @@ impl ProductEngine {
     pub fn admission(&self) -> u64 {
         *self.publication.lock().unwrap_or_else(|p| p.into_inner())
     }
-    #[cfg(any(target_os = "windows", test))]
     pub(crate) fn record_desktop_result(
         &self,
         result: Result<(), ProductError>,
@@ -185,22 +182,16 @@ impl ProductEngine {
         settings: ProductSettings,
         ticket: u64,
     ) -> Result<ProductStatus, ProductError> {
-        if !settings.validate() {
+        if !settings.validate_for_platform(std::env::consts::OS) {
             return Err(ProductError::InvalidSettings);
         }
-        #[cfg(not(target_os = "windows"))]
-        {
-            let _ = rules;
-            Err(ProductError::Unavailable)
-        }
-        #[cfg(target_os = "windows")]
         {
             let mut runtime = self.runtime.lock().map_err(|_| ProductError::Busy)?;
             if runtime.is_some() {
                 return Err(ProductError::Busy);
             }
             self.admit(ticket)?;
-            match super::hooks::HookRuntime::launch(self.shared.clone(), rules, settings) {
+            match super::platform::Runtime::launch(self.shared.clone(), rules, settings) {
                 Ok(worker) => {
                     *runtime = Some(worker);
                     let publication = self
@@ -252,7 +243,6 @@ impl ProductEngine {
             self.shared.generation.fetch_add(1, Ordering::SeqCst);
             (*publication, running)
         };
-        #[cfg(target_os = "windows")]
         let stopped = self
             .runtime
             .lock()
@@ -266,8 +256,6 @@ impl ProductEngine {
                 true
             })
             .unwrap_or(false);
-        #[cfg(not(target_os = "windows"))]
-        let stopped = true;
         let publication = self.publication.lock().unwrap_or_else(|p| p.into_inner());
         let mut status = self.shared.status.lock().unwrap_or_else(|p| p.into_inner());
         if *publication != ticket || self.shared.active.load(Ordering::SeqCst) {

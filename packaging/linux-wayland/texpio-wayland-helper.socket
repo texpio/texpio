@@ -1,0 +1,12 @@
+[Unit]
+Description=Texpio Wayland session broker socket
+Documentation=file:/usr/share/doc/texpio-wayland-helper/README.md
+
+[Socket]
+ListenStream=/run/texpio/wayland.sock
+SocketMode=0666
+DirectoryMode=0755
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

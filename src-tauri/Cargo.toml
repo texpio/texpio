@@ -5,6 +5,12 @@ description = "Texpio local-first text expander desktop foundation"
 authors = ["Texpio contributors"]
 publish = false
 edition = "2024"
+default-run = "texpio"
+
+[features]
+default = ["linux-x11"]
+linux-x11 = ["dep:x11rb"]
+linux-wayland = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -65,6 +71,11 @@ tauri-plugin-updater = "=2.14.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", rev = "ef6e3090a6083c653955ca0b6e7f6c6ae1453d40" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+texpio-wayland-helper = { path = "../native/wayland-helper" }
+libc = "=0.2.191"
+x11rb = { version = "=0.13.2", optional = true, features = ["record", "xkb", "xtest", "xfixes"] }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

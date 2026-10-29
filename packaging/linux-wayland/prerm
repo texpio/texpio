@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+case "$1" in remove|deconfigure)
+    if [ -d /run/systemd/system ]; then
+        systemctl disable --now texpio-wayland-helper.socket || true
+        systemctl stop texpio-wayland-helper.service || true
+    fi
+;; esac

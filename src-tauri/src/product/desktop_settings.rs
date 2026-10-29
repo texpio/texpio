@@ -16,6 +16,9 @@ pub trait DesktopBackend {
     fn restore_startup(&mut self, value: Self::Startup) -> Result<(), ProductError>;
     fn save(&mut self, settings: &ProductSettings) -> Result<(), ProductError>;
     fn publish(&mut self, keys: &[(DesktopAction, String)]);
+    fn supports_clipboard(&self) -> bool {
+        true
+    }
 }
 pub struct DesktopController<B: DesktopBackend> {
     backend: B,
@@ -87,7 +90,7 @@ impl<B: DesktopBackend> DesktopController<B> {
             DesktopAction::Toggle,
             self.backend.canonicalize(&settings.toggle_shortcut)?,
         )];
-        if settings.clipboard_enabled {
+        if settings.clipboard_enabled && self.backend.supports_clipboard() {
             let key = self.backend.canonicalize(&settings.clipboard_shortcut)?;
             if keys[0].1 == key {
                 return Err(ProductError::InvalidSettings);

@@ -498,5 +498,20 @@
   "editor.convertLineEndingsHelp": "Les retours chariot seront remplacés par des sauts de ligne. Vous pouvez abandonner le brouillon avant de l’enregistrer.",
   "editor.convertLineEndingsConfirm": "Convertir",
   "editor.pasteLineEndings": "Le texte collé contient des retours chariot. Convertissez ses sauts de ligne avant de le coller.",
-  "editor.pasteConvert": "Convertir et coller"
+  "editor.pasteConvert": "Convertir et coller",
+  "product.platform.title": "Expansion native",
+  "product.platform.windows": "Windows",
+  "product.platform.macos": "macOS",
+  "product.platform.linuxX11": "Édition Linux X11",
+  "product.platform.linuxWayland": "Édition Linux Wayland",
+  "product.platform.ready": "Les prérequis sont disponibles pour les champs de texte pris en charge.",
+  "product.platform.permissionRequired": "Autorisez Accessibilité et Surveillance de l’entrée pour Texpio dans les Réglages Système de macOS, puis revérifiez et activez l’expansion.",
+  "product.platform.unsupportedSession": "Cette édition Linux ne correspond pas à votre session. Installez l’édition X11 ou Wayland adaptée.",
+  "product.platform.helperRequired": "Installez l’assistant Wayland séparé selon le guide fourni. Texpio fonctionne sans privilèges administrateur.",
+  "product.platform.bridgeRequired": "Activez l’extension GNOME de Texpio et revérifiez l’intégration Wayland.",
+  "product.platform.fieldEvidenceRequired": "Le champ ou la méthode de saisie ne peut pas être vérifié. L’expansion automatique reste désactivée.",
+  "product.platform.unavailable": "Les prérequis sont indisponibles. Vérifiez les autorisations, l’intégration du bureau et la source de saisie.",
+  "product.platform.permissions": "Demander les autorisations macOS",
+  "product.platform.recheck": "Revérifier la disponibilité",
+  "product.platform.autostart": "Lancer à l’ouverture de session"
 }

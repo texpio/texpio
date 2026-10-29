@@ -1,0 +1,6 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Texpio Wayland",
+  "bundle": { "targets": ["appimage", "deb"] },
+  "plugins": { "updater": { "endpoints": ["https://github.com/texpio/texpio/releases/latest/download/latest-linux-wayland.json"] } }
+}

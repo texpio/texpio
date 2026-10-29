@@ -1,0 +1,32 @@
+[Unit]
+Description=Texpio Wayland session broker
+Requires=texpio-wayland-helper.socket
+After=systemd-logind.service
+
+[Service]
+ExecStart=/usr/libexec/texpio-wayland-helper
+User=root
+Group=root
+RuntimeDirectory=texpio-attest
+RuntimeDirectoryMode=0755
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=no
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictNamespaces=yes
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH CAP_SETUID CAP_SETGID CAP_SETPCAP CAP_KILL
+DevicePolicy=closed
+DeviceAllow=char-input r
+DeviceAllow=/dev/uinput rw
+KillMode=control-group
+TimeoutStopSec=2
+StandardOutput=null
+StandardError=journal

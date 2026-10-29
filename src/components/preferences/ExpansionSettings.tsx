@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { ShortcutKeys } from '@/components/ShortcutKeys'
 import { usePlatform } from '@/hooks/use-platform'
+import { NativeExpansionStatus } from './NativeExpansionStatus'
 
 function ShortcutInput({
   id,
@@ -72,6 +73,8 @@ export function ExpansionSettings({
 }) {
   const { t } = useTranslation()
   const client = useQueryClient()
+  const platform = usePlatform()
+  const clipboardUnsupported = platform === 'macos' || platform === 'linux'
   const query = useQuery({ queryKey: key, queryFn: loadProductSettings, retry: false })
   const save = useMutation({
     mutationFn: (settings: ProductSettings) => saveProductSettings(settings),
@@ -133,6 +136,7 @@ export function ExpansionSettings({
             : `preferences.group.${section}`,
         )}
       </FieldLegend>
+      {(section === 'all' || section === 'expansion') && <NativeExpansionStatus />}
       {(query.isError || save.isError) && (
         <Alert variant="destructive">
           <AlertTitle>
@@ -157,12 +161,20 @@ export function ExpansionSettings({
             <NativeSelect
               id={`expansion-${field.name}`}
               aria-describedby={`expansion-${field.name}-description${field.name === 'activation' ? ' expansion-activation-help' : ''}`}
-              disabled={disabled}
+              disabled={disabled || (field.name === 'clipboardMode' && clipboardUnsupported)}
               value={query.data?.[field.name] ?? field.values[0]}
               onChange={(event) => update({ [field.name]: event.target.value })}
             >
               {field.values.map((value) => (
-                <NativeSelectOption key={value} value={value}>
+                <NativeSelectOption
+                  key={value}
+                  value={value}
+                  disabled={
+                    field.name === 'cancelKey' &&
+                    platform === 'macos' &&
+                    (value === 'Pause' || value === 'ScrollLock')
+                  }
+                >
                   {field.name === 'cancelKey'
                     ? value
                     : t(optionLabels[value as keyof typeof optionLabels])}
@@ -175,7 +187,11 @@ export function ExpansionSettings({
           <SettingsRow
             key={name}
             id={`expansion-${name}`}
-            label={t(`product.field.${name}`)}
+            label={t(
+              name === 'autostart' && clipboardUnsupported
+                ? 'product.platform.autostart'
+                : `product.field.${name}`,
+            )}
             description={t(`product.description.${name}`)}
             descriptionId={`expansion-${name}-description`}
             compact
@@ -185,18 +201,24 @@ export function ExpansionSettings({
               id={`expansion-${name}`}
               aria-describedby={`expansion-${name}-description`}
               checked={
-                query.data?.[name] ??
-                (name === 'preserveTerminator' ||
-                  name === 'restoreClipboard' ||
-                  name === 'clipboardEnabled' ||
-                  name === 'closeToTray')
+                name === 'clipboardEnabled' && clipboardUnsupported
+                  ? false
+                  : (query.data?.[name] ??
+                    (name === 'preserveTerminator' ||
+                      name === 'restoreClipboard' ||
+                      name === 'clipboardEnabled' ||
+                      name === 'closeToTray'))
               }
-              disabled={name === 'preserveTerminator' ? terminatorDisabled : disabled}
+              disabled={
+                name === 'preserveTerminator'
+                  ? terminatorDisabled
+                  : disabled || (name === 'clipboardEnabled' && clipboardUnsupported)
+              }
               onCheckedChange={(value) => update({ [name]: value })}
             />
           </SettingsRow>
         ))}
-        {(section === 'all' || section === 'expansion') && (
+        {!clipboardUnsupported && (section === 'all' || section === 'expansion') && (
           <SettingsRow
             id="expansion-allowSoftwareInput"
             label={t('product.field.allowSoftwareInput')}
@@ -227,7 +249,7 @@ export function ExpansionSettings({
               <ShortcutInput
                 id={`expansion-${name}`}
                 descriptionId={`expansion-${name}-description`}
-                disabled={disabled}
+                disabled={disabled || (name === 'clipboardShortcut' && clipboardUnsupported)}
                 key={`${query.data?.[name] ?? ''}:${save.isError}`}
                 value={query.data?.[name] ?? ''}
                 onCommit={(value) => update({ [name]: value })}

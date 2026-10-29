@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-product-request-permissions"
+description = "Enables the product_request_permissions command without any pre-configured scope."
+commands.allow = ["product_request_permissions"]
+
+[[permission]]
+identifier = "deny-product-request-permissions"
+description = "Denies the product_request_permissions command without any pre-configured scope."
+commands.deny = ["product_request_permissions"]

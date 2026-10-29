@@ -46,6 +46,9 @@ struct Native {
 }
 impl DesktopBackend for Native {
     type Startup = super::startup::StartupValue;
+    fn supports_clipboard(&self) -> bool {
+        cfg!(target_os = "windows")
+    }
     fn canonicalize(&self, chord: &str) -> Result<String, ProductError> {
         if chord.len() > 128
             || !chord.is_ascii()
@@ -247,6 +250,7 @@ fn dispatch(app: AppHandle, published: Arc<Published>, action: DesktopAction, ep
         return;
     };
     let admission = engine.admission();
+    #[cfg(target_os = "windows")]
     let target = if action == DesktopAction::Clipboard {
         crate::engine::windows::current_stamp().ok()
     } else {
@@ -257,11 +261,15 @@ fn dispatch(app: AppHandle, published: Arc<Published>, action: DesktopAction, ep
             published: published.clone(),
             action,
         };
+        #[cfg(target_os = "windows")]
         let mut resume_failure = None;
+        #[cfg(not(target_os = "windows"))]
+        let resume_failure = None;
         let result = (|| {
             if published.epoch.load(Ordering::Acquire) != epoch || engine.admission() != admission {
                 return Err(ProductError::Cancelled);
             }
+            #[cfg(target_os = "windows")]
             let settings = app.state::<Arc<SettingsStore>>().load()?;
             let service = app.state::<Arc<crate::library_commands::LibraryService>>();
             match action {
@@ -280,25 +288,33 @@ fn dispatch(app: AppHandle, published: Arc<Published>, action: DesktopAction, ep
                     }
                 }
                 DesktopAction::Clipboard => {
-                    let target = target.ok_or(ProductError::Unavailable)?;
-                    if target.process_id == std::process::id() {
-                        return Err(ProductError::Unavailable);
+                    #[cfg(not(target_os = "windows"))]
+                    {
+                        Err(ProductError::Unavailable)
                     }
-                    clipboard(
-                        &app,
-                        &engine,
-                        &service,
-                        settings,
-                        target,
-                        admission,
-                        (&published, epoch, &mut resume_failure),
-                    )
+                    #[cfg(target_os = "windows")]
+                    {
+                        let target = target.ok_or(ProductError::Unavailable)?;
+                        if target.process_id == std::process::id() {
+                            return Err(ProductError::Unavailable);
+                        }
+                        clipboard(
+                            &app,
+                            &engine,
+                            &service,
+                            settings,
+                            target,
+                            admission,
+                            (&published, epoch, &mut resume_failure),
+                        )
+                    }
                 }
             }
         })();
         report(&app, result, resume_failure);
     });
 }
+#[cfg(target_os = "windows")]
 fn clipboard(
     app: &AppHandle,
     engine: &ProductEngine,

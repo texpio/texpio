@@ -45,6 +45,25 @@ pub struct TypedHistory {
     left_truncated: bool,
 }
 impl TypedHistory {
+    /// Observe a key already allowed through to the desktop. This is not proof
+    /// that the application committed it; passive adapters establish that separately.
+    pub fn push_delivered(&mut self, character: char) -> Option<Expansion> {
+        if character.is_control() {
+            self.reset();
+            return None;
+        }
+        self.push(character).map(|mut expansion| {
+            expansion.erase_count = expansion.erase_count.saturating_add(1);
+            expansion
+        })
+    }
+    /// Unlike a suppressed Backspace, this deletion already changed the visible history.
+    pub fn backspace_delivered(&mut self) -> Option<Expansion> {
+        self.backspace().map(|mut expansion| {
+            expansion.erase_count = expansion.erase_count.saturating_sub(1);
+            expansion
+        })
+    }
     pub fn new(rules: Vec<ProductRule>, boundary: Boundary, activation: Activation) -> Self {
         let rules: std::collections::HashMap<_, _> = rules
             .into_iter()
@@ -387,5 +406,58 @@ mod tests {
             TypedHistory::new(vec![rule(":sig")], Boundary::Word, Activation::Terminator);
         assert!(type_text(&mut history, &format!("{}:sig ", "x".repeat(100_000))).is_empty());
         assert_eq!(type_text(&mut history, ":sig ").len(), 1);
+    }
+    #[test]
+    fn delivered_completion_erases_the_full_visible_trigger_and_delimiter() {
+        for activation in [Activation::Immediate, Activation::Terminator] {
+            let mut history = TypedHistory::new(vec![rule(";hello")], Boundary::Word, activation);
+            let input = if activation == Activation::Immediate {
+                ";hello"
+            } else {
+                ";hello "
+            };
+            let found = input
+                .chars()
+                .find_map(|ch| history.push_delivered(ch))
+                .unwrap();
+            assert_eq!(found.erase_count, input.len());
+            assert_eq!(
+                found.terminator,
+                (activation == Activation::Terminator).then_some(' ')
+            );
+        }
+    }
+    #[test]
+    fn delivered_navigation_delimiters_never_erase_the_new_field() {
+        for delimiter in ['\t', '\n', '\r'] {
+            let mut history =
+                TypedHistory::new(vec![rule(";hello")], Boundary::Word, Activation::Terminator);
+            for ch in ";hello".chars() {
+                assert!(history.push_delivered(ch).is_none());
+            }
+            assert!(history.push_delivered(delimiter).is_none());
+            assert!(history.push_delivered(' ').is_none());
+        }
+    }
+    #[test]
+    fn delivered_backspace_which_reveals_a_trigger_erases_only_the_remaining_text() {
+        let mut history =
+            TypedHistory::new(vec![rule(";hello")], Boundary::Word, Activation::Immediate);
+        for ch in ";helllo".chars() {
+            assert!(history.push_delivered(ch).is_none());
+        }
+        assert!(history.backspace_delivered().is_none());
+        assert!(history.backspace_delivered().is_none());
+        let found = history.push_delivered('o').unwrap();
+        assert_eq!(found.erase_count, 6);
+        let mut history =
+            TypedHistory::new(vec![rule(";hello")], Boundary::Word, Activation::Immediate);
+        // Populate with delimiter-mode capture to model a match revealed by correction.
+        history.activation = Activation::Terminator;
+        for ch in ";hellox".chars() {
+            history.push_delivered(ch);
+        }
+        history.activation = Activation::Immediate;
+        assert_eq!(history.backspace_delivered().unwrap().erase_count, 6);
     }
 }

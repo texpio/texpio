@@ -45,6 +45,8 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         library_commands::files::attachment_reorder,
         library_commands::files::attachment_save_settings,
         product::product_status,
+        product::product_capabilities,
+        product::product_request_permissions,
         product::product_start,
         product::product_stop,
         product::product_pause,

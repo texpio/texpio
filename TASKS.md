@@ -285,15 +285,23 @@ See the [Tiptap acceptance record](docs/research/tiptap-rich-snippets-acceptance
   requiring one-time administrator setup.
 - [x] Complete independent design review and resolve clipboard ownership,
   passive-event delivery and GNOME integration feasibility gaps.
-- [ ] Review and approve the [native expansion design](docs/superpowers/specs/2026-10-30-macos-linux-expansion-design.md).
-- [ ] Implement shared event-delivery accounting and native capability reporting
+- [x] Review and approve the [native expansion design](docs/superpowers/specs/2026-10-30-macos-linux-expansion-design.md).
+- [x] Implement shared event-delivery accounting and native capability reporting
   while preserving current Windows behavior.
+- [x] Implement native adapter source previews, separate Wayland helper/GNOME
+  bridge, broker-backed worker authentication and strict unsupported-field refusal.
+- [x] Prepare eight CI/release targets with separate X11/Wayland Linux downloads
+  and updater manifests on x64 and ARM64.
 - [ ] Implement and qualify macOS, Linux X11 and Linux Wayland adapters.
 - [ ] Add and verify explicit x64/ARM64 native builds for all three OSes.
 
 Source presence, compilation and native interaction qualification remain separate
 evidence gates. The desktop app must remain unprivileged; Wayland helper setup
 does not establish compositor context, clipboard or layout support by itself.
+The user selected CI preparation with native testing deferred, and explicitly
+retained strict checks with unsupported fields disabled. See the
+[native acceptance record](docs/research/native-platform-acceptance.md) for
+functional provider gaps and observed verification.
 
 ## Future decisions and execution work
 

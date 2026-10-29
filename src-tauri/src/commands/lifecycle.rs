@@ -13,6 +13,27 @@ use tauri::{AppHandle, State};
 pub struct UpdateConfiguration {
     pub configured: bool,
 }
+pub fn valid_update_variant(value: &Value, variant: Option<&str>) -> bool {
+    let Some(variant) = variant else {
+        return true;
+    };
+    if !matches!(variant, "x11" | "wayland") {
+        return false;
+    }
+    let expected = format!("/latest-linux-{variant}.json");
+    value
+        .get("endpoints")
+        .and_then(Value::as_array)
+        .is_some_and(|endpoints| {
+            !endpoints.is_empty()
+                && endpoints.iter().all(|endpoint| {
+                    endpoint
+                        .as_str()
+                        .and_then(|endpoint| tauri::Url::parse(endpoint).ok())
+                        .is_some_and(|url| url.path().ends_with(&expected))
+                })
+        })
+}
 pub fn valid_update_configuration(value: &Value) -> bool {
     let Some(key) = value.get("pubkey").and_then(Value::as_str) else {
         return false;

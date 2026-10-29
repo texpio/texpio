@@ -4736,6 +4736,7 @@ name = "texpio"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "libc",
  "log",
  "minisign-verify",
  "rusqlite",
@@ -4763,9 +4764,20 @@ dependencies = [
  "tauri-plugin-window-state",
  "tauri-specta",
  "tempfile",
+ "texpio-wayland-helper",
  "uuid",
  "windows",
+ "x11rb",
  "zip",
+]
+
+[[package]]
+name = "texpio-wayland-helper"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

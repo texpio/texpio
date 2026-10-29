@@ -67,6 +67,8 @@
     "allow-attachment-reorder",
     "allow-attachment-save-settings",
     "allow-product-status",
+    "allow-product-capabilities",
+    "allow-product-request-permissions",
     "allow-product-start",
     "allow-product-stop",
     "allow-product-pause",

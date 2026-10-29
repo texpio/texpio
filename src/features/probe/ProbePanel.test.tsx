@@ -27,10 +27,26 @@ const fixture = { id: 'hello', title: 'Greeting', trigger: ';hello', body: 'Hell
 beforeEach(() => {
   vi.mocked(probe.getProbeStatus).mockResolvedValue(stopped)
   vi.mocked(probe.getProbeFixtures).mockResolvedValue([fixture])
-  vi.mocked(probe.startProbe).mockResolvedValue(running)
-  vi.mocked(probe.stopProbe).mockResolvedValue(stopped)
-  vi.mocked(probe.pauseProbe).mockResolvedValue({ ...running, phase: 'paused' })
-  vi.mocked(probe.excludeProbe).mockResolvedValue({ ...stopped, refusalReason: 'excluded' })
+  // Polling must observe the state acknowledged by the command, as the native
+  // service does. Otherwise a 500ms poll races a slow test and invents a Stop.
+  vi.mocked(probe.startProbe).mockImplementation(async () => {
+    vi.mocked(probe.getProbeStatus).mockResolvedValue(running)
+    return running
+  })
+  vi.mocked(probe.stopProbe).mockImplementation(async () => {
+    vi.mocked(probe.getProbeStatus).mockResolvedValue(stopped)
+    return stopped
+  })
+  vi.mocked(probe.pauseProbe).mockImplementation(async () => {
+    const paused = { ...running, phase: 'paused' } as const
+    vi.mocked(probe.getProbeStatus).mockResolvedValue(paused)
+    return paused
+  })
+  vi.mocked(probe.excludeProbe).mockImplementation(async () => {
+    const excluded = { ...stopped, refusalReason: 'excluded' } as const
+    vi.mocked(probe.getProbeStatus).mockResolvedValue(excluded)
+    return excluded
+  })
 })
 async function ready() {
   render(<ProbePanel />)

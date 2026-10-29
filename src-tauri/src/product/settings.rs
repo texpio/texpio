@@ -72,6 +72,10 @@ impl Default for ProductSettings {
     }
 }
 impl ProductSettings {
+    pub fn validate_for_platform(&self, platform: &str) -> bool {
+        self.validate()
+            && (platform != "macos" || !matches!(self.cancel_key.as_str(), "Pause" | "ScrollLock"))
+    }
     pub fn validate(&self) -> bool {
         let shortcut = |value: &str| {
             !value.trim().is_empty()
@@ -102,6 +106,26 @@ impl ProductSettings {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn macos_rejects_unavailable_cancel_keys_before_persisting_settings() {
+        for key in ["Pause", "ScrollLock"] {
+            let settings = ProductSettings {
+                cancel_key: key.into(),
+                ..Default::default()
+            };
+            assert!(settings.validate_for_platform("windows"));
+            assert!(!settings.validate_for_platform("macos"));
+        }
+        for key in ["Escape", "F1", "F12"] {
+            assert!(
+                ProductSettings {
+                    cancel_key: key.into(),
+                    ..Default::default()
+                }
+                .validate_for_platform("macos")
+            );
+        }
+    }
     #[test]
     fn defaults_request_startup_with_explicit_paste_and_safe_cancel() {
         let settings = ProductSettings::default();
