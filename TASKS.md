@@ -278,6 +278,23 @@ See the [expansion controls acceptance record](docs/research/expansion-controls-
 
 See the [Tiptap acceptance record](docs/research/tiptap-rich-snippets-acceptance.md).
 
+## 19. Native expansion on macOS and Linux
+
+- [x] Inspect current Texpio product boundaries and pinned Ampello/Espanso source.
+- [x] Record the user's selection of a separate optional Wayland input helper
+  requiring one-time administrator setup.
+- [x] Complete independent design review and resolve clipboard ownership,
+  passive-event delivery and GNOME integration feasibility gaps.
+- [ ] Review and approve the [native expansion design](docs/superpowers/specs/2026-10-30-macos-linux-expansion-design.md).
+- [ ] Implement shared event-delivery accounting and native capability reporting
+  while preserving current Windows behavior.
+- [ ] Implement and qualify macOS, Linux X11 and Linux Wayland adapters.
+- [ ] Add and verify explicit x64/ARM64 native builds for all three OSes.
+
+Source presence, compilation and native interaction qualification remain separate
+evidence gates. The desktop app must remain unprivileged; Wayland helper setup
+does not establish compositor context, clipboard or layout support by itself.
+
 ## Future decisions and execution work
 
 - [ ] Check desired domains/app-store names and brand clearance before publishing.
