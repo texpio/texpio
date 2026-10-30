@@ -7,6 +7,8 @@
 # JavaScript and Tauri/Rust build output
 node_modules/
 dist/
+preview-artifacts/
+helper-packages/
 target/
 .vite/
 coverage/

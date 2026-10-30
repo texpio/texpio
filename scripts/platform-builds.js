@@ -79,6 +79,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         ...entry,
         args: buildArgs(entry),
         checkArgs: buildArgs(entry, false),
+        previewArgs: buildArgs(entry).replace('--bundles app,dmg', '--bundles app'),
         features:
           entry.variant === 'x11' || entry.variant === 'wayland'
             ? `--features linux-${entry.variant}`

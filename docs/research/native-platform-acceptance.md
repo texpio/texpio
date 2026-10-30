@@ -52,6 +52,10 @@ platform guards, portable startup assertions and X11 lint corrections; strict
 warning checks remain enabled. Current build results are recorded in GitHub
 Actions and do not establish interactive qualification.
 
+Subsequent CI preview runs package and upload all eight variants as separate
+14-day Actions artifacts. See [download and test instructions](../developer/testing-native-previews.md).
+The Wayland downloads include the separate helper and its qualification notes.
+
 ## Review corrections
 
 Independent source reviews identified and corrected completing-key deletion

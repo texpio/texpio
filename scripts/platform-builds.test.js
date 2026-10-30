@@ -1,6 +1,30 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { buildTargets, buildArgs, linuxUpdateManifest } from './platform-builds.js'
+import { execFileSync } from 'node:child_process'
+
+test('CI matrix builds downloadable packages for every native variant', () => {
+  const { include } = JSON.parse(
+    execFileSync(process.execPath, ['scripts/platform-builds.js', 'matrix'], {
+      encoding: 'utf8',
+      env: { ...process.env, GITHUB_OUTPUT: '' },
+    }),
+  )
+  assert.equal(include.length, 8)
+  for (const entry of include) {
+    assert.equal(typeof entry.previewArgs, 'string', `${entry.id} needs preview build arguments`)
+    assert.match(entry.previewArgs, new RegExp(`--target ${entry.target}`))
+    assert.match(entry.previewArgs, /-- --locked --no-default-features$/)
+    assert.doesNotMatch(entry.previewArgs, /--no-bundle/)
+    if (entry.variant === 'macos') assert.match(entry.previewArgs, /--bundles app /)
+    else if (entry.variant === 'windows') assert.match(entry.previewArgs, /--bundles nsis /)
+    else {
+      assert.match(entry.previewArgs, /--bundles appimage,deb /)
+      assert.match(entry.previewArgs, new RegExp(`--features linux-${entry.variant}`))
+      assert.match(entry.previewArgs, new RegExp(`tauri.linux-${entry.variant}.conf.json`))
+    }
+  }
+})
 
 test('release targets separate both Linux editions and all eight native variants', () => {
   assert.equal(buildTargets.length, 8)
