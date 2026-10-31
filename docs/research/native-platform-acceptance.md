@@ -104,7 +104,7 @@ automation or physical input campaign ran.
 
 Windows executable SHA-256:
 `5CBB66AE7CD1A6C6651EBBDE462BE255F2980F8C5686574430F484FEEE6D3B88`.
-The macOS configuration explicitly declares minimum system version 14.0; that
+The macOS configuration explicitly declares minimum system version 13.0; that
 JSON value was checked locally, not established by a macOS build.
 
 macOS framework metadata checking and the Windows X11 API harness are source-shape

@@ -47,7 +47,7 @@ confirm the publisher before installation. It requires Microsoft WebView2.
 `
   if (entry.variant === 'macos')
     return `${opening}
-## macOS 14 or later
+## macOS 13 or later
 
 Extract ${packages[0]} to restore Texpio.app, then move the app to Applications.
 Do not run the bare file inside Contents/MacOS. The app uses ad-hoc signing and
