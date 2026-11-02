@@ -5,6 +5,7 @@ describe('native platform capability boundary', () => {
   const valid = {
     backend: 'linuxWayland',
     readiness: 'helperRequired',
+    permissions: { accessibility: true, listen: true, post: true },
     clipboardShortcut: false,
     autostart: true,
     richText: false,
@@ -19,6 +20,9 @@ describe('native platform capability boundary', () => {
       { readiness: 'probablyReady' },
       { autostart: 'yes' },
       { clipboardShortcut: null },
+      { permissions: null },
+      { permissions: { accessibility: true, listen: 'yes', post: true } },
+      { permissions: { accessibility: true, listen: true } },
     ]) {
       expect(() => parseProductCapabilities({ ...valid, ...patch })).toThrow()
     }

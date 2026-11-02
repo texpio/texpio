@@ -4,6 +4,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { ExpansionSettings } from './ExpansionSettings'
 const native = vi.hoisted(() => ({ load: vi.fn(), save: vi.fn() }))
+const currentPlatform = vi.hoisted(() => ({ value: 'unknown' }))
+vi.mock('@/hooks/use-platform', () => ({ usePlatform: () => currentPlatform.value }))
+vi.mock('@/services/product-platform', () => ({
+  getProductCapabilities: () => Promise.reject(new Error('unavailable')),
+  requestProductPermissions: () => Promise.reject(new Error('unavailable')),
+  openPermissionSettings: () => Promise.reject(new Error('unavailable')),
+}))
 vi.mock('@/services/product', () => ({
   loadProductSettings: native.load,
   saveProductSettings: native.save,
@@ -27,6 +34,7 @@ const settings = {
   attachmentDelayMs: 500,
 }
 beforeEach(() => {
+  currentPlatform.value = 'unknown'
   native.load.mockResolvedValue(settings)
   native.save.mockImplementation(async (input) => input)
 })
@@ -121,6 +129,41 @@ it('keeps immediate activation and its disabled terminator control when a save f
   expect(await screen.findByRole('alert')).toBeVisible()
   expect(activation).toHaveValue('immediate')
   expect(screen.getByRole('switch', { name: 'Keep the terminating character' })).toBeDisabled()
+})
+it('does not offer macOS clipboard restoration while insertion uses paste', async () => {
+  currentPlatform.value = 'macos'
+  native.load.mockResolvedValue({ ...settings, insertion: 'paste', restoreClipboard: false })
+  show()
+  const restore = await screen.findByRole('switch', {
+    name: 'Restore the clipboard after expansion',
+  })
+  await waitFor(() => expect(screen.getByLabelText('Insertion method')).toBeEnabled())
+  expect(restore).toBeDisabled()
+  expect(restore).not.toBeChecked()
+  expect(restore).toHaveAccessibleDescription(/cannot put it back/)
+  await userEvent.selectOptions(screen.getByLabelText('Insertion method'), 'type')
+  await waitFor(() =>
+    expect(native.save).toHaveBeenLastCalledWith({
+      ...settings,
+      insertion: 'type',
+      restoreClipboard: false,
+    }),
+  )
+  await waitFor(() => expect(restore).toBeEnabled())
+})
+it('clears macOS clipboard restoration when insertion switches back to paste', async () => {
+  currentPlatform.value = 'macos'
+  native.load.mockResolvedValue({ ...settings, insertion: 'type', restoreClipboard: true })
+  show()
+  await waitFor(() => expect(screen.getByLabelText('Insertion method')).toBeEnabled())
+  await userEvent.selectOptions(screen.getByLabelText('Insertion method'), 'paste')
+  await waitFor(() =>
+    expect(native.save).toHaveBeenLastCalledWith({
+      ...settings,
+      insertion: 'paste',
+      restoreClipboard: false,
+    }),
+  )
 })
 it('requires opting in to remote keyboard compatibility and retains other native settings', async () => {
   show()

@@ -82,6 +82,8 @@ export function ExpansionSettings({
   })
   const disabled = !query.data || query.isError || save.isPending
   const terminatorDisabled = disabled || query.data?.activation !== 'terminator'
+  // macOS paste replaces the pasteboard without a way to put the old contents back.
+  const restoreBlocked = platform === 'macos' && (query.data?.insertion ?? 'paste') === 'paste'
   function update(patch: Partial<ProductSettings>) {
     if (query.data) save.mutate({ ...query.data, ...patch })
   }
@@ -163,7 +165,12 @@ export function ExpansionSettings({
               aria-describedby={`expansion-${field.name}-description${field.name === 'activation' ? ' expansion-activation-help' : ''}`}
               disabled={disabled || (field.name === 'clipboardMode' && clipboardUnsupported)}
               value={query.data?.[field.name] ?? field.values[0]}
-              onChange={(event) => update({ [field.name]: event.target.value })}
+              onChange={(event) => {
+                const next = event.target.value
+                if (field.name === 'insertion' && next === 'paste' && platform === 'macos')
+                  update({ insertion: 'paste', restoreClipboard: false })
+                else update({ [field.name]: next })
+              }}
             >
               {field.values.map((value) => (
                 <NativeSelectOption
@@ -192,10 +199,18 @@ export function ExpansionSettings({
                 ? 'product.platform.autostart'
                 : `product.field.${name}`,
             )}
-            description={t(`product.description.${name}`)}
+            description={t(
+              name === 'restoreClipboard' && restoreBlocked
+                ? 'product.description.restoreClipboardBlocked'
+                : `product.description.${name}`,
+            )}
             descriptionId={`expansion-${name}-description`}
             compact
-            disabled={name === 'preserveTerminator' ? terminatorDisabled : disabled}
+            disabled={
+              name === 'preserveTerminator'
+                ? terminatorDisabled
+                : disabled || (name === 'restoreClipboard' && restoreBlocked)
+            }
           >
             <Switch
               id={`expansion-${name}`}
@@ -203,16 +218,20 @@ export function ExpansionSettings({
               checked={
                 name === 'clipboardEnabled' && clipboardUnsupported
                   ? false
-                  : (query.data?.[name] ??
-                    (name === 'preserveTerminator' ||
-                      name === 'restoreClipboard' ||
-                      name === 'clipboardEnabled' ||
-                      name === 'closeToTray'))
+                  : name === 'restoreClipboard' && restoreBlocked
+                    ? false
+                    : (query.data?.[name] ??
+                      (name === 'preserveTerminator' ||
+                        name === 'restoreClipboard' ||
+                        name === 'clipboardEnabled' ||
+                        name === 'closeToTray'))
               }
               disabled={
                 name === 'preserveTerminator'
                   ? terminatorDisabled
-                  : disabled || (name === 'clipboardEnabled' && clipboardUnsupported)
+                  : disabled ||
+                    (name === 'clipboardEnabled' && clipboardUnsupported) ||
+                    (name === 'restoreClipboard' && restoreBlocked)
               }
               onCheckedChange={(value) => update({ [name]: value })}
             />

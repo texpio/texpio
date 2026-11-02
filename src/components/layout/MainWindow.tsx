@@ -17,6 +17,7 @@ import { useMainWindowEventListeners } from '@/hooks/useMainWindowEventListeners
 import { LeftSideBar } from './LeftSideBar'
 import { ExpansionProvider } from '@/features/expansion/ExpansionProvider'
 import { ExpansionNotice } from '@/features/expansion/ExpansionNotice'
+import { NativePermissionPrompt } from '@/components/permissions/NativePermissionPrompt'
 
 export function MainWindow() {
   return (
@@ -47,6 +48,7 @@ function MainWindowLayout() {
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--app-corner-radius)] bg-background text-foreground">
       <TitleBar />
       <ExpansionNotice />
+      <NativePermissionPrompt />
       {error && (
         <Alert variant="destructive">
           <AlertTitle>{t('shell.preferencesError')}</AlertTitle>

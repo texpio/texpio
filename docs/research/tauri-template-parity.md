@@ -31,7 +31,7 @@ Paths below refer to the pinned upstream source.
 | Error boundary             | Fallback/retry/reload and emergency diagnostic save                                               | Port with accurate saved-diagnostics wording                                  | verified — actual-save feedback and safe restart tests; native rendering/restart pending |
 | Recovery API               | Bounded JSON save/load/cleanup; filename validation                                               | Port API and privacy boundary; no unsaved-editor recovery claim               | verified — bounded/path-safe atomic commands and failure tests; crash metadata only |
 | Window state               | Position/size/state plugin; quick pane denylisted                                                 | Port while retaining close-to-tray and usable startup restore                 | implemented, native check pending — size/position/maximized/fullscreen only; quick pane/visibility excluded |
-| Platform title bars        | Windows controls; macOS traffic lights/vibrancy; Linux native toolbar                             | Port branches; Windows first, other native acceptance pending                 | implemented, native check pending — platform configs/components; macOS/Linux runtime unverified |
+| Platform title bars        | Windows controls; macOS traffic lights/vibrancy; Linux native toolbar                             | Port branches; Windows first, other native acceptance pending                 | implemented, native check pending — macOS window rendered on 13.7.8 x64; Linux runtime unverified |
 | Typed commands             | tauri-specta command collection and generated TypeScript                                          | Port, including Texpio metadata/probe DTOs; retain runtime validation         | verified — Specta exporter plus validating typed facades and existing probe boundary tests |
 | React Compiler             | Production Vite compiler integration                                                              | Port using supported Vite 8 API in app/tests                                  | verified — Babel/Rolldown configuration; both production entries build |
 | UI state                   | Zustand selectors                                                                                 | Port store; keep transient native target/input exclusively Rust-owned         | verified — Zustand selectors and layout-only persistence tests; no native tokens/typed input |
@@ -54,7 +54,7 @@ Paths below refer to the pinned upstream source.
 | Bundle analysis        | Build plus printed hint, not an analyzer                             | Preserve meaningful build/size report; label actual capabilities                             | verified — build plus emitted asset byte report; no interactive treemap/performance claim |
 | Task helpers           | Complete/rename task documents                                       | Adapt to canonical `TASKS.md` and docs; no automatic completion claims                       | verified — exact/unique task selection, traversal/junction/collision refusal, archive normalization tests |
 | Release helper         | Version writes and optional commit/tag/push                          | Separate preparation from explicit publishing; no accidental push                            | verified — stable local version preparation/dry-run; no subprocess/signing/Git publication API |
-| Release workflow       | Three OS targets; draft releases/updater artifacts; floating actions | Adapt, pin actions/toolchains; signing/feed configuration still required                     | configured, external setup pending — three OS/manual opt-in/draft-only, pinned actions, real signing/feed gates; not dispatched |
+| Release workflow       | Three OS targets; draft releases/updater artifacts; floating actions | Adapt, pin actions/toolchains; signing/feed configuration still required                     | configured, external setup pending — 64-bit RustDesk-style artifacts (NSIS+MSI, universal DMG, deb+AppImage); manual opt-in/draft-only, pinned actions, real signing/feed gates; not dispatched |
 | Developer docs         | 24 guides plus docs index/setup/security/contributing/user guide     | Import/adapt; preserve existing Texpio plans and evidence                                    | verified — 30/30 source topics adapted; 101 local links resolve; existing product plans preserved |
 | Editor/review config   | VS Code recommendations/settings, Cursor ignore, CodeRabbit config   | Adapt useful settings; external review services remain opt-in                                | verified — workspace settings, maintained recommendations, Cursor ignores; external automatic review disabled |
 | Upstream license       | MIT, copyright 2025 Tauri Template Contributors                      | Retain complete notice and source revision; do not silently license all original Texpio code | verified — complete MIT notice and pinned source attribution; original product license undecided |
@@ -99,6 +99,40 @@ Final automated evidence after fixes: full checks passed 118 frontend/77 Rust/11
 
 Cleanup reports were inspected: Knip returned exit 1 for retained reusable UI/tooling dependencies, helpers and configuration hints; jscpd returned exit 0 for intentional refusal-mapping/root-callback patterns. These reports did not trigger automatic deletion. Frozen installation completed without lock changes.
 
+## macOS runtime record — 1 November 2026
+
+The macOS runtime is no longer entirely unexecuted. On an Intel host running macOS
+13.7.8 the release bundle built with `--bundles app --locked --no-default-features`
+and launched; the window, library and Preferences shell rendered. Two adapter
+defects that prevented any expansion on this host were fixed and re-observed:
+
+- the US/ABC-only input-source allowlist refused `com.apple.keylayout.ABC-India`
+  and reported `unavailable`; the gate now accepts ASCII-capable keyboard layouts
+  and derives characters with `UCKeyTranslate` plus dead-key state;
+- the default Paste + clipboard-restoration pair is refused by design, so every
+  start failed; the settings store now clears restoration for macOS Paste, the
+  switch is disabled with an explanation, and startup reports `invalidSettings`.
+
+A non-fullscreen in-app permission prompt (plus the matching Settings card) now
+lists the missing grant with a deep link; the link was observed opening System
+Settings on the Accessibility pane. Windows-specific error copy in the banner was
+replaced with platform-neutral text.
+
+The permission gate now requires Accessibility only. The Input Monitoring pane was
+empty on this host, while an Accessibility-trusted probe reported listen and post
+access as true and created working HID and session event taps; the same probe in a
+fresh, untrusted bundle reported both false and had both taps denied. Input
+Monitoring is the grant macOS uses for processes that are *not* Accessibility
+trusted, so it is reported for diagnosis and shown only when listening is still
+withheld.
+
+Remaining macOS gaps are recorded in the
+[native acceptance record](native-platform-acceptance.md): no grant was issued, so
+recognition, insertion, context evidence in a real editor, Unicode/newlines,
+clipboard races, shutdown and ARM64 are unexecuted, and packaging/signing is
+unverified. Task8 native acceptance therefore remains open; this section records
+partial runtime evidence only.
+
 ## Independent review and fixes
 
 A read-only gpt-6-astra review covered `c7b4038..71a6425` across the complete migration, including the five Review Focus classes. It found no Critical issues, one Important cancellation race, and two Minor items. The cancellation fix has six RED-to-GREEN deferred-promise regressions covering blur/Escape, late success/failure, reopening and a newer pending submission. Canceled UI text cannot be restored by stale continuations; an emission already submitted by Enter cannot be retracted from the event bus.
@@ -121,6 +155,7 @@ These are the complete execution rulings, in decision order. The two deferred mi
 | Let the native shortcut worker own its persisted field; appearance saves patch only their fields and reread | Prevent concurrent appearance changes from bypassing registration or overwriting a binding | Shortcut changes require their dedicated command; appearance saves add one IPC read |
 | Keep detailed Windows native acceptance open | Review and automated checks cannot establish actual focus/chrome/DPI/conflicts/tray/second-instance or packaged delivery | Native interaction defects may remain; basic opening confirmation covers only the shell and launchers |
 | Keep macOS/Linux runtime and packaging unverified | They were not executed on this Windows host | Target-specific compilation or interaction defects may remain |
+| Record macOS runtime evidence without closing the native gate | A macOS 13.7.8 x64 build, launch, permission UI and deep links were observed on 1 November 2026 | No grant was issued, so expansion itself, packaging and ARM64 remain unverified |
 | Keep signed delivery and publication behind external setup gates | No real signing/feed/secrets/environment protection acceptance or release dispatch | Updates remain unavailable until setup and end-to-end qualification |
 | Keep P0 physical/layout/provider/clipboard/picker qualification separate | No insertion strategy passed its evidence gate; 0/300 physical trials and clipboard disabled | The foundation is not yet qualified for everyday text expansion |
 

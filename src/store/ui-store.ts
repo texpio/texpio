@@ -32,6 +32,8 @@ interface UIState {
   libraryFolder: string
   commandPaletteOpen: boolean
   updateDialogOpen: boolean
+  permissionPromptDismissed: boolean
+  dismissPermissionPrompt: () => void
   setSidebarVisible: (visible: boolean) => void
   setSidebarWidth: (percent: number) => void
   setSnippetListWidth: (percent: number) => void
@@ -58,6 +60,8 @@ export function createUIStore(storage?: StoragePort) {
     libraryFolder: 'all',
     commandPaletteOpen: false,
     updateDialogOpen: false,
+    permissionPromptDismissed: false,
+    dismissPermissionPrompt: () => set({ permissionPromptDismissed: true }),
     setSidebarVisible: (leftVisible) =>
       set((state) =>
         state.layout.leftVisible === leftVisible

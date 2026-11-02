@@ -1,34 +1,35 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { usePlatform } from '@/hooks/use-platform'
-import { getProductCapabilities, requestProductPermissions } from '@/services/product-platform'
+import { useNativePermissions } from '@/hooks/use-native-permissions'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { NativePermissionGuide } from './NativePermissionGuide'
 
-const key = ['product-capabilities'] as const
 export function NativeExpansionStatus() {
   const { t } = useTranslation()
   const platform = usePlatform()
-  const client = useQueryClient()
-  const query = useQuery({
-    queryKey: key,
-    queryFn: getProductCapabilities,
-    enabled: platform === 'macos' || platform === 'linux',
-    retry: false,
-    staleTime: 5000,
-  })
-  const permission = useMutation({
-    mutationFn: requestProductPermissions,
-    onSuccess: (value) => client.setQueryData(key, value),
-  })
+  const guide = useNativePermissions(platform === 'macos' || platform === 'linux')
   if (platform !== 'macos' && platform !== 'linux') return null
-  const state = query.isError || permission.isError ? 'unavailable' : query.data?.readiness
+  const state = guide.unavailable ? 'unavailable' : guide.capabilities?.readiness
   if (!state) return null
+  if (platform === 'macos' && state === 'permissionRequired' && guide.capabilities) {
+    return (
+      <NativePermissionGuide
+        permissions={guide.capabilities.permissions}
+        busy={guide.busy}
+        checking={guide.checking}
+        openFailed={guide.openFailed}
+        onRequest={guide.request}
+        onOpen={guide.open}
+        onRecheck={guide.recheck}
+      />
+    )
+  }
   return (
     <Alert>
       <AlertTitle>{t('product.platform.title')}</AlertTitle>
       <AlertDescription className="flex flex-col gap-2">
-        {query.data && <p>{t(`product.platform.${query.data.backend}`)}</p>}
+        {guide.capabilities && <p>{t(`product.platform.${guide.capabilities.backend}`)}</p>}
         <p>{t(`product.platform.${state}`)}</p>
         <div className="flex flex-wrap gap-2">
           {state === 'permissionRequired' && (
@@ -36,8 +37,8 @@ export function NativeExpansionStatus() {
               type="button"
               size="sm"
               variant="outline"
-              disabled={permission.isPending}
-              onClick={() => permission.mutate()}
+              disabled={guide.busy}
+              onClick={guide.request}
             >
               {t('product.platform.permissions')}
             </Button>
@@ -46,8 +47,8 @@ export function NativeExpansionStatus() {
             type="button"
             size="sm"
             variant="outline"
-            disabled={query.isFetching}
-            onClick={() => void query.refetch()}
+            disabled={guide.checking}
+            onClick={guide.recheck}
           >
             {t('product.platform.recheck')}
           </Button>

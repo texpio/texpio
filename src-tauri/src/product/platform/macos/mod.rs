@@ -36,12 +36,81 @@ pub(crate) fn readiness() -> Result<(), ProductError> {
     if !permission_state().ready() || unsafe { IsSecureEventInputEnabled() } {
         return Err(ProductError::InputBlocked);
     }
-    let source =
-        owned(unsafe { TISCopyCurrentKeyboardInputSource() }).ok_or(ProductError::Unavailable)?;
-    match text(unsafe { TISGetInputSourceProperty(source.0, kTISPropertyInputSourceID) }).as_deref()
-    {
-        Some("com.apple.keylayout.US" | "com.apple.keylayout.ABC") => Ok(()),
-        _ => Err(ProductError::Unavailable),
+    layout().map(drop).ok_or(ProductError::Unavailable)
+}
+/// The active input source must be an ASCII-capable keyboard layout, and its
+/// `UCKeyboardLayout` data must be readable. Input methods and layouts that
+/// cannot produce the ASCII triggers this profile accepts are refused here.
+fn layout() -> Option<(String, Arc<Owned>)> {
+    unsafe {
+        let source = owned(TISCopyCurrentKeyboardInputSource())?;
+        let id = text(TISGetInputSourceProperty(
+            source.0,
+            kTISPropertyInputSourceID,
+        ))?;
+        let kind = TISGetInputSourceProperty(source.0, kTISPropertyInputSourceType);
+        let ascii = TISGetInputSourceProperty(source.0, kTISPropertyInputSourceIsASCIICapable);
+        let is_keyboard_layout = !kind.is_null() && CFEqual(kind, kTISTypeKeyboardLayout);
+        let ascii_capable = !ascii.is_null()
+            && CFGetTypeID(ascii) == CFBooleanGetTypeID()
+            && CFBooleanGetValue(ascii);
+        if !policy::layout_supported(is_keyboard_layout, ascii_capable) {
+            return None;
+        }
+        let data = TISGetInputSourceProperty(source.0, kTISPropertyUnicodeKeyLayoutData);
+        if data.is_null()
+            || CFGetTypeID(data) != CFDataGetTypeID()
+            || CFDataGetBytePtr(data).is_null()
+        {
+            return None;
+        }
+        Some((id, Arc::new(source)))
+    }
+}
+/// Convert one physical keydown with the current layout, carrying dead-key state
+/// so a layout that composes accents cannot desynchronize history from the field.
+fn translate(source: &Owned, code: u16, flags: u64, dead: &mut u32) -> Option<String> {
+    const SHIFT: u64 = 1 << 17;
+    const ALPHA_LOCK: u64 = 1 << 16;
+    const CARBON_SHIFT: u32 = 0x0200;
+    const CARBON_ALPHA_LOCK: u32 = 0x0400;
+    let mut modifiers = 0;
+    if flags & SHIFT != 0 {
+        modifiers |= CARBON_SHIFT;
+    }
+    if flags & ALPHA_LOCK != 0 {
+        modifiers |= CARBON_ALPHA_LOCK;
+    }
+    unsafe {
+        let data = TISGetInputSourceProperty(source.0, kTISPropertyUnicodeKeyLayoutData);
+        if data.is_null() || CFGetTypeID(data) != CFDataGetTypeID() {
+            *dead = 0;
+            return None;
+        }
+        let layout = CFDataGetBytePtr(data);
+        if layout.is_null() {
+            *dead = 0;
+            return None;
+        }
+        let mut buffer = [0u16; 8];
+        let mut length = 0;
+        let status = UCKeyTranslate(
+            layout.cast(),
+            code,
+            0, // kUCKeyActionDown
+            modifiers,
+            u32::from(LMGetKbdType()),
+            0, // dead keys enabled: the returned state reports composition
+            dead,
+            buffer.len(),
+            &mut length,
+            buffer.as_mut_ptr(),
+        );
+        if status != 0 || length == 0 || length > buffer.len() {
+            *dead = 0;
+            return None;
+        }
+        String::from_utf16(&buffer[..length]).ok()
     }
 }
 /// Called only from the user's explicit Settings permission action.
@@ -56,8 +125,17 @@ pub(crate) fn request_permissions() -> PermissionState {
             kAXTrustedCheckOptionPrompt,
         );
         AXIsProcessTrustedWithOptions(options);
-        CGRequestListenEventAccess();
-        CGRequestPostEventAccess();
+        // Accessibility trust normally satisfies listening and posting as well.
+        // Ask for those only when macOS still withholds them from a trusted
+        // process, so the Input Monitoring pane is not populated needlessly.
+        if AXIsProcessTrusted() {
+            if !CGPreflightListenEventAccess() {
+                CGRequestListenEventAccess();
+            }
+            if !CGPreflightPostEventAccess() {
+                CGRequestPostEventAccess();
+            }
+        }
     }
     permission_state()
 }
@@ -66,6 +144,7 @@ struct Target {
     pid: i32,
     field: Arc<Owned>,
     source: String,
+    layout: Arc<Owned>,
     multiline: bool,
 }
 impl Target {
@@ -81,18 +160,7 @@ fn target() -> Option<Target> {
         if IsSecureEventInputEnabled() || !permission_state().ready() {
             return None;
         }
-        let source = owned(TISCopyCurrentKeyboardInputSource())?;
-        let source = text(TISGetInputSourceProperty(
-            source.0,
-            kTISPropertyInputSourceID,
-        ))?;
-        // No transliteration/IME or dead-key layout is inferred from a keycode.
-        if !matches!(
-            source.as_str(),
-            "com.apple.keylayout.US" | "com.apple.keylayout.ABC"
-        ) {
-            return None;
-        }
+        let (source, layout) = layout()?;
         let system = owned(AXUIElementCreateSystemWide())?;
         if AXUIElementSetMessagingTimeout(system.0, 0.025) != 0 {
             return None;
@@ -112,9 +180,7 @@ fn target() -> Option<Target> {
         let role = attribute(field.0, "AXRole").and_then(|v| text(v.0))?;
         let subrole = attribute(field.0, "AXSubrole").and_then(|v| text(v.0));
         let marked = attribute(field.0, "AXMarkedText").and_then(|value| text(value.0));
-        if !matches!(role.as_str(), "AXTextField" | "AXTextArea")
-            || !policy::context_evidence_safe(subrole.as_deref(), marked.as_deref())
-        {
+        if !policy::context_evidence_safe(&role, subrole.as_deref(), marked.as_deref()) {
             return None;
         }
         // Require a normal editable text control, rather than a window identity alone.
@@ -150,6 +216,7 @@ fn target() -> Option<Target> {
             pid,
             field: Arc::new(field),
             source,
+            layout,
             multiline: role == "AXTextArea",
         })
     }
@@ -176,6 +243,14 @@ struct Capture {
     allow_software: bool,
     paste: bool,
     restore: bool,
+    dead: u32,
+}
+impl Capture {
+    /// History only mirrors the field while one keydown equals one character.
+    fn reset(&mut self) {
+        self.history.reset();
+        self.dead = 0;
+    }
 }
 fn cancel_code(value: &str) -> Option<u16> {
     match value {
@@ -205,7 +280,7 @@ unsafe extern "C" fn callback(_: Ref, kind: u32, event: Event, user: Ref) -> Eve
 unsafe fn capture(kind: u32, event: Event, context: &mut Capture) -> Event {
     unsafe {
         if kind == 0xffff_fffe || kind == 0xffff_ffff {
-            context.history.reset();
+            context.reset();
             context.shared.generation.fetch_add(1, Ordering::SeqCst);
             context.shared.active.store(false, Ordering::SeqCst);
             if let Ok(mut status) = context.shared.status.try_lock() {
@@ -218,42 +293,44 @@ unsafe fn capture(kind: u32, event: Event, context: &mut Capture) -> Event {
             return event;
         }
         if !context.shared.active.load(Ordering::SeqCst) {
-            context.history.reset();
+            context.reset();
             return event;
         }
         let generation = context.shared.generation.load(Ordering::SeqCst);
         if context.generation != generation {
-            context.history.reset();
+            context.reset();
             context.generation = generation;
         }
         if kind != 10 {
             if kind != 11 && kind != 12 {
-                context.history.reset();
+                context.reset();
                 context.shared.generation.fetch_add(1, Ordering::SeqCst);
             }
             return event;
         }
         let code = CGEventGetIntegerValueField(event, 9) as u16;
         if code == context.cancel || context.shared.busy.load(Ordering::SeqCst) {
-            context.history.reset();
+            context.reset();
             context.shared.generation.fetch_add(1, Ordering::SeqCst);
             return event;
         }
         if CGEventGetFlags(event) & ((1 << 18) | (1 << 19) | (1 << 20)) != 0
             || (!context.allow_software && CGEventGetIntegerValueField(event, 41) != 0)
         {
-            context.history.reset();
+            context.reset();
             return event;
         }
         let snapshot = match context.snapshot.try_lock() {
             Ok(value) => value,
             Err(_) => {
                 context.history.reset();
+                context.dead = 0;
                 return event;
             }
         };
         if snapshot.epoch != context.epoch {
             context.history.reset();
+            context.dead = 0;
             context.epoch = snapshot.epoch;
         }
         let Some(target) = snapshot
@@ -263,35 +340,40 @@ unsafe fn capture(kind: u32, event: Event, context: &mut Capture) -> Event {
             .cloned()
         else {
             context.history.reset();
+            context.dead = 0;
             return event;
         };
         drop(snapshot);
         let event_pid = CGEventGetIntegerValueField(event, 40);
         if event_pid > 0 && event_pid != i64::from(target.pid) {
-            context.history.reset();
+            context.reset();
             return event;
         }
         let expansion = if code == 51 {
+            context.dead = 0;
             context.history.backspace()
         } else {
             // Return/Tab are deliberately excluded from the initial native profile.
             if matches!(code, 36 | 48 | 76) {
-                context.history.reset();
+                context.reset();
                 return event;
             }
-            let mut utf16 = [0; 8];
-            let mut count = 0;
-            CGEventKeyboardGetUnicodeString(event, utf16.len(), &mut count, utf16.as_mut_ptr());
-            let character = (count <= utf16.len())
-                .then(|| String::from_utf16(&utf16[..count]).ok())
-                .flatten()
-                .and_then(|text| {
-                    let mut chars = text.chars();
-                    let ch = chars.next()?;
-                    chars.next().is_none().then_some(ch)
-                });
-            let Some(character) = character.filter(|ch| ch.is_ascii() && !ch.is_control()) else {
-                context.history.reset();
+            // A dead-key press, or the keystroke that completes one, delivers
+            // fewer characters than keys. History cannot track that, so both
+            // refuse rather than desynchronizing the deletion count.
+            let composing = context.dead != 0;
+            let character = translate(
+                &target.layout,
+                code,
+                CGEventGetFlags(event),
+                &mut context.dead,
+            );
+            if composing || context.dead != 0 {
+                context.reset();
+                return event;
+            }
+            let Some(character) = character.as_deref().and_then(policy::accepted_scalar) else {
+                context.reset();
                 return event;
             };
             context.history.push(character)
@@ -305,7 +387,7 @@ unsafe fn capture(kind: u32, event: Event, context: &mut Capture) -> Event {
             context.paste,
             context.restore,
         ) {
-            context.history.reset();
+            context.reset();
             return event;
         }
         let accepted = policy::admit(
@@ -338,7 +420,7 @@ impl Runtime {
             settings.insertion == InsertionMode::Paste,
             settings.restore_clipboard,
         ) {
-            return Err(ProductError::Unavailable);
+            return Err(ProductError::InvalidSettings);
         }
         readiness()?;
         let cancel = cancel_code(&settings.cancel_key).ok_or(ProductError::InvalidSettings)?;
@@ -454,6 +536,7 @@ fn run(
         allow_software: settings.allow_software_input,
         paste: settings.insertion == InsertionMode::Paste,
         restore: settings.restore_clipboard,
+        dead: 0,
     });
     let mask = [1u32, 3, 5, 10, 11, 12, 22, 25, 26, 27]
         .into_iter()

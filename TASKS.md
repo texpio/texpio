@@ -290,8 +290,11 @@ See the [Tiptap acceptance record](docs/research/tiptap-rich-snippets-acceptance
   while preserving current Windows behavior.
 - [x] Implement native adapter source previews, separate Wayland helper/GNOME
   bridge, broker-backed worker authentication and strict unsupported-field refusal.
-- [x] Prepare eight CI/release targets with separate X11/Wayland Linux downloads
-  and updater manifests on x64 and ARM64.
+- [x] Prepare eight CI check/preview targets with separate X11/Wayland Linux
+  downloads and updater manifests on x64 and ARM64.
+- [x] Prepare a RustDesk-style draft-release matrix, 64-bit only: Windows NSIS
+  `.exe` plus MSI `.msi` on x64/ARM64, one universal macOS `.dmg`, and Ubuntu
+  `.deb`/`.AppImage` per desktop-session edition on x64/ARM64.
 - [ ] Implement and qualify macOS, Linux X11 and Linux Wayland adapters.
 - [ ] Add and verify explicit x64/ARM64 native builds for all three OSes.
 
@@ -302,6 +305,16 @@ The user selected CI preparation with native testing deferred, and explicitly
 retained strict checks with unsupported fields disabled. See the
 [native acceptance record](docs/research/native-platform-acceptance.md) for
 functional provider gaps and observed verification.
+
+macOS progress on 1 November 2026 is partial: a macOS 13.7.8 x64 build launched,
+the adapter now accepts ASCII-capable keyboard layouts (including the host's
+`ABC-India`) and derives characters with `UCKeyTranslate`, and a non-fullscreen
+in-app permission prompt with a working System Settings deep link was observed.
+Readiness now requires Accessibility only: on this host the Input Monitoring pane
+was empty while an Accessibility-trusted probe had listen and post access and
+working event taps, and an untrusted copy of the same probe had neither. No TCC
+grant has been issued to Texpio yet, so expansion itself, packaging and ARM64
+remain unverified and the qualification item stays open.
 
 ## Future decisions and execution work
 

@@ -2,17 +2,23 @@ import { TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { useIsMacOS } from '@/hooks/use-platform'
+import { useUIStore } from '@/store/ui-store'
 import { useExpansion } from './use-expansion'
 
 export function ExpansionNotice() {
   const { t } = useTranslation()
   const engine = useExpansion()
+  const macos = useIsMacOS()
   const { status, error } = engine
   const phase = status.data?.phase
   const unavailable = status.isError
   const off = !unavailable && (phase === 'paused' || phase === 'stopped')
   const fault = !unavailable && phase === 'fault'
   const reason = error ?? status.data?.lastError
+  // Starting cannot succeed until macOS grants input access, so route the user
+  // to the in-app permission guide instead of offering a doomed retry.
+  const permissionsMissing = macos && reason === 'inputBlocked'
   if (
     !engine.desktop ||
     (!unavailable && !off && !fault && !reason && !status.data?.clipboardIncomplete)
@@ -53,6 +59,18 @@ export function ExpansionNotice() {
             onClick={engine.retry}
           >
             {t('common.retry')}
+          </Button>
+        ) : permissionsMissing ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const state = useUIStore.getState()
+              state.setPreferencesSection('expansion')
+              state.setActiveView('preferences')
+            }}
+          >
+            {t('product.permissions.review')}
           </Button>
         ) : fault ? (
           <Button

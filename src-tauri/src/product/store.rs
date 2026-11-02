@@ -17,14 +17,15 @@ impl SettingsStore {
         self.read()
     }
     fn read(&self) -> Result<ProductSettings, ProductError> {
-        match crate::utils::storage::read_json::<ProductSettings>(
+        let settings = match crate::utils::storage::read_json::<ProductSettings>(
             &self.root.join("expansion-settings.json"),
             65_536,
         ) {
-            Err(crate::types::ServiceError::NotFound) => Ok(ProductSettings::default()),
-            Ok(settings) if settings.validate() => Ok(settings),
-            _ => Err(ProductError::Unavailable),
-        }
+            Err(crate::types::ServiceError::NotFound) => ProductSettings::default(),
+            Ok(settings) if settings.validate() => settings,
+            _ => return Err(ProductError::Unavailable),
+        };
+        Ok(sanitize(settings))
     }
     pub fn save(&self, settings: &ProductSettings) -> Result<(), ProductError> {
         if !settings.validate() {
@@ -40,9 +41,31 @@ impl SettingsStore {
         .map_err(|_| ProductError::Unavailable)
     }
 }
+/// macOS paste cannot restore the previous clipboard, so a stored paste+restore
+/// pair would make every expansion start fail. Repair it when loading.
+fn sanitize(mut settings: ProductSettings) -> ProductSettings {
+    #[cfg(target_os = "macos")]
+    if settings.insertion == super::settings::InsertionMode::Paste {
+        settings.restore_clipboard = false;
+    }
+    settings
+}
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn paste_mode_never_keeps_clipboard_restoration_where_the_pasteboard_cannot_be_restored() {
+        use crate::product::settings::InsertionMode;
+        let settings = sanitize(ProductSettings {
+            insertion: InsertionMode::Paste,
+            restore_clipboard: true,
+            ..Default::default()
+        });
+        #[cfg(target_os = "macos")]
+        assert!(!settings.restore_clipboard);
+        #[cfg(not(target_os = "macos"))]
+        assert!(settings.restore_clipboard);
+    }
     #[test]
     fn desktop_settings_survive_independent_appearance_saves() {
         let root = tempfile::tempdir().unwrap();
@@ -51,6 +74,7 @@ mod tests {
             autostart: true,
             close_to_tray: false,
             toggle_shortcut: "Ctrl+Alt+T".into(),
+            insertion: crate::product::settings::InsertionMode::Type,
             ..Default::default()
         };
         store.save(&settings).unwrap();

@@ -6,8 +6,12 @@ Update adapters/UI exist, but no active feed/key is configured and startup does 
 
 The three-OS workflow is manual, opt-in and environment gated. It checks explicit version/commit agreement and real updater/signing setup. Windows/macOS need platform certificate/notarization configuration. Normal pushes create no release. Workflow output is draft-only; publication remains separate.
 
-The shared target matrix now builds eight variants: Windows/macOS x64 and ARM64,
-and separate Linux X11/Wayland editions on both architectures. Linux downloads
+The shared target matrix now builds eight check/preview variants: Windows/macOS
+x64 and ARM64, and separate Linux X11/Wayland editions on both architectures.
+Draft releases use a RustDesk-style download matrix instead: 64-bit only, with a
+Windows NSIS `.exe` **and** MSI `.msi` for x64 and ARM64, one universal macOS
+`.dmg` (x86_64 + arm64), and Ubuntu `.deb`/`.AppImage` packages for both Linux
+editions on x64 and ARM64. No 32-bit or ARMv7 artifact is built. Linux downloads
 have distinct product names and `latest-linux-x11.json` /
 `latest-linux-wayland.json` feeds; do not combine their identical updater platform
 keys in one manifest. Native configuration rejects the opposite edition's feed.

@@ -1,10 +1,13 @@
 import { commands, requireDesktop, unwrapResult } from '@/lib/tauri-bindings'
 import type { ProductCapabilities } from '@/lib/bindings'
 
+export type PermissionPane = 'accessibility' | 'inputMonitoring'
+
 export function parseProductCapabilities(value: unknown): ProductCapabilities {
   if (!value || typeof value !== 'object')
     throw new Error('Native capability reply is unavailable.')
   const reply = value as ProductCapabilities
+  const permissions = (value as Record<string, unknown>).permissions
   if (
     !['windows', 'macos', 'linuxX11', 'linuxWayland'].includes(reply.backend) ||
     ![
@@ -18,6 +21,11 @@ export function parseProductCapabilities(value: unknown): ProductCapabilities {
     ].includes(reply.readiness) ||
     !['clipboardShortcut', 'autostart', 'richText', 'attachments'].every(
       (key) => typeof (value as Record<string, unknown>)[key] === 'boolean',
+    ) ||
+    !permissions ||
+    typeof permissions !== 'object' ||
+    !['accessibility', 'listen', 'post'].every(
+      (key) => typeof (permissions as Record<string, unknown>)[key] === 'boolean',
     )
   )
     throw new Error('Native capability reply is unavailable.')
@@ -30,4 +38,8 @@ export async function getProductCapabilities() {
 export async function requestProductPermissions() {
   requireDesktop()
   return parseProductCapabilities(unwrapResult(await commands.productRequestPermissions()))
+}
+export async function openPermissionSettings(pane: PermissionPane) {
+  requireDesktop()
+  unwrapResult(await commands.productOpenPermissionSettings(pane))
 }

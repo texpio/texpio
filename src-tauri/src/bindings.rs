@@ -47,6 +47,7 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         product::product_status,
         product::product_capabilities,
         product::product_request_permissions,
+        product::product_open_permission_settings,
         product::product_start,
         product::product_stop,
         product::product_pause,

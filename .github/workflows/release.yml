@@ -51,7 +51,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: node scripts/validate-release.js
       - id: targets
-        run: node scripts/platform-builds.js matrix
+        run: node scripts/platform-builds.js release-matrix
       - name: Refuse an existing release or a tag at another commit
         env:
           GH_TOKEN: ${{ github.token }}
@@ -102,10 +102,13 @@ jobs:
         run: |
           $pin = Select-String -Path rust-toolchain.toml -Pattern '^\s*channel\s*=\s*"([^"]+)"'
           if (-not $pin) { throw 'Missing Rust pin' }
-          rustup toolchain install $pin.Matches[0].Groups[1].Value --profile minimal
+          $toolchain = $pin.Matches[0].Groups[1].Value
+          rustup toolchain install $toolchain --profile minimal
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          rustup target add ${{ matrix.target }} --toolchain $pin.Matches[0].Groups[1].Value
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($target in "${{ matrix.rustTargets }}".Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)) {
+            rustup target add $target --toolchain $toolchain
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri -> target

@@ -12,7 +12,7 @@ CI preparation with native interactive testing deferred.
 | Backend | Implemented source | Remaining functional prerequisites |
 | --- | --- | --- |
 | Windows | Existing product engine behind the new runtime facade; pending-event matching preserved | Existing native qualification remains separate |
-| macOS | Quartz tap/runloop, bounded jobs, AX context, Unicode events, non-restoring native paste, permissions | A usable positively qualified field/composition provider; restore-required paste is refused because public pasteboard APIs offer no atomic compare-and-clear |
+| macOS | Quartz tap/runloop, bounded jobs, AX context, Unicode events, non-restoring native paste, ASCII-capable layout gate with `UCKeyTranslate` derivation, Accessibility-only permission gate with in-app prompt and deep links | A granted-permission run in a real editor, a usable positively qualified field/composition provider; restore-required paste is refused because public pasteboard APIs offer no atomic compare-and-clear |
 | Linux X11 | RECORD/XKB/XTEST, native selection leases, shared AT-SPI context, bounded lifecycle | Positive composition evidence; readiness refuses until this provider exists; restored selection lifetime after Stop needs qualification |
 | Linux Wayland | Separate broker/worker, bounded session protocol, evdev/uinput source, GNOME 46 bridge, root-owned worker attestation and Debian assembly | Positive per-field composition provider; native authentication/integration still needs Linux/GNOME execution evidence |
 
@@ -26,8 +26,15 @@ the helper does not establish working Wayland expansion. See its
 
 ## Separate release variants
 
-The shared [target matrix](../../scripts/platform-builds.js) defines eight jobs:
-Windows and macOS x64/ARM64, Linux X11 x64/ARM64, and Linux Wayland x64/ARM64.
+The shared [target matrix](../../scripts/platform-builds.js) defines eight check and
+preview jobs: Windows and macOS x64/ARM64, Linux X11 x64/ARM64, and Linux Wayland
+x64/ARM64. Draft releases consume a separate `release-matrix` that mirrors the
+RustDesk download layout and stays 64-bit only: Windows x64/ARM64 publish both an
+NSIS `.exe` and an MSI `.msi`, macOS publishes a single universal `.dmg` built from
+`x86_64-apple-darwin` and `aarch64-apple-darwin`, and Ubuntu publishes `.deb` and
+`.AppImage` for each desktop-session edition on x64/ARM64. Checks remain
+per-architecture so Clippy and tests run natively on every target.
+
 Both Linux editions retain the same product version and library identity, with
 distinct download names and update feeds. They are alternatives for a desktop
 session; do not run both against one library concurrently.
@@ -109,6 +116,57 @@ JSON value was checked locally, not established by a macOS build.
 
 macOS framework metadata checking and the Windows X11 API harness are source-shape
 checks only; neither establishes foreign linking or native behavior.
+
+## macOS runtime check — 1 November 2026
+
+A native macOS pass ran on this checkout on an Intel host running macOS 13.7.8.
+The release bundle was built with
+`bun run tauri build --bundles app -- --locked --no-default-features` and launched
+from `src-tauri/target/release/bundle/macos/Texpio.app`. The window opened and the
+app read the existing library.
+
+What the pass changed, because the previous adapter could not start at all here:
+
+- The active input source was `com.apple.keylayout.ABC-India`, a keyboard layout
+  with `kTISPropertyInputSourceIsASCIICapable` set. The old US/ABC allowlist
+  refused it and surfaced `unavailable`. The gate now accepts any ASCII-capable
+  keyboard layout and refuses input methods; character derivation uses
+  `UCKeyTranslate` with persistent dead-key state.
+- Field evidence accepts `AXTextField`/`AXTextArea` with a non-secure subrole and
+  an explicitly empty `AXMarkedText`, instead of requiring `AXSearchField`.
+- `readiness()` now reports `ready` when its checks pass instead of always
+  returning `fieldEvidenceRequired`.
+- Default settings were Paste plus clipboard restoration, which the adapter refuses
+  by design. That combination made every start fail with `unavailable` and produced
+  a misleading "Windows expansion service is unavailable" banner. The settings
+  store now clears restoration while insertion is Paste on macOS, the settings UI
+  disables that switch with an explanation, and startup returns `invalidSettings`
+  instead of `unavailable`. Platform-neutral copy replaced the Windows-specific
+  error strings.
+- A non-fullscreen in-app permission prompt and a matching Settings card list each
+  missing grant, deep-link to its System Settings pane, request permissions only on
+  an explicit action, and disappear when the required grant reports as allowed.
+- Readiness now requires Accessibility alone. The Input Monitoring pane on this host
+  listed no items, yet a process trusted for Accessibility reported listen and post
+  access as true, created HID and session event taps, and received injected
+  keydowns; the same probe in a fresh, untrusted bundle reported both preflights
+  false and both taps denied. macOS uses Accessibility trust for input control and
+  reserves Input Monitoring for processes it does not trust, which is why the
+  reference app Fast Text expands text with Accessibility only. The Input Monitoring
+  row is now shown only when macOS withholds listening from a trusted process, and a
+  failed tap creation still reports `inputBlocked`.
+
+Observed with read-only accessibility inspection and screen capture: the prompt
+rendered inside the main window with the missing grant, the numbered steps, and the
+`Not now` / `Request permissions` actions; the Settings card showed the same row;
+and the deep link opened System Settings directly on the Accessibility pane. The
+main banner read "Input is blocked by the system" and offered "Review permissions".
+
+Still unverified: no TCC grant was given, so recognition, insertion, dead-key
+refusal, AX context evidence in a real editor, Unicode/newline delivery, clipboard
+lease races, shutdown timing and ARM64 have no macOS execution evidence. macOS
+packaging, signing and notarization also remain unverified. The native acceptance
+item stays open.
 
 ## Required foreign-host acceptance
 

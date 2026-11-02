@@ -5,6 +5,7 @@ use super::{
     store::SettingsStore,
 };
 use crate::{engine::runtime::ProbeHandle, library_commands::LibraryService};
+use serde::Deserialize;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -27,6 +28,42 @@ pub async fn product_request_permissions()
     })
     .await
     .map_err(|_| ProductError::Unavailable)
+}
+/// Opens the exact macOS privacy pane the user must change; never prompts.
+#[derive(Clone, Copy, Debug, Deserialize, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum PermissionPane {
+    Accessibility,
+    InputMonitoring,
+}
+#[tauri::command]
+#[specta::specta]
+pub fn product_open_permission_settings(
+    app: AppHandle,
+    pane: PermissionPane,
+) -> Result<(), ProductError> {
+    open_privacy_pane(&app, pane)
+}
+
+#[cfg(target_os = "macos")]
+fn open_privacy_pane(app: &AppHandle, pane: PermissionPane) -> Result<(), ProductError> {
+    use tauri_plugin_opener::OpenerExt;
+    let url = match pane {
+        PermissionPane::Accessibility => {
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        }
+        PermissionPane::InputMonitoring => {
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+        }
+    };
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|_| ProductError::Unavailable)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn open_privacy_pane(_app: &AppHandle, _pane: PermissionPane) -> Result<(), ProductError> {
+    Err(ProductError::Unavailable)
 }
 
 #[tauri::command]

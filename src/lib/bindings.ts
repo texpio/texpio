@@ -316,6 +316,14 @@ async productRequestPermissions() : Promise<Result<ProductCapabilities, ProductE
     else return { status: "error", error: e  as any };
 }
 },
+async productOpenPermissionSettings(pane: PermissionPane) : Promise<Result<null, ProductError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("product_open_permission_settings", { pane }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async productStart() : Promise<Result<ProductStatus, ProductError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("product_start") };
@@ -452,12 +460,17 @@ export type Library = { schemaVersion: number; revision: number; folders: Folder
 export type LibraryError = { code: string }
 export type LibraryLocation = { shared: boolean; directory: string; problem: boolean }
 export type NativeBackend = "windows" | "macos" | "linuxX11" | "linuxWayland"
+export type NativePermissions = { accessibility: boolean; listen: boolean; post: boolean }
 export type NativeReadiness = "ready" | "permissionRequired" | "unsupportedSession" | "helperRequired" | "bridgeRequired" | "fieldEvidenceRequired" | "unavailable"
+/**
+ * Opens the exact macOS privacy pane the user must change; never prompts.
+ */
+export type PermissionPane = "accessibility" | "inputMonitoring"
 export type ProbeCounters = { submitted: number; observed: number; refused: number; uncertain: number }
 export type ProbeError = { code: RefusalReason }
 export type ProbePhase = "stopped" | "running" | "paused" | "fault"
 export type ProbeStatus = { phase: ProbePhase; profile: ReferenceProfile | null; strategy: InsertionStrategy; counters: ProbeCounters; refusalReason: RefusalReason | null; lastActivityAgeMs: number | null }
-export type ProductCapabilities = { backend: NativeBackend; readiness: NativeReadiness; clipboardShortcut: boolean; autostart: boolean; richText: boolean; attachments: boolean }
+export type ProductCapabilities = { backend: NativeBackend; readiness: NativeReadiness; permissions: NativePermissions; clipboardShortcut: boolean; autostart: boolean; richText: boolean; attachments: boolean }
 export type ProductError = "cancelled" | "targetChanged" | "modifiersHeld" | "inputBlocked" | "clipboard" | "busy" | "invalidSettings" | "unavailable" | "attachmentMissing" | "shortcutUnavailable"
 export type ProductPhase = "stopped" | "running" | "paused" | "fault"
 export type ProductSettings = { enabled: boolean; boundary: Boundary; activation: Activation; preserveTerminator: boolean; insertion: InsertionMode; restoreClipboard: boolean; typingSpeed: TypingSpeed; cancelKey: string; clipboardEnabled: boolean; clipboardShortcut: string; clipboardMode: InsertionMode; allowSoftwareInput: boolean; toggleShortcut: string; autostart: boolean; closeToTray: boolean; attachmentDelayMs: number }

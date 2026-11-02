@@ -14,6 +14,11 @@ const native = vi.hoisted(() => ({
   pause: vi.fn(),
   library: vi.fn(),
 }))
+const currentPlatform = vi.hoisted(() => ({ value: 'unknown' }))
+vi.mock('@/hooks/use-platform', () => ({
+  usePlatform: () => currentPlatform.value,
+  useIsMacOS: () => currentPlatform.value === 'macos',
+}))
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true }))
 vi.mock('@/lib/bindings', () => ({
   commands: {
@@ -49,6 +54,7 @@ const library = {
 }
 beforeEach(() => {
   vi.clearAllMocks()
+  currentPlatform.value = 'unknown'
   useUIStore.setState({ expansionStartBlocked: false })
   native.status.mockResolvedValue(stopped)
   native.library.mockResolvedValue({ status: 'ok', data: library })
@@ -87,6 +93,16 @@ it('keeps running controls in Settings and shows a persistent warning after paus
   await userEvent.click(screen.getByRole('button', { name: 'Turn on expansion' }))
   await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
   expect(native.start).toHaveBeenCalledOnce()
+})
+it('routes macOS input blocking to the in-app permission guide instead of a doomed start', async () => {
+  currentPlatform.value = 'macos'
+  native.status.mockResolvedValue({ ...stopped, lastError: 'inputBlocked' })
+  show()
+  const review = await screen.findByRole('button', { name: 'Review permissions' })
+  expect(screen.queryByRole('button', { name: 'Turn on expansion' })).not.toBeInTheDocument()
+  await userEvent.click(review)
+  expect(useUIStore.getState().activeView).toBe('preferences')
+  expect(useUIStore.getState().preferencesSection).toBe('expansion')
 })
 it('allows fault cleanup before enabling Start', async () => {
   native.status.mockResolvedValue({ ...stopped, phase: 'fault', lastError: 'busy' })
@@ -147,7 +163,7 @@ it('shares pending actions and errors when Settings is unmounted', async () => {
   expect(native.start).toHaveBeenCalledOnce()
   await act(async () => reject('inputBlocked'))
   expect(
-    await screen.findByText('Windows blocked input. Check the text before trying again.'),
+    await screen.findByText('Input is blocked by the system. Check the text before trying again.'),
   ).toBeVisible()
   expect(screen.getByRole('alert')).toHaveTextContent('Expansion is off')
 })

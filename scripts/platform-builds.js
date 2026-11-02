@@ -22,6 +22,57 @@ export const buildTargets = [
     },
   ]),
 ]
+/**
+ * Published artifacts follow the RustDesk download matrix: 64-bit only, Windows
+ * installer pairs, one universal macOS disk image, and Ubuntu packages for both
+ * desktop-session editions. Checks and previews stay per-architecture so Clippy
+ * and tests run natively on every target.
+ */
+export const releaseTargets = [
+  {
+    id: 'windows-x64',
+    os: 'windows-2025',
+    target: 'x86_64-pc-windows-msvc',
+    variant: 'windows',
+    bundles: 'nsis,msi',
+  },
+  {
+    id: 'windows-arm64',
+    os: 'windows-11-arm',
+    target: 'aarch64-pc-windows-msvc',
+    variant: 'windows',
+    bundles: 'nsis,msi',
+  },
+  {
+    id: 'macos-universal',
+    os: 'macos-14',
+    target: 'universal-apple-darwin',
+    variant: 'macos',
+    bundles: 'app,dmg',
+    rustTargets: 'x86_64-apple-darwin aarch64-apple-darwin',
+  },
+  ...['x11', 'wayland'].flatMap((variant) => [
+    {
+      id: `linux-${variant}-x64`,
+      os: 'ubuntu-22.04',
+      target: 'x86_64-unknown-linux-gnu',
+      variant,
+      bundles: 'appimage,deb',
+    },
+    {
+      id: `linux-${variant}-arm64`,
+      os: 'ubuntu-22.04-arm',
+      target: 'aarch64-unknown-linux-gnu',
+      variant,
+      bundles: 'appimage,deb',
+    },
+  ]),
+]
+function linuxFlags(entry) {
+  return entry.variant === 'x11' || entry.variant === 'wayland'
+    ? ` --features linux-${entry.variant} --config src-tauri/tauri.linux-${entry.variant}.conf.json`
+    : ''
+}
 export function buildArgs(entry, bundle = true) {
   if (
     !buildTargets.some(
@@ -33,13 +84,15 @@ export function buildArgs(entry, bundle = true) {
   )
     throw new Error('Unknown build target')
   const linux = entry.variant === 'x11' || entry.variant === 'wayland'
-  const flags = linux
-    ? ` --features linux-${entry.variant} --config src-tauri/tauri.linux-${entry.variant}.conf.json`
-    : ''
   const bundles = bundle
     ? `--bundles ${linux ? 'appimage,deb' : entry.variant === 'macos' ? 'app,dmg' : 'nsis'}`
     : '--no-bundle'
-  return `--target ${entry.target}${flags} ${bundles} -- --locked --no-default-features`
+  return `--target ${entry.target}${linuxFlags(entry)} ${bundles} -- --locked --no-default-features`
+}
+export function releaseArgs(entry) {
+  if (!releaseTargets.some((target) => target.id === entry.id && target.target === entry.target))
+    throw new Error('Unknown release target')
+  return `--target ${entry.target}${linuxFlags(entry)} --bundles ${entry.bundles} -- --locked --no-default-features`
 }
 export function linuxUpdateManifest(version, variant, assets) {
   if (!/^\d+\.\d+\.\d+$/.test(version) || !['x11', 'wayland'].includes(variant))
@@ -89,6 +142,17 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (process.env.GITHUB_OUTPUT)
       await appendFile(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify(matrix)}\n`)
     else process.stdout.write(`${JSON.stringify(matrix)}\n`)
+  } else if (operation === 'release-matrix') {
+    const matrix = {
+      include: releaseTargets.map((entry) => ({
+        ...entry,
+        args: releaseArgs(entry),
+        rustTargets: entry.rustTargets ?? entry.target,
+      })),
+    }
+    if (process.env.GITHUB_OUTPUT)
+      await appendFile(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify(matrix)}\n`)
+    else process.stdout.write(`${JSON.stringify(matrix)}\n`)
   } else if (operation === 'manifests') {
     const release = JSON.parse(await readFile(process.argv[3], 'utf8'))
     const directory = process.argv[4]
@@ -105,5 +169,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         `latest-linux-${variant}.json`,
         `${JSON.stringify(linuxUpdateManifest(version, variant, release.assets), null, 2)}\n`,
       )
-  } else throw new Error('Use matrix or manifests')
+  } else throw new Error('Use matrix, release-matrix or manifests')
 }

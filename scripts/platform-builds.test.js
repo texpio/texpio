@@ -40,6 +40,37 @@ test('release targets separate both Linux editions and all eight native variants
     }
   }
 })
+test('release matrix mirrors the RustDesk download layout on 64-bit targets only', () => {
+  const { include } = JSON.parse(
+    execFileSync(process.execPath, ['scripts/platform-builds.js', 'release-matrix'], {
+      encoding: 'utf8',
+      env: { ...process.env, GITHUB_OUTPUT: '' },
+    }),
+  )
+  assert.equal(include.length, 7)
+  assert.equal(new Set(include.map((entry) => entry.id)).size, 7)
+  const windows = include.filter((entry) => entry.variant === 'windows')
+  assert.deepEqual(
+    windows.map((entry) => entry.id),
+    ['windows-x64', 'windows-arm64'],
+  )
+  for (const entry of windows) assert.match(entry.args, /--bundles nsis,msi /)
+  const mac = include.find((entry) => entry.variant === 'macos')
+  assert.equal(mac.id, 'macos-universal')
+  assert.equal(mac.target, 'universal-apple-darwin')
+  assert.equal(mac.rustTargets, 'x86_64-apple-darwin aarch64-apple-darwin')
+  assert.match(mac.args, /--bundles app,dmg /)
+  const linux = include.filter((entry) => entry.variant === 'x11' || entry.variant === 'wayland')
+  assert.equal(linux.length, 4)
+  for (const entry of linux) {
+    assert.match(entry.args, /--bundles appimage,deb /)
+    assert.match(entry.args, new RegExp(`--features linux-${entry.variant}`))
+  }
+  for (const entry of include) {
+    assert.doesNotMatch(entry.target, /i686|i586|armv7/)
+    assert.match(entry.args, /-- --locked --no-default-features$/)
+  }
+})
 test('Linux updater feeds cannot mix X11 and Wayland assets', () => {
   const files = [
     'Texpio_X11_0.2.0_amd64.AppImage',

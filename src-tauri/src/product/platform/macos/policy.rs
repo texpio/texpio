@@ -6,8 +6,13 @@ pub(crate) struct PermissionState {
     pub post: bool,
 }
 impl PermissionState {
+    /// Accessibility trust is the grant macOS uses for input control: a trusted
+    /// process may create an event tap and post events, and the listen/post
+    /// preflights report true without a separate Input Monitoring entry. That
+    /// entry exists for processes that are not trusted for Accessibility, so it
+    /// is reported for diagnosis but must not gate readiness.
     pub fn ready(self) -> bool {
-        self.accessibility && self.listen && self.post
+        self.accessibility
     }
 }
 pub(crate) fn context_valid(
@@ -35,8 +40,31 @@ pub(crate) fn payload_supported(text: &str, multiline: bool) -> bool {
 pub(crate) fn mode_supported(paste: bool, restore: bool) -> bool {
     !paste || !restore
 }
-pub(crate) fn context_evidence_safe(subrole: Option<&str>, marked: Option<&str>) -> bool {
-    matches!(subrole, Some("AXSearchField")) && marked == Some("")
+/// Keyboard layouts can reproduce the ASCII triggers this profile accepts.
+/// Input methods (Pinyin, Kotoeri, transliteration) are excluded: they compose
+/// marked text that a keydown cannot describe, so per-key deletion is unsafe.
+pub(crate) fn layout_supported(is_keyboard_layout: bool, ascii_capable: bool) -> bool {
+    is_keyboard_layout && ascii_capable
+}
+/// One keydown contributes one history character only when it delivered exactly
+/// one printable ASCII scalar. Composition, dead-key output and control scalars
+/// break the one-key/one-character assumption this profile deletes by.
+pub(crate) fn accepted_scalar(text: &str) -> Option<char> {
+    let mut scalars = text.chars();
+    let character = scalars.next()?;
+    (scalars.next().is_none() && character.is_ascii() && !character.is_control())
+        .then_some(character)
+}
+/// The field must positively report an editable text role, must not report the
+/// secure-text protection subrole, and must explicitly return empty marked text.
+pub(crate) fn context_evidence_safe(
+    role: &str,
+    subrole: Option<&str>,
+    marked: Option<&str>,
+) -> bool {
+    matches!(role, "AXTextField" | "AXTextArea")
+        && subrole != Some("AXSecureTextField")
+        && marked == Some("")
 }
 pub(crate) fn admission_supported(text: &str, multiline: bool, paste: bool, restore: bool) -> bool {
     mode_supported(paste, restore) && payload_supported(text, multiline)
@@ -71,18 +99,50 @@ mod tests {
         assert!(mode_supported(false, false));
     }
     #[test]
-    fn unknown_protection_or_composition_evidence_refuses_context() {
-        assert!(context_evidence_safe(Some("AXSearchField"), Some("")));
-        for (subrole, marked) in [
-            (None, Some("")),
-            (Some("AXSearchField"), None),
-            (None, None),
-            (Some("AXSecureTextField"), Some("")),
-            (Some("AXUnknown"), Some("")),
-            (Some(""), Some("")),
-            (Some("AXSearchField"), Some("composing")),
+    fn only_editable_unprotected_fields_with_idle_composition_admit_context() {
+        assert!(context_evidence_safe("AXTextField", None, Some("")));
+        assert!(context_evidence_safe("AXTextArea", None, Some("")));
+        assert!(context_evidence_safe(
+            "AXTextField",
+            Some("AXSearchField"),
+            Some("")
+        ));
+        assert!(context_evidence_safe("AXTextField", Some(""), Some("")));
+        assert!(context_evidence_safe(
+            "AXTextArea",
+            Some("AXUnknown"),
+            Some("")
+        ));
+        for (role, subrole, marked) in [
+            ("AXTextField", None, None),
+            ("AXTextArea", None, None),
+            ("AXTextField", Some("AXSearchField"), None),
+            ("AXTextField", Some("AXSearchField"), Some("composing")),
+            ("AXTextField", Some("AXSecureTextField"), Some("")),
+            ("AXTextArea", Some("AXSecureTextField"), Some("")),
+            ("AXStaticText", None, Some("")),
+            ("AXButton", None, Some("")),
+            ("", None, Some("")),
         ] {
-            assert!(!context_evidence_safe(subrole, marked));
+            assert!(
+                !context_evidence_safe(role, subrole, marked),
+                "{role}/{subrole:?}/{marked:?} must be refused"
+            );
+        }
+    }
+    #[test]
+    fn only_ascii_capable_keyboard_layouts_admit_capture() {
+        assert!(layout_supported(true, true));
+        assert!(!layout_supported(true, false));
+        assert!(!layout_supported(false, true));
+        assert!(!layout_supported(false, false));
+    }
+    #[test]
+    fn only_single_printable_ascii_scalars_extend_history() {
+        assert_eq!(accepted_scalar("a"), Some('a'));
+        assert_eq!(accepted_scalar("~"), Some('~'));
+        for text in ["", "ab", "é", "ß", "\u{301}", "\n", "\t", "\0", "👋"] {
+            assert_eq!(accepted_scalar(text), None, "{text:?} must be refused");
         }
     }
     #[test]
@@ -138,18 +198,25 @@ mod tests {
         assert!(!busy.load(Ordering::SeqCst));
     }
     #[test]
-    fn every_permission_is_required_without_prompting() {
+    fn accessibility_trust_alone_authorizes_capture_and_posting() {
         for mask in 0..8 {
-            assert_eq!(
-                PermissionState {
-                    accessibility: mask & 1 != 0,
-                    listen: mask & 2 != 0,
-                    post: mask & 4 != 0
-                }
-                .ready(),
-                mask == 7
-            );
+            let state = PermissionState {
+                accessibility: mask & 1 != 0,
+                listen: mask & 2 != 0,
+                post: mask & 4 != 0,
+            };
+            assert_eq!(state.ready(), mask & 1 != 0, "mask {mask}");
         }
+        // Listening and posting follow from Accessibility; Input Monitoring is
+        // only needed for processes macOS does not trust for Accessibility.
+        assert!(
+            PermissionState {
+                accessibility: true,
+                listen: false,
+                post: false
+            }
+            .ready()
+        );
     }
     #[test]
     fn cancellation_target_and_secure_input_refuse_effects() {

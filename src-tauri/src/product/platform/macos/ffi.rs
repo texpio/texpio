@@ -25,6 +25,10 @@ unsafe extern "C" {
     pub fn CFRunLoopRunInMode(mode: Ref, seconds: f64, return_after: bool) -> i32;
     pub fn CFMachPortCreateRunLoopSource(allocator: Ref, port: Ref, order: isize) -> Ref;
     pub fn CFMachPortInvalidate(port: Ref);
+    pub fn CFDataGetTypeID() -> usize;
+    pub fn CFDataGetBytePtr(data: Ref) -> *const u8;
+    pub fn CFBooleanGetTypeID() -> usize;
+    pub fn CFBooleanGetValue(value: Ref) -> bool;
 }
 #[link(name = "ApplicationServices", kind = "framework")]
 unsafe extern "C" {
@@ -57,12 +61,6 @@ unsafe extern "C" {
     pub fn CGEventSetIntegerValueField(event: Event, field: u32, value: i64);
     pub fn CGEventGetFlags(event: Event) -> u64;
     pub fn CGEventSourceFlagsState(state: i32) -> u64;
-    pub fn CGEventKeyboardGetUnicodeString(
-        event: Event,
-        capacity: usize,
-        actual: *mut usize,
-        bytes: *mut u16,
-    );
     pub fn CGEventKeyboardSetUnicodeString(event: Event, count: usize, bytes: *const u16);
     pub fn CGEventCreateKeyboardEvent(source: Ref, key: u16, down: bool) -> Event;
     pub fn CGEventSetFlags(event: Event, flags: u64);
@@ -74,6 +72,23 @@ unsafe extern "C" {
     pub fn TISCopyCurrentKeyboardInputSource() -> Ref;
     pub fn TISGetInputSourceProperty(source: Ref, key: Ref) -> Ref;
     pub static kTISPropertyInputSourceID: Ref;
+    pub static kTISPropertyInputSourceType: Ref;
+    pub static kTISPropertyInputSourceIsASCIICapable: Ref;
+    pub static kTISPropertyUnicodeKeyLayoutData: Ref;
+    pub static kTISTypeKeyboardLayout: Ref;
+    pub fn LMGetKbdType() -> u8;
+    pub fn UCKeyTranslate(
+        layout: *const c_void,
+        keycode: u16,
+        action: u16,
+        modifiers: u32,
+        keyboard_type: u32,
+        options: u32,
+        dead_key_state: *mut u32,
+        max_length: usize,
+        actual_length: *mut usize,
+        unicode_string: *mut u16,
+    ) -> i32;
 }
 #[link(name = "AppKit", kind = "framework")]
 unsafe extern "C" {}

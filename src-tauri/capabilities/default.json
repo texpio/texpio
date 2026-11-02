@@ -69,6 +69,7 @@
     "allow-product-status",
     "allow-product-capabilities",
     "allow-product-request-permissions",
+    "allow-product-open-permission-settings",
     "allow-product-start",
     "allow-product-stop",
     "allow-product-pause",
