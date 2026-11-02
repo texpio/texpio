@@ -1,6 +1,6 @@
 [package]
 name = "texpio"
-version = "0.1.0"
+version = "0.1.0-alpha.1"
 description = "Texpio local-first text expander desktop foundation"
 authors = ["Texpio contributors"]
 publish = false

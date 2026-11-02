@@ -115,6 +115,16 @@ test('release dry run changes nothing and never executes a subprocess', async (t
     assert.equal(await readFile(path.join(root, name), 'utf8'), body)
   }
   await assert.rejects(prepareRelease(root, '0.2.0;git push'), /version/)
+  await assert.rejects(prepareRelease(root, '0.2.0-'), /version/)
+})
+
+test('release preparation accepts prerelease versions such as an alpha', async (t) => {
+  const { root, files } = await releaseFixture(t)
+  const result = await prepareRelease(root, 'v0.1.0-alpha.1', { dryRun: true })
+  assert.equal(result.version, '0.1.0-alpha.1')
+  for (const [name, body] of Object.entries(files)) {
+    assert.equal(await readFile(path.join(root, name), 'utf8'), body)
+  }
 })
 
 test('release preparation updates only project version records including Cargo.lock', async (t) => {

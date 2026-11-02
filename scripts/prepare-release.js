@@ -6,8 +6,17 @@ import { projectPath } from './project-paths.js'
 // This helper has no subprocess or publishing interface. Publication is a separate workflow.
 export async function prepareRelease(root, input, { dryRun = false } = {}) {
   const version = input?.replace(/^v/, '')
-  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version ?? '')) {
-    throw new Error('Invalid release version; use a stable semantic version such as 0.2.0')
+  // Semver with an optional prerelease suffix, so alpha/beta/rc tags can be
+  // prepared without inventing a stable version number for them.
+  const identifier = '(?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*)'
+  if (
+    !new RegExp(
+      `^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-${identifier}(?:\\.${identifier})*)?$`,
+    ).test(version ?? '')
+  ) {
+    throw new Error(
+      'Invalid release version; use a semantic version such as 0.2.0 or 0.2.0-alpha.1',
+    )
   }
   const names = [
     'package.json',
