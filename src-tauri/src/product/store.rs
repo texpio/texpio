@@ -43,7 +43,10 @@ impl SettingsStore {
 }
 /// macOS paste cannot restore the previous clipboard, so a stored paste+restore
 /// pair would make every expansion start fail. Repair it when loading.
-fn sanitize(mut settings: ProductSettings) -> ProductSettings {
+fn sanitize(settings: ProductSettings) -> ProductSettings {
+    // Only macOS repairs the paste/pasteboard pair, so the binding is immutable elsewhere.
+    #[cfg(target_os = "macos")]
+    let mut settings = settings;
     #[cfg(target_os = "macos")]
     if settings.insertion == super::settings::InsertionMode::Paste {
         settings.restore_clipboard = false;

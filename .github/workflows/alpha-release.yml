@@ -156,6 +156,7 @@ jobs:
       - name: Publish the unsigned prerelease
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           RELEASE_VERSION: ${{ inputs.version }}
         run: |
           gh release edit "v$RELEASE_VERSION" --draft=false --prerelease
