@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { buildTargets, buildArgs, linuxUpdateManifest } from './platform-builds.js'
+import { buildTargets, buildArgs, linuxUpdateManifest, releaseTargets } from './platform-builds.js'
 import { execFileSync } from 'node:child_process'
 
 test('CI matrix builds downloadable packages for every native variant', () => {
@@ -70,6 +70,16 @@ test('release matrix mirrors the RustDesk download layout on 64-bit targets only
     assert.doesNotMatch(entry.target, /i686|i586|armv7/)
     assert.match(entry.args, /-- --locked --no-default-features$/)
   }
+})
+test('macOS jobs use runner labels that exist for this repository', () => {
+  for (const entry of [...buildTargets, ...releaseTargets]) {
+    if (!entry.os.startsWith('macos-')) continue
+    assert.ok(
+      ['macos-15-intel', 'macos-15'].includes(entry.os),
+      `${entry.id} uses an unsupported macOS runner label`,
+    )
+  }
+  assert.equal(releaseTargets.find((entry) => entry.variant === 'macos').os, 'macos-15-intel')
 })
 test('Linux updater feeds cannot mix X11 and Wayland assets', () => {
   const files = [

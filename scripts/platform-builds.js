@@ -11,7 +11,7 @@ export const buildTargets = [
     variant: 'windows',
   },
   { id: 'macos-x64', os: 'macos-15-intel', target: 'x86_64-apple-darwin', variant: 'macos' },
-  { id: 'macos-arm64', os: 'macos-14', target: 'aarch64-apple-darwin', variant: 'macos' },
+  { id: 'macos-arm64', os: 'macos-15', target: 'aarch64-apple-darwin', variant: 'macos' },
   ...['x11', 'wayland'].flatMap((variant) => [
     { id: `linux-${variant}-x64`, os: 'ubuntu-22.04', target: 'x86_64-unknown-linux-gnu', variant },
     {
@@ -45,7 +45,7 @@ export const releaseTargets = [
   },
   {
     id: 'macos-universal',
-    os: 'macos-14',
+    os: 'macos-15-intel',
     target: 'universal-apple-darwin',
     variant: 'macos',
     bundles: 'app,dmg',
