@@ -22,4 +22,29 @@ a draft does not establish that those editions work.
 
 Configured checks are user-triggered; download/install needs confirmation. Cancel closes resources. Install and restart require confirmed probe shutdown; Windows install may exit immediately, so stop happens just before install. Signed delivery and packaged acceptance remain external gates.
 
+## Unsigned alpha prereleases
+
+`Unsigned alpha release` (`.github/workflows/alpha-release.yml`) is the separate
+manual path for public alpha builds that need no signing secret. It refuses
+stable versions, any configured macOS signing identity or notarization request,
+any Windows `signCommand`, and updater artifacts, so the build cannot silently
+start depending on a certificate. It builds the same seven-target download
+matrix with GitHub runners, keeps macOS ad-hoc signed only (`-`, which Apple
+Silicon requires to launch), creates one draft, and publishes it as a
+prerelease once every platform has uploaded.
+
+Trigger it from the Actions tab, or:
+
+```console
+bun run release:prepare 0.1.0-alpha.2
+git commit -am "chore: prepare 0.1.0-alpha.2"
+git push
+gh workflow run alpha-release.yml -f version=0.1.0-alpha.2 -f confirm=true
+```
+
+macOS downloads are quarantined by Gatekeeper and must be approved on first
+launch (right-click **Open**, or `xattr -dr com.apple.quarantine`). Do not claim
+notarization or Windows publisher verification for these artifacts.
+
+
 Adapted for Texpio from [tauri-template `1295f69`](https://github.com/dannysmith/tauri-template/tree/1295f691bbdf373896e7c0f1cc969e2040fbf42c/docs), MIT. [Attribution](../../THIRD_PARTY_NOTICES.md). [Feature status](../research/tauri-template-parity.md).
