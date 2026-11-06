@@ -68,6 +68,13 @@ export const releaseTargets = [
     },
   ]),
 ]
+/**
+ * Alphas ship the same download matrix, except Windows only produces the NSIS
+ * installer: an MSI cannot encode a prerelease identifier in its ProductVersion.
+ */
+export const alphaTargets = releaseTargets.map((entry) =>
+  entry.variant === 'windows' ? { ...entry, bundles: 'nsis' } : entry,
+)
 function linuxFlags(entry) {
   return entry.variant === 'x11' || entry.variant === 'wayland'
     ? ` --features linux-${entry.variant} --config src-tauri/tauri.linux-${entry.variant}.conf.json`
@@ -92,6 +99,11 @@ export function buildArgs(entry, bundle = true) {
 export function releaseArgs(entry) {
   if (!releaseTargets.some((target) => target.id === entry.id && target.target === entry.target))
     throw new Error('Unknown release target')
+  return `--target ${entry.target}${linuxFlags(entry)} --bundles ${entry.bundles} -- --locked --no-default-features`
+}
+export function alphaArgs(entry) {
+  if (!alphaTargets.some((target) => target.id === entry.id && target.target === entry.target))
+    throw new Error('Unknown alpha target')
   return `--target ${entry.target}${linuxFlags(entry)} --bundles ${entry.bundles} -- --locked --no-default-features`
 }
 export function linuxUpdateManifest(version, variant, assets) {
@@ -147,6 +159,17 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       include: releaseTargets.map((entry) => ({
         ...entry,
         args: releaseArgs(entry),
+        rustTargets: entry.rustTargets ?? entry.target,
+      })),
+    }
+    if (process.env.GITHUB_OUTPUT)
+      await appendFile(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify(matrix)}\n`)
+    else process.stdout.write(`${JSON.stringify(matrix)}\n`)
+  } else if (operation === 'alpha-matrix') {
+    const matrix = {
+      include: alphaTargets.map((entry) => ({
+        ...entry,
+        args: alphaArgs(entry),
         rustTargets: entry.rustTargets ?? entry.target,
       })),
     }

@@ -43,7 +43,7 @@ jobs:
           RELEASE_VERSION: ${{ inputs.version }}
         run: node scripts/validate-alpha-release.js "$RELEASE_VERSION"
       - id: targets
-        run: node scripts/platform-builds.js release-matrix
+        run: node scripts/platform-builds.js alpha-matrix
       - name: Refuse an existing release or a tag at another commit
         env:
           GH_TOKEN: ${{ github.token }}

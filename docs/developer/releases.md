@@ -31,7 +31,8 @@ any Windows `signCommand`, and updater artifacts, so the build cannot silently
 start depending on a certificate. It builds the same seven-target download
 matrix with GitHub runners, keeps macOS ad-hoc signed only (`-`, which Apple
 Silicon requires to launch), creates one draft, and publishes it as a
-prerelease once every platform has uploaded.
+prerelease once every platform has uploaded. Windows alphas ship the NSIS
+installer only, because an MSI cannot encode a prerelease version.
 
 Trigger it from the Actions tab, or:
 

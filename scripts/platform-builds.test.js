@@ -81,6 +81,24 @@ test('macOS jobs use runner labels that exist for this repository', () => {
   }
   assert.equal(releaseTargets.find((entry) => entry.variant === 'macos').os, 'macos-15-intel')
 })
+test('alpha matrix drops MSI because it cannot encode a prerelease version', () => {
+  const { include } = JSON.parse(
+    execFileSync(process.execPath, ['scripts/platform-builds.js', 'alpha-matrix'], {
+      encoding: 'utf8',
+      env: { ...process.env, GITHUB_OUTPUT: '' },
+    }),
+  )
+  assert.equal(include.length, 7)
+  for (const entry of include) {
+    assert.match(entry.args, /-- --locked --no-default-features$/)
+    if (entry.variant !== 'windows') continue
+    assert.match(entry.args, /--bundles nsis /)
+    assert.doesNotMatch(entry.args, /msi/)
+  }
+  const mac = include.find((entry) => entry.variant === 'macos')
+  assert.equal(mac.os, 'macos-15-intel')
+  assert.match(mac.args, /--bundles app,dmg /)
+})
 test('Linux updater feeds cannot mix X11 and Wayland assets', () => {
   const files = [
     'Texpio_X11_0.2.0_amd64.AppImage',
