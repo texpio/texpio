@@ -53,15 +53,15 @@ signing secret involved, so every platform is published exactly as built.
 
 ## Downloads
 
-- **Windows x64** — NSIS \`.exe\` installer and MSI package. SmartScreen may warn
+- **Windows x64 and ARM64** — NSIS \`.exe\` installers. SmartScreen may warn
   because the installer has no publisher certificate; choose **More info** →
   **Run anyway**.
 - **macOS universal** — one \`.dmg\` for Intel and Apple Silicon. The app is
   ad-hoc signed only (macOS requires that to launch on Apple Silicon) and is not
   notarized.
-- **Linux x64** — X11 and Wayland editions, each as \`.deb\` and \`.AppImage\`.
-  Install the \`.deb\` with \`sudo apt install\` so dependencies resolve, or make
-  the AppImage executable with \`chmod +x\` before launching it.
+- **Linux x64 and ARM64** — X11 and Wayland editions, each as \`.deb\` and
+  \`.AppImage\`. Install the \`.deb\` with \`sudo apt install\` so dependencies
+  resolve, or make the AppImage executable with \`chmod +x\` before launching it.
 
 ## macOS first launch
 
